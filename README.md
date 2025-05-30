@@ -59,6 +59,59 @@ The built files will be in the `dist` directory.
 This project uses the Sefaria API. For more information about the API, visit:
 [developers.sefaria.org](https://developers.sefaria.org/)
 
+## Using Sefaria API with CORS (Cloudflare Worker Proxy)
+
+Sefaria's API does not support CORS for some endpoints (like /api/table_of_contents). To use this app, you must set up a Cloudflare Worker as a proxy.
+
+### Step-by-Step: Deploy the Proxy with Wrangler CLI
+
+1. **Install Wrangler CLI**
+   ```bash
+   npm install -g wrangler
+   # or, on macOS:
+   brew install wrangler
+   ```
+
+2. **Login to Cloudflare**
+   ```bash
+   wrangler login
+   ```
+   This will open a browser window for authentication.
+
+3. **Initialize a Worker Project**
+   ```bash
+   wrangler init sefaria-proxy-worker --type=javascript
+   cd sefaria-proxy-worker
+   ```
+
+4. **Copy the Proxy Code**
+   - Copy the contents of `cloudflare-sefaria-proxy.js` from this repo into your Worker project directory.
+   - Replace the generated `src/index.js` (or `index.mjs`) with your `cloudflare-sefaria-proxy.js` file, or rename it as needed.
+
+5. **Update `wrangler.toml`**
+   Edit `wrangler.toml` to set your Worker's name and entry file:
+   ```toml
+   name = "sefaria-proxy-worker"
+   main = "cloudflare-sefaria-proxy.js"
+   compatibility_date = "2024-05-01"
+   ```
+
+6. **Publish the Worker**
+   ```bash
+   wrangler publish
+   ```
+   This will deploy your Worker and give you a URL like:
+   ```
+   https://sefaria-proxy-worker.<your-account>.workers.dev
+   ```
+
+7. **Update your API calls in the app**
+   Use your Worker URL for Sefaria API endpoints, for example:
+   - `https://sefaria-proxy-worker.<your-account>.workers.dev/proxy/api/table_of_contents`
+   - `https://sefaria-proxy-worker.<your-account>.workers.dev/proxy/api/texts/Siddur%20Ashkenaz`
+
+This will allow your app to access all Sefaria API endpoints without CORS issues.
+
 ## License
 
 [Your chosen license] 
