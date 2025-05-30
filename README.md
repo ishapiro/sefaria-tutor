@@ -80,25 +80,26 @@ Sefaria's API does not support CORS for some endpoints (like /api/table_of_conte
 
 3. **Initialize a Worker Project**
    ```bash
-   wrangler init sefaria-proxy-worker --type=javascript
+   wrangler init sefaria-proxy-worker
    cd sefaria-proxy-worker
    ```
+   - When prompted, choose the **Hello World (JavaScript)** template.
 
 4. **Copy the Proxy Code**
    - Copy the contents of `cloudflare-sefaria-proxy.js` from this repo into your Worker project directory.
-   - Replace the generated `src/index.js` (or `index.mjs`) with your `cloudflare-sefaria-proxy.js` file, or rename it as needed.
+   - Replace the generated `src/index.js` (or `src/index.mjs`) with your `cloudflare-sefaria-proxy.js` file, or rename it as needed.
 
 5. **Update `wrangler.toml`**
    Edit `wrangler.toml` to set your Worker's name and entry file:
    ```toml
    name = "sefaria-proxy-worker"
-   main = "cloudflare-sefaria-proxy.js"
+   main = "src/index.js"
    compatibility_date = "2024-05-01"
    ```
 
-6. **Publish the Worker**
+6. **Deploy the Worker**
    ```bash
-   wrangler publish
+   wrangler deploy
    ```
    This will deploy your Worker and give you a URL like:
    ```

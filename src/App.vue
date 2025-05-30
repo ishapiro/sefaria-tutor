@@ -10,20 +10,7 @@
           <InputText v-model="searchQuery" placeholder="Search books..." class="w-full pl-10 py-2 border rounded" />
         </span>
       </div>
-      <DataTable :value="filteredBooks" :loading="loading" selectionMode="single" 
-                @row-select="onBookSelect" class="p-datatable-sm"
-                :paginator="true" :rows="10" :rowsPerPageOptions="[5, 10, 20, 50]"
-                paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown">
-        <Column header="Type" class="w-24">
-          <template #body="slotProps">
-            <span v-if="slotProps.data.isCategory" class="text-green-600 font-semibold">Category</span>
-            <span v-else class="text-gray-700">Book</span>
-          </template>
-        </Column>
-        <Column field="title" header="Title" :sortable="true" />
-        <Column field="heTitle" header="Hebrew Title" :sortable="true" />
-        <Column field="category" header="Category" :sortable="true" />
-      </DataTable>
+      <CategoryAccordion :categories="filteredBooks" :loading="loading" @book-select="onBookSelect" />
       <Dialog v-model:visible="showCategoryDialog" header="Selection Error" :modal="true" :closable="true" :dismissableMask="true" :style="{ width: '350px' }">
         <div class="p-4 text-center">
           <i class="pi pi-exclamation-triangle text-3xl text-red-500 mb-3"></i>
@@ -105,11 +92,21 @@ import axios from 'axios'
 import { ref, computed } from 'vue'
 import InputText from 'primevue/inputtext'
 import Dialog from 'primevue/dialog'
+import Accordion from 'primevue/accordion'
+import AccordionTab from 'primevue/accordiontab'
+import DataTable from 'primevue/datatable'
+import Column from 'primevue/column'
+import CategoryAccordion from './components/CategoryAccordion.vue'
 
 export default {
   components: {
     InputText,
-    Dialog
+    Dialog,
+    Accordion,
+    AccordionTab,
+    DataTable,
+    Column,
+    CategoryAccordion
   },
   data() {
     return {
@@ -126,19 +123,35 @@ export default {
       showErrorDialog: false,
       complexSections: null,
       sectionStack: [],
-      tocTree: null // Table of Contents tree
+      tocTree: null,
+      expandedCategories: [], // Track which categories are expanded
+      debug: true // Add debug flag
     }
   },
   computed: {
     filteredBooks() {
-      if (!this.searchQuery) return this.books
+      if (!this.searchQuery) return this.books;
       
-      const query = this.searchQuery.toLowerCase()
-      return this.books.filter(book => 
-        book.title.toLowerCase().includes(query) ||
-        book.heTitle.toLowerCase().includes(query) ||
-        book.category.toLowerCase().includes(query)
-      )
+      const query = this.searchQuery.toLowerCase();
+      console.log('Searching with query:', query);
+      
+      // If searching, show all matching books regardless of category expansion
+      return this.books.filter(book => {
+        if (book.type === 'category') {
+          // For categories, check if any of their books match
+          const hasMatchingBooks = book.books?.some(b => 
+            b.title?.toLowerCase().includes(query) ||
+            b.heTitle?.toLowerCase().includes(query) ||
+            b.enShortDesc?.toLowerCase().includes(query)
+          );
+          return hasMatchingBooks;
+        } else {
+          // For books, check their properties
+          return book.title?.toLowerCase().includes(query) ||
+                 book.heTitle?.toLowerCase().includes(query) ||
+                 book.enShortDesc?.toLowerCase().includes(query);
+        }
+      });
     }
   },
   async created() {
@@ -146,68 +159,94 @@ export default {
     await this.fetchTocTree();
   },
   methods: {
-    async fetchBooks() {
-      this.loading = true
-      try {
-        const response = await axios.get('https://www.sefaria.org/api/index')
-        
-        // Process the array of categories and their nested contents
-        this.books = response.data.flatMap(category => {
-          if (!category.contents) return []
-          
-          return category.contents.flatMap(book => {
-            // If the book has its own contents, it's a category
-            if (book.contents) {
-              // Add category heading
-              const categoryHeading = {
-                title: book.title || book.enShortDesc || 'Untitled',
-                heTitle: book.heTitle || book.heShortDesc || '',
-                category: category.category || 'Uncategorized',
-                ref: book.ref || book.title,
-                isCategory: true
-              }
-              
-              // Map sub-books
-              const subBooks = book.contents.map(subBook => ({
-                ...subBook,
-                title: subBook.title || subBook.enShortDesc || 'Untitled',
-                heTitle: subBook.heTitle || subBook.heShortDesc || '',
-                category: book.title || category.category || 'Uncategorized',
-                ref: subBook.ref || subBook.title,
-                parentCategory: book.title
-              }))
-              
-              return [categoryHeading, ...subBooks]
-            }
-            // Otherwise, it's a book
-            return [{
-              ...book,
-              title: book.title || book.enShortDesc || 'Untitled',
-              heTitle: book.heTitle || book.heShortDesc || '',
-              category: category.category || 'Uncategorized',
-              ref: book.ref || book.title
-            }]
-          })
-        })
-      } catch (error) {
-        console.error('Error fetching books:', error)
+    log(...args) {
+      if (this.debug) {
+        console.log(...args);
       }
-      this.loading = false
+    },
+    async fetchBooks() {
+      this.loading = true;
+      try {
+        const response = await axios.get('https://sefaria-proxy-worker.cogitations.workers.dev/proxy/api/index');
+        this.log('API Response:', {
+          status: response.status,
+          dataLength: response.data.length
+        });
+        
+        // Recursively process the index
+        function walkIndex(node, parentPath = '') {
+          // If node has contents array, it's a category
+          if (Array.isArray(node.contents)) {
+            const category = {
+              type: 'category',
+              category: node.category || node.title || 'Unnamed Category',
+              heCategory: node.heCategory || node.heTitle || '',
+              path: parentPath ? `${parentPath}/${node.category || node.title}` : (node.category || node.title),
+              books: []
+            };
+            
+            // Process each item in contents
+            node.contents.forEach(item => {
+              if (Array.isArray(item.contents)) {
+                // It's a subcategory
+                const subcategory = walkIndex(item, category.path);
+                if (subcategory) {
+                  category.books.push(subcategory);
+                }
+              } else if (item.title) {
+                // It's a book
+                const book = {
+                  type: 'book',
+                  title: item.title,
+                  heTitle: item.heTitle,
+                  path: `${category.path}/${item.title}`,
+                  enShortDesc: item.enShortDesc || '',
+                  heShortDesc: item.heShortDesc || '',
+                  categories: item.categories || [],
+                  ref: `${category.path}/${item.title}`,
+                  parent_category: category.path
+                };
+                category.books.push(book);
+              }
+            });
+
+            return category;
+          }
+          return null;
+        }
+        
+        // Process the top-level array
+        const toc = response.data.map(cat => walkIndex(cat)).filter(Boolean);
+        this.log('Processed TOC:', {
+          categories: toc.length,
+          firstCategory: toc[0]?.category
+        });
+        this.books = toc;
+      } catch (error) {
+        this.log('Error:', {
+          message: error.message,
+          status: error.response?.status
+        });
+        this.errorMessage = 'Failed to load books. Please try again later.';
+        this.showErrorDialog = true;
+      } finally {
+        this.loading = false;
+      }
     },
     async fetchTocTree() {
       try {
-        const response = await axios.get('/api/table_of_contents', {
-          headers: { Accept: 'application/json' }
-        });
+        const response = await axios.get('https://sefaria-proxy-worker.cogitations.workers.dev/proxy/api/index');
         this.tocTree = response.data;
-        //console.log('TOC Tree:', this.tocTree);
       } catch (error) {
-        console.error('Error fetching TOC tree:', error);
+        this.log('Error fetching TOC tree:', {
+          message: error.message,
+          status: error.response?.status
+        });
         this.tocTree = null;
       }
     },
     async onBookSelect(event) {
-      if (!event.data.ref || event.data.isCategory) {
+      if (event.data.type === 'category') {
         this.showCategoryDialog = true;
         return;
       }
@@ -219,16 +258,27 @@ export default {
       this.loading = true;
       try {
         // If this is a complex book, use the TOC tree to navigate
-        let ref = refOverride || this.selectedBook.ref;
+        let ref = refOverride || this.selectedBook.path;
+        this.log('Fetching content for:', {
+          ref,
+          bookTitle: this.selectedBook.title,
+          bookType: this.selectedBook.type
+        });
+
         // If the selected book is a Siddur or other complex book, use TOC
         if (this.isComplexBook(this.selectedBook)) {
           // Find the node in the TOC tree
           let node = this.findTocNode(ref, this.tocTree);
+          this.log('Found TOC node:', {
+            found: !!node,
+            hasContents: node?.contents?.length > 0
+          });
+
           if (node && node.contents) {
             this.complexSections = node.contents
               .filter(item => item.title)
               .map(item => ({
-                ref: item.ref || item.title,
+                ref: item.ref || `${node.category}/${item.title}`.replace(/\s+/g, '_'),
                 title: item.title,
                 heTitle: item.heTitle || '',
                 isCategory: !!item.contents
@@ -254,45 +304,37 @@ export default {
             return;
           }
         }
-        // Otherwise, fetch the text as usual
-        const apiUrl = `/api/texts/${encodeURIComponent(ref)}`;
+
+        // Clean up the ref to ensure it's in the correct format
+        ref = ref.replace(/;/g, '_').replace(/\s+/g, '_');
+        const primaryCategory = this.selectedBook.primary_category || ref.split('/')[0];
+        const title = ref.split('/').pop();
+        const finalRef = `${primaryCategory}/${title}`;
+        const refParts = finalRef.split('/').map(part => encodeURIComponent(part));
+        const encodedRef = refParts.join('/');
+
+        const apiUrl = `https://sefaria-proxy-worker.cogitations.workers.dev/proxy/api/texts/${encodedRef}`;
+        this.log('Fetching from URL:', apiUrl);
+        
         const response = await axios.get(apiUrl, {
           params: {
             offset: this.first,
             limit: this.rowsPerPage
-          },
-          headers: {
-            Accept: 'application/json'
           }
         });
-        // Log the full API response for debugging
-        console.log('Full API response:', response.data);
-        // Detect and handle non-JSON (HTML) responses
-        if (typeof response.data === 'string' && response.data.trim().startsWith('<!DOCTYPE html>')) {
-          this.currentPageText = [];
-          this.errorMessage = 'Invalid response from Sefaria API. Please try a different section.';
-          this.showErrorDialog = true;
-          this.totalRecords = 0;
-          this.complexSections = null;
-          this.loading = false;
-          return;
-        }
-        // Handle Sefaria API error
-        if (response.data.error) {
-          this.currentPageText = [];
-          this.errorMessage = response.data.error;
-          this.showErrorDialog = true;
-          this.totalRecords = 0;
-          this.complexSections = null;
-          this.loading = false;
-          return;
-        }
+
+        this.log('API Response:', {
+          status: response.status,
+          hasText: !!response.data.text,
+          hasHebrew: !!response.data.he,
+          isArray: Array.isArray(response.data)
+        });
+
         // Handle text
         let textData = [];
         if (Array.isArray(response.data)) {
           textData = response.data;
         } else if (response.data.text && response.data.he) {
-          // Map English and Hebrew text arrays together
           const englishTexts = Array.isArray(response.data.text) ? response.data.text : [response.data.text];
           const hebrewTexts = Array.isArray(response.data.he) ? response.data.he : [response.data.he];
           textData = englishTexts.map((en, index) => ({
@@ -306,6 +348,7 @@ export default {
         } else if (typeof response.data === 'string') {
           textData = [{ he: response.data, en: '' }];
         }
+
         this.currentPageText = textData.map(text => {
           if (typeof text === 'string') {
             return { he: text, en: '' };
@@ -315,17 +358,18 @@ export default {
             en: text.en || text.english || text.translation || ''
           };
         });
+
         this.totalRecords = response.data.length || textData.length || 1;
         this.complexSections = null;
-        // If we reached a leaf, clear the stack for further navigation
-        // Log the processed text data
-        console.log('Processed text data:', JSON.stringify(this.currentPageText, null, 2));
+        this.log('Processed text data:', {
+          sections: this.currentPageText.length,
+          hasContent: this.currentPageText.length > 0
+        });
       } catch (error) {
-        console.error('Error fetching book content:', error);
-        console.error('Error details:', {
+        this.log('Error fetching content:', {
           message: error.message,
-          response: error.response?.data,
-          status: error.response?.status
+          status: error.response?.status,
+          url: error.config?.url
         });
         this.currentPageText = [];
         this.totalRecords = 0;
@@ -336,18 +380,34 @@ export default {
       this.loading = false;
     },
     isComplexBook(book) {
-      // You can expand this check for other complex books
-      return book && (book.title?.toLowerCase().includes('siddur') || book.title?.toLowerCase().includes('machzor'));
+      // Check if the book is a Siddur or other complex book based on categories
+      return book && (
+        book.categories?.some(cat => 
+          cat.toLowerCase().includes('siddur') || 
+          cat.toLowerCase().includes('machzor')
+        ) ||
+        book.title?.toLowerCase().includes('siddur') || 
+        book.title?.toLowerCase().includes('machzor')
+      );
     },
     findTocNode(ref, node) {
       if (!node) return null;
-      if ((node.ref && node.ref === ref) || (node.title && node.title === ref)) return node;
+      
+      // Check if this node matches the ref
+      if (node.ref === ref || 
+          (node.category && `${node.category}/${node.title}` === ref) ||
+          node.title === ref) {
+        return node;
+      }
+
+      // Search in contents
       if (node.contents) {
         for (const child of node.contents) {
           const found = this.findTocNode(ref, child);
           if (found) return found;
         }
       }
+
       return null;
     },
     async onPageChange(event) {
@@ -363,6 +423,14 @@ export default {
         // Go back to the book root
         this.sectionStack = [];
         this.fetchBookContent(this.selectedBook.ref, []);
+      }
+    },
+    toggleCategory(category) {
+      const index = this.expandedCategories.indexOf(category);
+      if (index === -1) {
+        this.expandedCategories.push(category);
+      } else {
+        this.expandedCategories.splice(index, 1);
       }
     }
   }
@@ -465,5 +533,59 @@ small {
 
 .p-input-icon-left input {
   padding-left: 2.5rem;
+}
+
+.book-list {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.category-row {
+  transition: background-color 0.2s;
+}
+
+.book-row {
+  transition: background-color 0.2s;
+}
+
+.book-row:hover {
+  background-color: #f9fafb;
+}
+
+/* Add styles for the chevron animation */
+.pi-chevron-right, .pi-chevron-down {
+  transition: transform 0.2s;
+}
+
+/* Add PrimeVue specific styles */
+.p-accordion {
+  margin-bottom: 1rem;
+}
+
+.p-accordion-tab {
+  margin-bottom: 0.5rem;
+}
+
+.p-datatable {
+  font-size: 0.9rem;
+}
+
+.p-datatable .p-datatable-thead > tr > th {
+  background-color: #f8fafc;
+  color: #1f2937;
+  font-weight: 600;
+  padding: 0.75rem;
+}
+
+.p-datatable .p-datatable-tbody > tr > td {
+  padding: 0.75rem;
+}
+
+.p-datatable .p-datatable-tbody > tr:hover {
+  background-color: #f9fafb;
+}
+
+.p-paginator {
+  padding: 0.5rem;
 }
 </style> 
