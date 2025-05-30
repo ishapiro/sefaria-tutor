@@ -1,19 +1,19 @@
 <template>
-  <Accordion :multiple="true">
+  <Accordion :multiple="true" @tab-open="onTabOpen">
     <AccordionTab v-for="cat in categories" :key="cat.path">
       <template #header>
-        <div class="flex items-center justify-between w-full">
-          <div class="flex items-center">
-            <span class="font-semibold">{{ cat.category }}</span>
-            <span v-if="cat.heCategory" class="ml-2 text-gray-600">({{ cat.heCategory }})</span>
+        <div class="flex items-center justify-between w-full min-w-0">
+          <div class="flex items-center min-w-0" style="max-width: 70%;">
+            <span class="font-semibold truncate block max-w-full">{{ cat.category }}</span>
+            <span v-if="cat.heCategory" class="ml-2 text-gray-600 truncate block max-w-full">({{ cat.heCategory }})</span>
           </div>
-          <span class="text-sm text-gray-500">({{ countChildren(cat) }})</span>
+          <span class="text-sm text-gray-500 whitespace-nowrap ml-2 flex-shrink-0">({{ countChildren(cat) }})</span>
         </div>
       </template>
       <div>
         <!-- Books at this level -->
-        <DataTable v-if="cat.books && cat.books.some(isBook)"
-                   :value="cat.books.filter(isBook)"
+        <DataTable v-if="cat.loaded && cat.children && cat.children.some(isBook)"
+                   :value="cat.children.filter(isBook)"
                    :loading="loading"
                    selectionMode="single"
                    @row-select="onBookSelect"
@@ -37,10 +37,11 @@
           </Column>
         </DataTable>
         <!-- Subcategories -->
-        <CategoryAccordion v-if="cat.books && cat.books.some(isCategory)"
-                          :categories="cat.books.filter(isCategory)"
+        <CategoryAccordion v-if="cat.loaded && cat.children && cat.children.some(isCategory)"
+                          :categories="cat.children.filter(isCategory)"
                           :loading="loading"
-                          @book-select="$emit('book-select', $event)" />
+                          @book-select="$emit('book-select', $event)"
+                          @tab-open="$emit('tab-open', $event)" />
       </div>
     </AccordionTab>
   </Accordion>
@@ -70,7 +71,7 @@ export default {
       default: false
     }
   },
-  emits: ['book-select'],
+  emits: ['book-select', 'tab-open'],
   methods: {
     isCategory(item) {
       return item && item.type === 'category';
@@ -79,11 +80,17 @@ export default {
       return item && item.type === 'book';
     },
     countChildren(category) {
-      if (!category || !Array.isArray(category.books)) return 0;
-      return category.books.length;
+      if (!category.loaded) return '...';
+      if (!category || !Array.isArray(category.children)) return 0;
+      return category.children.length;
     },
     onBookSelect(event) {
       this.$emit('book-select', event);
+    },
+    onTabOpen(event) {
+      // event.index is the index of the opened tab
+      const cat = this.categories[event.index];
+      this.$emit('tab-open', cat);
     }
   }
 }

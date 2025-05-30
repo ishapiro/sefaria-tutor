@@ -2,87 +2,100 @@
   <div class="container mx-auto p-4">
     <h1 class="text-2xl font-bold mb-4">Sefaria Book Reader</h1>
     
-    <!-- Book List -->
-    <div v-if="!selectedBook" class="mb-4">
-      <div class="mb-4">
-        <span class="p-input-icon-left w-full">
-          <i class="pi pi-search" />
-          <InputText v-model="searchQuery" placeholder="Search books..." class="w-full pl-10 py-2 border rounded" />
-        </span>
-      </div>
-      <CategoryAccordion :categories="filteredBooks" :loading="loading" @book-select="onBookSelect" />
-      <Dialog v-model:visible="showCategoryDialog" header="Selection Error" :modal="true" :closable="true" :dismissableMask="true" :style="{ width: '350px' }">
-        <div class="p-4 text-center">
-          <i class="pi pi-exclamation-triangle text-3xl text-red-500 mb-3"></i>
-          <div class="mb-2 font-semibold">Please select a book, not a category.</div>
-        </div>
-      </Dialog>
-      <Dialog v-model:visible="showErrorDialog" header="API Error" :modal="true" :closable="true" :dismissableMask="true" :style="{ width: '350px' }">
-        <div class="p-4 text-center">
-          <i class="pi pi-exclamation-triangle text-3xl text-red-500 mb-3"></i>
-          <div class="mb-2 font-semibold">{{ errorMessage }}</div>
-        </div>
-      </Dialog>
+    <!-- Spinner while loading the index -->
+    <div v-if="loading && (!categories || categories.length === 0)" class="flex justify-center items-center py-12">
+      <i class="pi pi-spin pi-spinner" style="font-size: 2.5rem"></i>
     </div>
 
-    <!-- Book Reader -->
+    <!-- Main content -->
     <div v-else>
-      <Card class="mb-4">
-        <template #title>
-          <div class="flex justify-between items-center">
-            <span>{{ selectedBook.title }}</span>
-            <Button icon="pi pi-times" @click="selectedBook = null" class="p-button-text" />
+      <!-- Book List -->
+      <div v-if="!selectedBook" class="mb-4">
+        <div class="mb-4">
+          <span class="p-input-icon-left w-full">
+            <i class="pi pi-search" />
+            <InputText v-model="searchQuery" placeholder="Search books..." class="w-full pl-10 py-2 border rounded" />
+          </span>
+        </div>
+        <CategoryAccordion 
+          :categories="filteredCategories" 
+          :loading="loading" 
+          @book-select="onBookSelect"
+          @tab-open="onCategoryExpand"
+        />
+        <Dialog v-model:visible="showCategoryDialog" header="Selection Error" :modal="true" :closable="true" :dismissableMask="true" :style="{ width: '350px' }">
+          <div class="p-4 text-center">
+            <i class="pi pi-exclamation-triangle text-3xl text-red-500 mb-3"></i>
+            <div class="mb-2 font-semibold">Please select a book, not a category.</div>
           </div>
-        </template>
-        <template #content>
-          <div v-if="loading" class="text-center">
-            <i class="pi pi-spin pi-spinner" style="font-size: 2rem"></i>
+        </Dialog>
+        <Dialog v-model:visible="showErrorDialog" header="API Error" :modal="true" :closable="true" :dismissableMask="true" :style="{ width: '350px' }">
+          <div class="p-4 text-center">
+            <i class="pi pi-exclamation-triangle text-3xl text-red-500 mb-3"></i>
+            <div class="mb-2 font-semibold">{{ errorMessage }}</div>
           </div>
-          <div v-else class="book-content">
-            <div v-if="complexSections" class="mb-6">
-              <div class="flex items-center mb-2">
-                <button v-if="sectionStack.length > 0" @click="goBackSection" class="mr-2 px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm">Back</button>
-                <div class="text-lg font-semibold">Select a section:</div>
-              </div>
-              <ul class="space-y-2">
-                <li v-for="section in complexSections" :key="section.ref">
-                  <button @click="fetchBookContent(section.ref)" class="text-blue-600 hover:underline font-medium">
-                    {{ section.title }}<span v-if="section.heTitle"> / {{ section.heTitle }}</span>
-                  </button>
-                </li>
-              </ul>
+        </Dialog>
+      </div>
+
+      <!-- Book Reader -->
+      <div v-else>
+        <Card class="mb-4">
+          <template #title>
+            <div class="flex justify-between items-center">
+              <span>{{ selectedBook.title }}</span>
+              <Button icon="pi pi-times" @click="selectedBook = null" class="p-button-text" />
             </div>
-            <div v-if="!complexSections && !currentPageText.length" class="text-center text-gray-500 py-8">
-              <div>No content or sections found for this book.</div>
-              <div class="mt-2 text-xs">(Debug: If you expected sections, check the console for the full API response.)</div>
+          </template>
+          <template #content>
+            <div v-if="loading" class="text-center">
+              <i class="pi pi-spin pi-spinner" style="font-size: 2rem"></i>
             </div>
-            <div v-else-if="!complexSections" class="grid grid-cols-2 gap-4">
-              <div class="english-column">
-                <template v-for="(section, index) in currentPageText" :key="'en-' + index">
-                  <div v-if="section.isHeading" class="mb-4 border-b-2 border-gray-200 pb-2 mt-8">
-                    <h3 class="text-xl font-bold">{{ section.en }}</h3>
-                  </div>
-                  <div v-else class="mb-4">
-                    <div class="english-text" v-html="section.en"></div>
-                  </div>
-                </template>
+            <div v-else class="book-content">
+              <div v-if="complexSections" class="mb-6">
+                <div class="flex items-center mb-2">
+                  <button v-if="sectionStack.length > 0" @click="goBackSection" class="mr-2 px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm">Back</button>
+                  <div class="text-lg font-semibold">Select a section:</div>
+                </div>
+                <ul class="space-y-2">
+                  <li v-for="section in complexSections" :key="section.ref">
+                    <button @click="fetchBookContent(section.ref)" class="text-blue-600 hover:underline font-medium">
+                      {{ section.title }}<span v-if="section.heTitle"> / {{ section.heTitle }}</span>
+                    </button>
+                  </li>
+                </ul>
               </div>
-              <div class="hebrew-column">
-                <template v-for="(section, index) in currentPageText" :key="'he-' + index">
-                  <div v-if="section.isHeading" class="mb-4 border-b-2 border-gray-200 pb-2 mt-8">
-                    <h3 class="text-xl font-bold text-right">{{ section.he }}</h3>
-                  </div>
-                  <div v-else class="mb-4">
-                    <div class="hebrew-text text-right" v-html="section.he"></div>
-                  </div>
-                </template>
+              <div v-if="!complexSections && !currentPageText.length" class="text-center text-gray-500 py-8">
+                <div>No content or sections found for this book.</div>
+                <div class="mt-2 text-xs">(Debug: If you expected sections, check the console for the full API response.)</div>
+              </div>
+              <div v-else-if="!complexSections" class="grid grid-cols-2 gap-4">
+                <div class="english-column">
+                  <template v-for="(section, index) in currentPageText" :key="'en-' + index">
+                    <div v-if="section.isHeading" class="mb-4 border-b-2 border-gray-200 pb-2 mt-8">
+                      <h3 class="text-xl font-bold">{{ section.en }}</h3>
+                    </div>
+                    <div v-else class="mb-4">
+                      <div class="english-text" v-html="section.en"></div>
+                    </div>
+                  </template>
+                </div>
+                <div class="hebrew-column">
+                  <template v-for="(section, index) in currentPageText" :key="'he-' + index">
+                    <div v-if="section.isHeading" class="mb-4 border-b-2 border-gray-200 pb-2 mt-8">
+                      <h3 class="text-xl font-bold text-right">{{ section.he }}</h3>
+                    </div>
+                    <div v-else class="mb-4">
+                      <div class="hebrew-text text-right" v-html="section.he"></div>
+                    </div>
+                  </template>
+                </div>
               </div>
             </div>
-          </div>
-          <Paginator v-if="!complexSections" v-model:first="first" :rows="rowsPerPage" :totalRecords="totalRecords"
-                    @page="onPageChange" class="mt-4" />
-        </template>
-      </Card>
+            <Paginator v-if="!complexSections" v-model:first="first" :rows="rowsPerPage" :totalRecords="totalRecords"
+                      @page="onPageChange" class="mt-4" />
+          </template>
+        </Card>
+      </div>
     </div>
   </div>
 </template>
@@ -98,6 +111,13 @@ import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import CategoryAccordion from './components/CategoryAccordion.vue'
 
+let lastTime = performance.now();
+function logTime(label) {
+  const now = performance.now();
+  console.log(`[Timing] ${label}: ${(now - lastTime).toFixed(2)}ms`);
+  lastTime = now;
+}
+
 export default {
   components: {
     InputText,
@@ -110,7 +130,8 @@ export default {
   },
   data() {
     return {
-      books: [],
+      fullIndex: null,      // The full index tree
+      categories: [],       // Top-level categories for display
       selectedBook: null,
       loading: false,
       currentPageText: [],
@@ -124,39 +145,43 @@ export default {
       complexSections: null,
       sectionStack: [],
       tocTree: null,
-      expandedCategories: [], // Track which categories are expanded
-      debug: true // Add debug flag
+      expandedCategories: [],
+      debug: true
     }
   },
   computed: {
-    filteredBooks() {
-      if (!this.searchQuery) return this.books;
-      
+    filteredCategories() {
+      logTime('Start filteredCategories');
+      if (!this.searchQuery) {
+        logTime('End filteredCategories');
+        return this.categories;
+      }
       const query = this.searchQuery.toLowerCase();
-      console.log('Searching with query:', query);
-      
-      // If searching, show all matching books regardless of category expansion
-      return this.books.filter(book => {
-        if (book.type === 'category') {
-          // For categories, check if any of their books match
-          const hasMatchingBooks = book.books?.some(b => 
-            b.title?.toLowerCase().includes(query) ||
-            b.heTitle?.toLowerCase().includes(query) ||
-            b.enShortDesc?.toLowerCase().includes(query)
-          );
-          return hasMatchingBooks;
-        } else {
-          // For books, check their properties
-          return book.title?.toLowerCase().includes(query) ||
-                 book.heTitle?.toLowerCase().includes(query) ||
-                 book.enShortDesc?.toLowerCase().includes(query);
-        }
-      });
+      function filterCats(cats) {
+        return cats
+          .map(cat => {
+            if (cat.children && cat.children.length) {
+              const filteredChildren = filterCats(cat.children);
+              if (filteredChildren.length) {
+                return { ...cat, children: filteredChildren };
+              }
+            }
+            if ((cat.category || '').toLowerCase().includes(query) || (cat.title || '').toLowerCase().includes(query)) {
+              return cat;
+            }
+            return null;
+          })
+          .filter(Boolean);
+      }
+      const result = filterCats(this.categories);
+      logTime('End filteredCategories');
+      return result;
     }
   },
   async created() {
-    await this.fetchBooks();
-    await this.fetchTocTree();
+    logTime('Start created');
+    await this.fetchAndCacheFullIndex();
+    logTime('End created');
   },
   methods: {
     log(...args) {
@@ -164,86 +189,46 @@ export default {
         console.log(...args);
       }
     },
-    async fetchBooks() {
+    async fetchAndCacheFullIndex() {
+      logTime('Start fetchAndCacheFullIndex');
+      if (this.fullIndex) return; // Already cached
       this.loading = true;
       try {
         const response = await axios.get('https://sefaria-proxy-worker.cogitations.workers.dev/proxy/api/index');
-        this.log('API Response:', {
-          status: response.status,
-          dataLength: response.data.length
-        });
-        
-        // Recursively process the index
-        function walkIndex(node, parentPath = '') {
-          // If node has contents array, it's a category
-          if (Array.isArray(node.contents)) {
-            const category = {
-              type: 'category',
-              category: node.category || node.title || 'Unnamed Category',
-              heCategory: node.heCategory || node.heTitle || '',
-              path: parentPath ? `${parentPath}/${node.category || node.title}` : (node.category || node.title),
-              books: []
-            };
-            
-            // Process each item in contents
-            node.contents.forEach(item => {
-              if (Array.isArray(item.contents)) {
-                // It's a subcategory
-                const subcategory = walkIndex(item, category.path);
-                if (subcategory) {
-                  category.books.push(subcategory);
-                }
-              } else if (item.title) {
-                // It's a book
-                const book = {
-                  type: 'book',
-                  title: item.title,
-                  heTitle: item.heTitle,
-                  path: `${category.path}/${item.title}`,
-                  enShortDesc: item.enShortDesc || '',
-                  heShortDesc: item.heShortDesc || '',
-                  categories: item.categories || [],
-                  ref: `${category.path}/${item.title}`,
-                  parent_category: category.path
-                };
-                category.books.push(book);
-              }
-            });
-
-            return category;
-          }
-          return null;
-        }
-        
-        // Process the top-level array
-        const toc = response.data.map(cat => walkIndex(cat)).filter(Boolean);
-        this.log('Processed TOC:', {
-          categories: toc.length,
-          firstCategory: toc[0]?.category
-        });
-        this.books = toc;
+        this.fullIndex = response.data;
+        // Set top-level categories for display, but do not process children yet
+        this.categories = this.fullIndex.map(cat => ({
+          ...cat,
+          type: 'category',
+          path: cat.category || cat.title,
+          loaded: false, // Not loaded yet
+          children: []   // Will process on demand
+        }));
       } catch (error) {
-        this.log('Error:', {
-          message: error.message,
-          status: error.response?.status
-        });
-        this.errorMessage = 'Failed to load books. Please try again later.';
+        this.errorMessage = 'Failed to load categories.';
         this.showErrorDialog = true;
       } finally {
         this.loading = false;
+        logTime('End fetchAndCacheFullIndex');
       }
     },
-    async fetchTocTree() {
-      try {
-        const response = await axios.get('https://sefaria-proxy-worker.cogitations.workers.dev/proxy/api/index');
-        this.tocTree = response.data;
-      } catch (error) {
-        this.log('Error fetching TOC tree:', {
-          message: error.message,
-          status: error.response?.status
-        });
-        this.tocTree = null;
+    onCategoryExpand(category) {
+      if (!category.loaded && category.contents) {
+        category.children = category.contents.map(child =>
+          this.processNode(child, category.path)
+        );
+        category.loaded = true;
       }
+    },
+    processNode(node, parentPath) {
+      const isCategory = !!node.contents || !!node.category;
+      return {
+        ...node,
+        type: isCategory ? 'category' : 'book',
+        path: parentPath + '/' + (node.category || node.title),
+        loaded: false,
+        children: []
+      };
     },
     async onBookSelect(event) {
       if (event.data.type === 'category') {
@@ -257,7 +242,6 @@ export default {
     async fetchBookContent(refOverride = null, stackOverride = null) {
       this.loading = true;
       try {
-        // Use only the book title for the API call
         const bookTitle = this.selectedBook?.title || '';
         const ref = (refOverride || bookTitle).replace(/;/g, '_').replace(/\s+/g, '_');
         const encodedRef = encodeURIComponent(ref);
@@ -278,7 +262,6 @@ export default {
           isArray: Array.isArray(response.data)
         });
 
-        // Handle text
         let textData = [];
         if (Array.isArray(response.data)) {
           textData = response.data;
@@ -380,6 +363,11 @@ export default {
       } else {
         this.expandedCategories.splice(index, 1);
       }
+    },
+    onBackFromBook() {
+      logTime('Start onBackFromBook');
+      this.selectedBook = null;
+      logTime('End onBackFromBook');
     }
   }
 }
