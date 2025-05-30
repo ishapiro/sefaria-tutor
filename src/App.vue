@@ -257,62 +257,10 @@ export default {
     async fetchBookContent(refOverride = null, stackOverride = null) {
       this.loading = true;
       try {
-        // If this is a complex book, use the TOC tree to navigate
-        let ref = refOverride || this.selectedBook.path;
-        this.log('Fetching content for:', {
-          ref,
-          bookTitle: this.selectedBook.title,
-          bookType: this.selectedBook.type
-        });
-
-        // If the selected book is a Siddur or other complex book, use TOC
-        if (this.isComplexBook(this.selectedBook)) {
-          // Find the node in the TOC tree
-          let node = this.findTocNode(ref, this.tocTree);
-          this.log('Found TOC node:', {
-            found: !!node,
-            hasContents: node?.contents?.length > 0
-          });
-
-          if (node && node.contents) {
-            this.complexSections = node.contents
-              .filter(item => item.title)
-              .map(item => ({
-                ref: item.ref || `${node.category}/${item.title}`.replace(/\s+/g, '_'),
-                title: item.title,
-                heTitle: item.heTitle || '',
-                isCategory: !!item.contents
-              }));
-            this.currentPageText = [];
-            // Update the stack for navigation
-            if (stackOverride) {
-              this.sectionStack = stackOverride;
-            } else if (refOverride) {
-              this.sectionStack.push({ ref: refOverride, title: node.title || refOverride });
-            } else {
-              this.sectionStack = [];
-            }
-            this.loading = false;
-            return;
-          } else if (node && node.ref) {
-            // It's a leaf node, fetch the text
-            ref = node.ref;
-          } else {
-            this.complexSections = null;
-            this.currentPageText = [];
-            this.loading = false;
-            return;
-          }
-        }
-
-        // Clean up the ref to ensure it's in the correct format
-        ref = ref.replace(/;/g, '_').replace(/\s+/g, '_');
-        const primaryCategory = this.selectedBook.primary_category || ref.split('/')[0];
-        const title = ref.split('/').pop();
-        const finalRef = `${primaryCategory}/${title}`;
-        const refParts = finalRef.split('/').map(part => encodeURIComponent(part));
-        const encodedRef = refParts.join('/');
-
+        // Use only the book title for the API call
+        const bookTitle = this.selectedBook?.title || '';
+        const ref = (refOverride || bookTitle).replace(/;/g, '_').replace(/\s+/g, '_');
+        const encodedRef = encodeURIComponent(ref);
         const apiUrl = `https://sefaria-proxy-worker.cogitations.workers.dev/proxy/api/texts/${encodedRef}`;
         this.log('Fetching from URL:', apiUrl);
         
