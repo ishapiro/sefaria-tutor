@@ -85,7 +85,9 @@
                       <h3 class="text-xl font-bold text-right">{{ section.he }}</h3>
                     </div>
                     <div v-else class="mb-4">
-                      <div class="hebrew-text text-right" v-html="section.he"></div>
+                      <div class="hebrew-text text-right" 
+                           @click.stop.prevent="handleHebrewTextClick"
+                           v-html="section.he"></div>
                     </div>
                   </template>
                 </div>
@@ -368,6 +370,40 @@ export default {
       logTime('Start onBackFromBook');
       this.selectedBook = null;
       logTime('End onBackFromBook');
+    },
+    handleHebrewTextClick(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      
+      const selection = window.getSelection();
+      const range = document.caretRangeFromPoint(event.clientX, event.clientY);
+      
+      if (range) {
+        // Move to start of sentence
+        while (range.startOffset > 0 && 
+               !['.', '!', '?', '׃', '׀', '׆'].includes(range.startContainer.textContent[range.startOffset - 1])) {
+          range.setStart(range.startContainer, range.startOffset - 1);
+        }
+        
+        // Move to end of sentence
+        while (range.endOffset < range.endContainer.textContent.length && 
+               !['.', '!', '?', '׃', '׀', '׆'].includes(range.endContainer.textContent[range.endOffset])) {
+          range.setEnd(range.endContainer, range.endOffset + 1);
+        }
+        
+        selection.removeAllRanges();
+        selection.addRange(range);
+        
+        const selectedText = selection.toString().trim();
+        if (selectedText) {
+          this.translate_with_openai(selectedText);
+          // Clear the selection after we're done
+          selection.removeAllRanges();
+        }
+      }
+    },
+    translate_with_openai(text) {
+      alert(`Selected text for translation: ${text}`);
     }
   }
 }
