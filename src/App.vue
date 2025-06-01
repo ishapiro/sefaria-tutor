@@ -99,6 +99,25 @@
         </Card>
       </div>
     </div>
+
+    <!-- Translation Dialog -->
+    <Dialog v-model:visible="showTranslationDialog" 
+            :modal="true" 
+            :closable="true" 
+            :dismissableMask="true"
+            :style="{ width: '50vw' }"
+            header="Translation">
+      <div class="p-4">
+        <div v-if="translationLoading" class="text-center">
+          <i class="pi pi-spin pi-spinner" style="font-size: 2rem"></i>
+        </div>
+        <div v-else class="translation-content">
+          <div v-for="(line, index) in formattedTranslation" :key="index" class="mb-2">
+            {{ line }}
+          </div>
+        </div>
+      </div>
+    </Dialog>
   </div>
 </template>
 
@@ -148,7 +167,10 @@ export default {
       sectionStack: [],
       tocTree: null,
       expandedCategories: [],
-      debug: true
+      debug: true,
+      showTranslationDialog: false,
+      translationLoading: false,
+      formattedTranslation: [],
     }
   },
   computed: {
@@ -394,16 +416,72 @@ export default {
         selection.removeAllRanges();
         selection.addRange(range);
         
-        const selectedText = selection.toString().trim();
-        if (selectedText) {
-          this.translate_with_openai(selectedText);
+        // Get the selected HTML content
+        const selectedHtml = selection.toString().trim();
+        if (selectedHtml) {
+          // Create a temporary div to parse the HTML
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = selectedHtml;
+          // Get the text content without HTML tags
+          const cleanText = tempDiv.textContent || tempDiv.innerText;
+          
+          this.translate_with_openai(cleanText);
           // Clear the selection after we're done
           selection.removeAllRanges();
         }
       }
     },
-    translate_with_openai(text) {
-      alert(`Selected text for translation: ${text}`);
+    async translate_with_openai(text) {
+      try {
+        this.translationLoading = true;
+        this.showTranslationDialog = true;
+        console.log('Making translation request for text:', text);
+        
+        const requestBody = {
+          prompt: `Translate this Hebrew text to English: ${text}`,
+          model: 'gpt-3.5-turbo'
+        };
+        console.log('Request body:', JSON.stringify(requestBody, null, 2));
+
+        const response = await fetch('https://sefaria-openai.cogitations.workers.dev', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_API_AUTH_TOKEN}`
+          },
+          body: JSON.stringify(requestBody)
+        });
+
+        console.log('Response status:', response.status);
+        console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
+        if (!response.ok) {
+          throw new Error('Translation request failed');
+        }
+
+        const data = await response.json();
+        console.log('Response data:', JSON.stringify(data, null, 2));
+        
+        if (data.choices && Array.isArray(data.choices)) {
+          data.choices.forEach((choice, index) => {
+            console.log(`Choice ${index}:`, JSON.stringify(choice, null, 2));
+          });
+          
+          // Format the translation content
+          const content = data.choices[0].message.content;
+          this.formattedTranslation = content.split('\n').filter(line => line.trim());
+        }
+      } catch (error) {
+        console.error('Translation error:', error);
+        console.error('Error details:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        });
+        alert('Failed to translate text. Please try again.');
+      } finally {
+        this.translationLoading = false;
+      }
     }
   }
 }
@@ -559,5 +637,11 @@ small {
 
 .p-paginator {
   padding: 0.5rem;
+}
+
+.translation-content {
+  font-family: monospace;
+  white-space: pre-wrap;
+  line-height: 1.5;
 }
 </style> 
