@@ -111,11 +111,7 @@
         <div v-if="translationLoading" class="text-center">
           <i class="pi pi-spin pi-spinner" style="font-size: 2rem"></i>
         </div>
-        <div v-else class="translation-content">
-          <div v-for="(line, index) in formattedTranslation" :key="index" class="mb-2">
-            {{ line }}
-          </div>
-        </div>
+        <div v-else class="translation-content" v-html="formattedTranslation"></div>
       </div>
     </Dialog>
   </div>
@@ -131,6 +127,7 @@ import AccordionTab from 'primevue/accordiontab'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import CategoryAccordion from './components/CategoryAccordion.vue'
+import { marked } from 'marked'
 
 let lastTime = performance.now();
 function logTime(label) {
@@ -467,9 +464,15 @@ export default {
             console.log(`Choice ${index}:`, JSON.stringify(choice, null, 2));
           });
           
-          // Format the translation content
+          // Convert markdown to HTML using marked
           const content = data.choices[0].message.content;
-          this.formattedTranslation = content.split('\n').filter(line => line.trim());
+          this.formattedTranslation = marked.parse(content, {
+            gfm: true, // GitHub Flavored Markdown
+            breaks: true, // Convert line breaks to <br>
+            headerIds: false, // Don't add IDs to headers
+            mangle: false, // Don't escape HTML
+            sanitize: false // Allow HTML
+          });
         }
       } catch (error) {
         console.error('Translation error:', error);
@@ -482,6 +485,60 @@ export default {
       } finally {
         this.translationLoading = false;
       }
+    },
+    markdownToHtml(markdown) {
+      // Convert newlines to <br> tags
+      let html = markdown.replace(/\n/g, '<br>');
+      
+      // Convert tables
+      html = html.replace(/\|([^\n]+)\|\n\|([^\n]+)\|\n\|([^\n]+)\|/g, (match, header, separator, content) => {
+        const headers = header.split('|').map(h => h.trim()).filter(Boolean);
+        const contents = content.split('|').map(c => c.trim()).filter(Boolean);
+        
+        let tableHtml = '<table class="translation-table">';
+        
+        // Add headers
+        tableHtml += '<thead><tr>';
+        headers.forEach(h => {
+          tableHtml += `<th>${h}</th>`;
+        });
+        tableHtml += '</tr></thead>';
+        
+        // Add content
+        tableHtml += '<tbody><tr>';
+        contents.forEach(c => {
+          tableHtml += `<td>${c}</td>`;
+        });
+        tableHtml += '</tr></tbody></table>';
+        
+        return tableHtml;
+      });
+      
+      // Convert word sections (Hebrew - English pairs)
+      html = html.replace(/([א-ת\s]+)\s*-\s*([A-Za-z\s]+)/g, 
+        '<div class="word-section"><span class="hebrew-word">$1</span> - <span class="english-word">$2</span></div>');
+      
+      // Convert root word sections
+      html = html.replace(/שׁורש\s*-\s*([א-ת\s]+)/g, 
+        '<div class="root-section">Root: <span class="hebrew-word">$1</span></div>');
+      
+      // Convert pattern sections
+      html = html.replace(/משקל\s*-\s*([א-ת\s]+)/g, 
+        '<div class="pattern-section">Pattern: <span class="hebrew-word">$1</span></div>');
+      
+      // Convert verb form sections
+      html = html.replace(/בנין\s*-\s*([א-ת\s]+)/g, 
+        '<div class="verb-form-section">Verb Form: <span class="hebrew-word">$1</span></div>');
+      
+      // Convert tense sections
+      html = html.replace(/זמנים\s*-\s*([A-Za-z\s]+)/g, 
+        '<div class="tense-section">Tense: <span class="english-word">$1</span></div>');
+      
+      // Convert translation sections
+      html = html.replace(/Translation\s*-\s*([A-Za-z\s]+)/g, 
+        '<div class="translation-section">Translation: <span class="english-word">$1</span></div>');
+      
+      return html;
     }
   }
 }
@@ -640,8 +697,167 @@ small {
 }
 
 .translation-content {
+  font-family: 'SBL Hebrew', 'Times New Roman', serif;
+  line-height: 1.6;
+}
+
+.translation-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+}
+
+.translation-content th,
+.translation-content td {
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  text-align: left;
+}
+
+.translation-content th {
+  background-color: #f8f9fa;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.translation-content td {
+  color: #666;
+}
+
+.translation-content tr:hover {
+  background-color: #f8f9fa;
+}
+
+.translation-content .hebrew-word {
+  font-family: 'SBL Hebrew', 'Times New Roman', serif;
+  font-size: 1.1rem;
+  color: #2c3e50;
+}
+
+.translation-content .english-word {
+  font-family: Arial, sans-serif;
+  color: #666;
+}
+
+/* Additional styles for other markdown elements */
+.translation-content h1,
+.translation-content h2,
+.translation-content h3,
+.translation-content h4,
+.translation-content h5,
+.translation-content h6 {
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+  color: #2c3e50;
+}
+
+.translation-content p {
+  margin-bottom: 1rem;
+}
+
+.translation-content ul,
+.translation-content ol {
+  margin-bottom: 1rem;
+  padding-left: 2rem;
+}
+
+.translation-content li {
+  margin-bottom: 0.5rem;
+}
+
+.translation-content code {
+  background-color: #f8f9fa;
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
   font-family: monospace;
-  white-space: pre-wrap;
-  line-height: 1.5;
+}
+
+.translation-content pre {
+  background-color: #f8f9fa;
+  padding: 1rem;
+  border-radius: 4px;
+  overflow-x: auto;
+  margin-bottom: 1rem;
+}
+
+.translation-content blockquote {
+  border-left: 4px solid #ddd;
+  padding-left: 1rem;
+  margin-left: 0;
+  margin-bottom: 1rem;
+  color: #666;
+}
+
+.word-section {
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  border-bottom: 1px solid #eee;
+}
+
+.hebrew-word {
+  font-family: 'SBL Hebrew', 'Times New Roman', serif;
+  font-size: 1.2rem;
+  color: #2c3e50;
+}
+
+.english-word {
+  font-family: Arial, sans-serif;
+  color: #666;
+}
+
+.root-section,
+.pattern-section,
+.verb-form-section,
+.tense-section,
+.translation-section {
+  margin-left: 1rem;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.translation-section {
+  font-weight: bold;
+  color: #2c3e50;
+  margin-top: 0.5rem;
+}
+
+.translation-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+}
+
+.translation-table th,
+.translation-table td {
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  text-align: left;
+}
+
+.translation-table th {
+  background-color: #f8f9fa;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.translation-table td {
+  color: #666;
+}
+
+.translation-table tr:hover {
+  background-color: #f8f9fa;
+}
+
+.translation-table .hebrew-word {
+  font-family: 'SBL Hebrew', 'Times New Roman', serif;
+  font-size: 1.1rem;
+  color: #2c3e50;
+}
+
+.translation-table .english-word {
+  font-family: Arial, sans-serif;
+  color: #666;
 }
 </style> 
