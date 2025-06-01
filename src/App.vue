@@ -579,8 +579,45 @@ export default {
   gap: 1rem;
 }
 
-.mb-4 {
-  margin-bottom: 1rem;
+/* Add responsive styles for mobile devices */
+@media screen and (max-width: 768px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .english-column {
+    border-right: none;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 2rem;
+  }
+
+  .hebrew-column {
+    padding-top: 2rem;
+  }
+
+  /* Make the translation dialog full width on mobile */
+  :deep(.p-dialog) {
+    width: 95vw !important;
+    max-width: 95vw !important;
+  }
+
+  /* Adjust text sizes for better mobile readability */
+  .hebrew-text {
+    font-size: 1.1rem;
+  }
+
+  .english-text {
+    font-size: 0.95rem;
+  }
+
+  /* Adjust spacing for mobile */
+  .container {
+    padding: 0.5rem;
+  }
+
+  .mb-4 {
+    margin-bottom: 0.75rem;
+  }
 }
 
 /* Add styles for Sefaria's inline formatting */

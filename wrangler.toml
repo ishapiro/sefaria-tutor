@@ -11,4 +11,13 @@ command = "npm run build"
 upload.format = "directory"
 
 [env.production]
-workers_dev = true 
+workers_dev = true
+
+[[routes]]
+pattern = "sefaria-tutor.cogitations.com/*"
+zone_name = "cogitations.com"
+custom_domain = true
+
+# Add Pages configuration
+[pages]
+pages_build_output_dir = "dist" 

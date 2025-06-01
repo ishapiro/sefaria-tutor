@@ -11,8 +11,9 @@ A Vue 3 application that integrates with the Sefaria API to display Jewish texts
 
 ## Prerequisites
 
-- Node.js (version 14 or higher)
+- Node.js (version 18 or higher)
 - npm (comes with Node.js)
+- Cloudflare account
 
 ## Installation
 
@@ -47,115 +48,113 @@ npm run build
 
 The built files will be in the `dist` directory.
 
-## Technologies Used
+## Deployment
 
-- Vue 3
-- PrimeVue 4
-- Vite
-- Sefaria API
-
-## API Documentation
-
-This project uses the Sefaria API. For more information about the API, visit:
-[developers.sefaria.org](https://developers.sefaria.org/)
-
-## Using Sefaria API with CORS (Cloudflare Worker Proxy)
-
-Sefaria's API does not support CORS for some endpoints (like /api/table_of_contents). To use this app, you must set up a Cloudflare Worker as a proxy.
-
-### Step-by-Step: Deploy the Proxy with Wrangler CLI
+### Step 1: Deploy the Proxy Worker
 
 1. **Install Wrangler CLI**
    ```bash
    npm install -g wrangler
-   # or, on macOS:
-   brew install wrangler
    ```
 
 2. **Login to Cloudflare**
    ```bash
    wrangler login
    ```
-   This will open a browser window for authentication.
 
-3. **Initialize a Worker Project**
+3. **Create and Deploy Proxy Worker**
    ```bash
-   wrangler init sefaria-proxy-worker
+   # Create a new directory for the worker
+   mkdir sefaria-proxy-worker
    cd sefaria-proxy-worker
-   ```
-   - When prompted, choose the **Hello World (JavaScript)** template.
 
-4. **Copy the Proxy Code**
-   - Copy the contents of `cloudflare-sefaria-proxy.js` from this repo into your Worker project directory.
-   - Replace the generated `src/index.js` (or `src/index.mjs`) with your `cloudflare-sefaria-proxy.js` file, or rename it as needed.
+   # Initialize a new worker project
+   wrangler init
 
-5. **Update `wrangler.toml`**
-   Edit `wrangler.toml` to set your Worker's name and entry file:
-   ```toml
-   name = "sefaria-proxy-worker"
-   main = "src/index.js"
-   compatibility_date = "2024-05-01"
-   ```
-
-6. **Deploy the Worker**
-   ```bash
+   # Deploy the worker
    wrangler deploy
    ```
-   This will deploy your Worker and give you a URL like:
-   ```
-   https://sefaria-proxy-worker.<your-account>.workers.dev
-   ```
 
-7. **Update your API calls in the app**
-   Use your Worker URL for Sefaria API endpoints, for example:
-   - `https://sefaria-proxy-worker.<your-account>.workers.dev/proxy/api/table_of_contents`
-   - `https://sefaria-proxy-worker.<your-account>.workers.dev/proxy/api/texts/Siddur%20Ashkenaz`
+   Save the worker URL (e.g., `https://sefaria-proxy-worker.<your-account>.workers.dev`) for the next steps.
 
-This will allow your app to access all Sefaria API endpoints without CORS issues.
+### Step 2: Deploy the Main Application
 
-## Deploying the Main Application to Cloudflare Pages
-
-1. **Install Wrangler CLI** (if not already installed)
-   ```bash
-   npm install -g wrangler
-   ```
-
-2. **Login to Cloudflare** (if not already logged in)
-   ```bash
-   wrangler login
-   ```
-
-3. **Build your application**
+1. **Build the Application**
    ```bash
    npm run build
    ```
 
-4. **Deploy to Cloudflare Pages**
+2. **Deploy to Cloudflare Pages**
    ```bash
    wrangler pages deploy dist
    ```
 
-5. **Configure Environment Variables**
-   After deployment, go to the Cloudflare Pages dashboard:
-   - Navigate to your project
-   - Go to Settings > Environment variables
-   - Add your environment variables:
+3. **Configure Environment Variables**
+   In the Cloudflare Pages dashboard:
+   - Go to your project
+   - Navigate to Settings > Environment variables
+   - Add the following variables:
      - `VITE_API_AUTH_TOKEN`: Your API authentication token
+     - `NODE_VERSION`: 18
 
-6. **Update API URLs**
-   Make sure your application is using the correct proxy worker URL in your API calls. The URL should match the one you deployed in the previous section.
+### Step 3: Configure Custom Domain (Optional)
 
-7. **Custom Domain (Optional)**
-   To use a custom domain:
-   - Go to your project in the Cloudflare Pages dashboard
-   - Navigate to Custom domains
+If you want to use a custom domain (e.g., sefaria-tutor.yourdomain.com):
+
+1. **Set up Custom Domain in Cloudflare**
+   - Go to Pages > your project > Settings > Custom domains
    - Click "Set up a custom domain"
-   - Follow the instructions to configure your domain
+   - Enter your domain name
+   - Follow the DNS configuration instructions
 
-Your application will be available at:
-```
-https://<your-project-name>.pages.dev
-```
+2. **Configure SSL/TLS**
+   - Go to SSL/TLS section
+   - Set encryption mode to "Full" or "Full (Strict)"
+   - Enable "Always Use HTTPS"
+   - Enable "Automatic HTTPS Rewrites"
+
+3. **Update DNS Records**
+   - A CNAME record will be automatically created
+   - Verify the record points to your Pages deployment
+   - Ensure the proxy status is enabled (orange cloud)
+
+4. **Verify Configuration**
+   - Check that the SSL certificate is issued
+   - Test the domain with HTTPS
+   - Verify all assets and API calls work correctly
+
+## Technologies Used
+
+- Vue 3
+- PrimeVue 4
+- Vite
+- Sefaria API
+- Cloudflare Workers
+- Cloudflare Pages
+
+## API Documentation
+
+This project uses the Sefaria API. For more information about the API, visit:
+[developers.sefaria.org](https://developers.sefaria.org/)
+
+## Troubleshooting
+
+### Common Issues
+
+1. **SSL/TLS Errors**
+   - Verify SSL/TLS encryption mode is set to "Full"
+   - Check that the SSL certificate is properly issued
+   - Ensure all assets are served over HTTPS
+
+2. **API Connection Issues**
+   - Verify the proxy worker URL is correct
+   - Check that the proxy worker is deployed and running
+   - Ensure CORS headers are properly set
+
+3. **Build Failures**
+   - Check Node.js version (should be 18 or higher)
+   - Verify all dependencies are installed
+   - Check build logs in Cloudflare Pages dashboard
 
 ## License
 
