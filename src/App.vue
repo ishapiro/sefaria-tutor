@@ -266,7 +266,7 @@ export default {
         const bookTitle = this.selectedBook?.title || '';
         const ref = (refOverride || bookTitle).replace(/;/g, '_').replace(/\s+/g, '_');
         const encodedRef = encodeURIComponent(ref);
-        const apiUrl = `https://sefaria-proxy-worker.<your-account>.workers.dev/proxy/api/texts/${encodedRef}`;
+        const apiUrl = `https://sefaria-proxy-worker.cogitations.workers.dev/proxy/api/texts/${encodedRef}`;
         this.log('Fetching from URL:', apiUrl);
         
         const response = await axios.get(apiUrl, {
