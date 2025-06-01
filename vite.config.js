@@ -8,8 +8,16 @@ export default defineConfig({
       '/api': {
         target: 'https://www.sefaria.org',
         changeOrigin: true,
-        rewrite: path => path.replace(/^\/api/, '')
+        rewrite: path => path.replace(/^\/api/, ''),
+        secure: true
       }
-    }
+    },
+    https: true
+  },
+  build: {
+    target: 'esnext',
+    outDir: 'dist',
+    assetsDir: 'assets',
+    sourcemap: true
   }
 }) 

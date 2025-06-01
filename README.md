@@ -113,6 +113,50 @@ Sefaria's API does not support CORS for some endpoints (like /api/table_of_conte
 
 This will allow your app to access all Sefaria API endpoints without CORS issues.
 
+## Deploying the Main Application to Cloudflare Pages
+
+1. **Install Wrangler CLI** (if not already installed)
+   ```bash
+   npm install -g wrangler
+   ```
+
+2. **Login to Cloudflare** (if not already logged in)
+   ```bash
+   wrangler login
+   ```
+
+3. **Build your application**
+   ```bash
+   npm run build
+   ```
+
+4. **Deploy to Cloudflare Pages**
+   ```bash
+   wrangler pages deploy dist
+   ```
+
+5. **Configure Environment Variables**
+   After deployment, go to the Cloudflare Pages dashboard:
+   - Navigate to your project
+   - Go to Settings > Environment variables
+   - Add your environment variables:
+     - `VITE_API_AUTH_TOKEN`: Your API authentication token
+
+6. **Update API URLs**
+   Make sure your application is using the correct proxy worker URL in your API calls. The URL should match the one you deployed in the previous section.
+
+7. **Custom Domain (Optional)**
+   To use a custom domain:
+   - Go to your project in the Cloudflare Pages dashboard
+   - Navigate to Custom domains
+   - Click "Set up a custom domain"
+   - Follow the instructions to configure your domain
+
+Your application will be available at:
+```
+https://<your-project-name>.pages.dev
+```
+
 ## License
 
 [Your chosen license] 
