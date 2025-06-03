@@ -317,6 +317,8 @@ export default {
       };
     },
     async onBookSelect(event) {
+      this.loading = true;
+      
       this.log('Book selection event:', {
         type: event.data.type,
         title: event.data.title,
@@ -327,6 +329,7 @@ export default {
 
       if (event.data.type === 'category') {
         this.showCategoryDialog = true;
+        this.loading = false;
         return;
       }
 
@@ -864,20 +867,18 @@ export default {
       }
     },
     handleCloseBook() {
-      if (this.isComplexBook(this.selectedBook)) {
-        // If in a complex section, restore the TOC (complexSections)
-        this.currentPageText = [];
-        this.totalRecords = 0;
-        this.sectionStack = [];
-        if (!this.complexSections) {
-          // If TOC is not set, re-fetch it
-          this.fetchComplexBookToc(this.selectedBook);
-        }
-        // Do NOT clear selectedBook, so the TOC remains visible
-      } else {
-        // For non-complex, go back to main navigation
-        this.selectedBook = null;
-      }
+      this.loading = false;
+      // Clear all states
+      this.currentPageText = [];
+      this.totalRecords = 0;
+      this.sectionStack = [];
+      this.complexSections = null;
+      this.nextSectionRef = null;
+      this.errorMessage = '';
+      this.showErrorDialog = false;
+      
+      // Always return to home screen
+      this.selectedBook = null;
     },
   }
 }
