@@ -387,7 +387,9 @@ export default {
             ref = refOverride;
           }
         } else {
-          ref = bookTitle;
+          // Calculate chapter and verse based on pagination
+          const chapter = Math.floor(this.first / this.rowsPerPage) + 1;
+          ref = `${bookTitle} ${chapter}`;
         }
         
         // Clean up the reference
@@ -400,18 +402,12 @@ export default {
           processedRef: ref,
           encodedRef: encodedRef,
           apiUrl: apiUrl,
-          offset: this.first,
-          limit: this.rowsPerPage,
+          chapter: Math.floor(this.first / this.rowsPerPage) + 1,
           isComplex: this.isComplexBook(this.selectedBook),
           refOverride: refOverride
         });
         
-        const response = await axios.get(apiUrl, {
-          params: {
-            offset: this.first,
-            limit: this.rowsPerPage
-          }
-        });
+        const response = await axios.get(apiUrl);
 
         this.log('API Response details:', {
           status: response.status,
@@ -443,7 +439,16 @@ export default {
           textData = [{ he: response.data, en: '' }];
         }
 
-        this.currentPageText = textData.map(text => {
+        // Get the total number of verses in the chapter
+        const totalVerses = textData.length;
+        this.totalRecords = totalVerses;
+
+        // Slice the text data based on the current page
+        const startIndex = this.first % this.rowsPerPage;
+        const endIndex = Math.min(startIndex + this.rowsPerPage, totalVerses);
+        const pageText = textData.slice(startIndex, endIndex);
+
+        this.currentPageText = pageText.map(text => {
           if (typeof text === 'string') {
             return { he: text, en: '' };
           }
@@ -453,11 +458,13 @@ export default {
           };
         });
 
-        this.totalRecords = response.data.length || textData.length || 1;
         this.complexSections = null;
         this.log('Processed text data:', {
           sections: this.currentPageText.length,
-          hasContent: this.currentPageText.length > 0
+          hasContent: this.currentPageText.length > 0,
+          totalVerses: totalVerses,
+          startIndex: startIndex,
+          endIndex: endIndex
         });
       } catch (error) {
         this.log('Error fetching content:', {
