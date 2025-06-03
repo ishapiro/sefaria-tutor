@@ -333,34 +333,20 @@ export default {
       this.selectedBook = event.data;
       this.first = 0;
       
-      // Try to fetch the book content first
-      try {
-        const ref = event.data.title.replace(/\s+/g, '_');
-        const encodedRef = encodeURIComponent(ref);
-        const apiUrl = `https://sefaria-proxy-worker.cogitations.workers.dev/proxy/api/texts/${encodedRef}`;
-        
-        const response = await axios.get(apiUrl);
-        // If we get here, it's a simple text
-        await this.fetchBookContent();
-      } catch (error) {
-        // Check if the error indicates a complex text
-        const isComplex = error.response?.data?.error?.includes('complex') && 
-                         error.response?.data?.error?.includes('book-level ref');
-        
-        this.log('Book complexity check:', {
-          title: event.data.title,
-          isComplex: isComplex,
-          error: error.response?.data?.error
-        });
+      // Add logging for complex book detection
+      const isComplex = await this.isComplexBook(event.data);
+      this.log('Book complexity check:', {
+        title: event.data.title,
+        isComplex: isComplex,
+        categories: event.data.categories,
+        fullData: event.data
+      });
 
-        if (isComplex) {
-          // For complex books, get the table of contents
-          await this.fetchComplexBookToc(event.data);
-        } else {
-          // For other errors, show the error message
-          this.errorMessage = error.response?.data?.error || error.message;
-          this.showErrorDialog = true;
-        }
+      if (isComplex) {
+        // For complex books, first try to get the table of contents
+        await this.fetchComplexBookToc(event.data);
+      } else {
+        await this.fetchBookContent();
       }
     },
     async fetchComplexBookToc(book) {
@@ -418,20 +404,24 @@ export default {
           const enTitle = node.titles.find(t => t.lang === 'en')?.text || node.title;
           const heTitle = node.titles.find(t => t.lang === 'he')?.text || node.heTitle;
           
+          // Clean up the key by removing parenthetical notes and special characters
+          const cleanKey = (node.key || node.title).replace(/\s*\([^)]*\)/g, '').trim();
+          
           // Build the full reference path
-          const fullPath = parentPath ? `${parentPath}/${node.key || node.title}` : node.key || node.title;
+          const fullPath = parentPath ? `${parentPath}/${cleanKey}` : cleanKey;
           
           sections.push({
             ref: fullPath,
             title: enTitle,
             heTitle: heTitle,
-            key: node.key || node.title
+            key: cleanKey
           });
         }
         
         // Recursively process child nodes
         if (node.nodes) {
-          const childPath = parentPath ? `${parentPath}/${node.key || node.title}` : node.key || node.title;
+          const cleanKey = (node.key || node.title).replace(/\s*\([^)]*\)/g, '').trim();
+          const childPath = parentPath ? `${parentPath}/${cleanKey}` : cleanKey;
           sections = sections.concat(this.processSchemaNodes(node.nodes, childPath));
         }
       }
@@ -464,60 +454,12 @@ export default {
         } else {
           // Calculate chapter and verse based on pagination
           chapter = Math.floor(this.first / this.rowsPerPage) + 1;
-          
-          // Handle different book types
-          const isTanakh = this.selectedBook?.categories?.includes('Tanakh');
-          const isChasidut = this.selectedBook?.categories?.includes('Chasidut');
-          const isJewishThought = this.selectedBook?.categories?.includes('Jewish Thought');
-          const isHaggadah = this.selectedBook?.categories?.includes('Haggadah');
-          
-          if (isTanakh) {
-            // Tanakh books use simple format: "Book Chapter"
-            ref = `${bookTitle} ${chapter}`;
-          } else if (isHaggadah) {
-            // For Haggadah, use the underscore format
-            ref = bookTitle.replace(/\s+/g, '_');
-          } else if (isChasidut) {
-            // For Chasidut books, use the index title format
-            try {
-              const indexResponse = await axios.get(`https://sefaria-proxy-worker.cogitations.workers.dev/proxy/api/index/${encodeURIComponent(bookTitle)}`);
-              if (indexResponse.data && indexResponse.data.title) {
-                // For Chasidut books, use the format "Book, Chapter"
-                ref = `${indexResponse.data.title}, ${chapter}`;
-              } else {
-                ref = `${bookTitle}, ${chapter}`;
-              }
-            } catch (error) {
-              ref = `${bookTitle}, ${chapter}`;
-            }
-          } else if (isJewishThought) {
-            // For Jewish Thought books, use the underscore format
-            // Replace spaces with underscores
-            const underscoredTitle = bookTitle.replace(/\s+/g, '_');
-            ref = underscoredTitle;
-          } else {
-            // For other books, try to get the index title
-            try {
-              const indexResponse = await axios.get(`https://sefaria-proxy-worker.cogitations.workers.dev/proxy/api/index/${encodeURIComponent(bookTitle)}`);
-              if (indexResponse.data && indexResponse.data.title) {
-                ref = `${indexResponse.data.title} ${chapter}`;
-              } else {
-                ref = `${bookTitle} ${chapter}`;
-              }
-            } catch (error) {
-              // If index lookup fails, try using just the first part of the title
-              const baseTitle = bookTitle.split(/[;:]/)[0].trim();
-              ref = `${baseTitle} ${chapter}`;
-            }
-          }
+          ref = `${bookTitle} ${chapter}`;
         }
         this.currentChapter = chapter;
         
-        // Clean up the reference - use proper Sefaria API format
-        // Don't replace underscores for Jewish Thought books or Haggadah
-        if (!this.selectedBook?.categories?.includes('Jewish Thought') && !this.selectedBook?.categories?.includes('Haggadah')) {
-          ref = ref.replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
-        }
+        // Clean up the reference
+        ref = ref.replace(/;/g, '_').replace(/\s+/g, '_');
         const encodedRef = encodeURIComponent(ref);
         const apiUrl = `https://sefaria-proxy-worker.cogitations.workers.dev/proxy/api/texts/${encodedRef}`;
         
@@ -709,10 +651,31 @@ export default {
       }
       this.loading = false;
     },
-    isComplexBook(book) {
-      // This method is now only used for initial UI decisions
-      // The actual complexity check happens in onBookSelect
-      return false;
+    async isComplexBook(book) {
+      if (!book) return false;
+      
+      try {
+        // Try to fetch the book content
+        const ref = book.title.replace(/\s+/g, '_');
+        const encodedRef = encodeURIComponent(ref);
+        const apiUrl = `https://sefaria-proxy-worker.cogitations.workers.dev/proxy/api/texts/${encodedRef}`;
+        
+        await axios.get(apiUrl);
+        // If we get here, it's a simple text
+        return false;
+      } catch (error) {
+        // Check if the error indicates a complex text
+        const isComplex = error.response?.data?.error?.includes('complex') && 
+                         error.response?.data?.error?.includes('book-level ref');
+        
+        this.log('Complex book detection:', {
+          title: book.title,
+          isComplex: isComplex,
+          error: error.response?.data?.error
+        });
+        
+        return isComplex;
+      }
     },
     findTocNode(ref, node) {
       if (!node) return null;
@@ -901,16 +864,20 @@ export default {
       }
     },
     handleCloseBook() {
-      // Always return to home screen
-      this.selectedBook = null;
-      this.currentPageText = [];
-      this.totalRecords = 0;
-      this.sectionStack = [];
-      this.complexSections = null;
-      // Clear error states
-      this.errorMessage = '';
-      this.showErrorDialog = false;
-      this.nextSectionRef = null;
+      if (this.isComplexBook(this.selectedBook)) {
+        // If in a complex section, restore the TOC (complexSections)
+        this.currentPageText = [];
+        this.totalRecords = 0;
+        this.sectionStack = [];
+        if (!this.complexSections) {
+          // If TOC is not set, re-fetch it
+          this.fetchComplexBookToc(this.selectedBook);
+        }
+        // Do NOT clear selectedBook, so the TOC remains visible
+      } else {
+        // For non-complex, go back to main navigation
+        this.selectedBook = null;
+      }
     },
   }
 }
