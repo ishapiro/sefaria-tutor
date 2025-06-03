@@ -76,7 +76,7 @@
                   </li>
                 </ul>
               </div>
-              <div v-if="currentPageText.length === 0" class="text-center text-gray-500 py-8">
+              <div v-if="currentPageText.length === 0 && !loading" class="text-center text-gray-500 py-8">
                 <div>
                   This book is not available via the API. Please visit the Sefaria website 
                   at <a href="https://www.sefaria.org" target="_blank">https://www.sefaria.org</a> directly to access it.
