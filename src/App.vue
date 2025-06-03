@@ -207,7 +207,14 @@ export default {
   methods: {
     log(...args) {
       if (this.debug) {
-        console.log(...args);
+        // Convert objects to expanded JSON strings
+        const expandedArgs = args.map(arg => {
+          if (typeof arg === 'object' && arg !== null) {
+            return JSON.stringify(arg, null, 2);
+          }
+          return arg;
+        });
+        console.log(...expandedArgs);
       }
     },
     async fetchAndCacheFullIndex() {
@@ -252,22 +259,152 @@ export default {
       };
     },
     async onBookSelect(event) {
+      this.log('Book selection event:', {
+        type: event.data.type,
+        title: event.data.title,
+        path: event.data.path,
+        categories: event.data.categories,
+        fullData: event.data
+      });
+
       if (event.data.type === 'category') {
         this.showCategoryDialog = true;
         return;
       }
+
       this.selectedBook = event.data;
       this.first = 0;
-      await this.fetchBookContent();
+      
+      // Add logging for complex book detection
+      const isComplex = this.isComplexBook(event.data);
+      this.log('Book complexity check:', {
+        title: event.data.title,
+        isComplex: isComplex,
+        categories: event.data.categories,
+        fullData: event.data
+      });
+
+      if (isComplex) {
+        // For complex books, first try to get the table of contents
+        await this.fetchComplexBookToc(event.data);
+      } else {
+        await this.fetchBookContent();
+      }
+    },
+    async fetchComplexBookToc(book) {
+      this.loading = true;
+      try {
+        const ref = book.title.replace(/;/g, '_').replace(/\s+/g, '_');
+        const encodedRef = encodeURIComponent(ref);
+        const apiUrl = `https://sefaria-proxy-worker.cogitations.workers.dev/proxy/api/index/${encodedRef}`;
+        
+        this.log('Fetching complex book TOC:', {
+          originalTitle: book.title,
+          processedRef: ref,
+          encodedRef: encodedRef,
+          apiUrl: apiUrl
+        });
+        
+        const response = await axios.get(apiUrl);
+        
+        this.log('TOC Response:', {
+          status: response.status,
+          statusText: response.statusText,
+          data: response.data
+        });
+
+        if (response.data && response.data.schema) {
+          // Process the schema to extract sections
+          this.complexSections = this.processSchemaNodes(response.data.schema.nodes);
+          this.log('Processed complex sections:', this.complexSections);
+        } else {
+          throw new Error('No schema found for complex book');
+        }
+      } catch (error) {
+        this.log('Error fetching TOC:', {
+          message: error.message,
+          status: error.response?.status,
+          data: error.response?.data
+        });
+        this.errorMessage = 'Failed to load table of contents for this book.';
+        this.showErrorDialog = true;
+      } finally {
+        this.loading = false;
+      }
+    },
+    processSchemaNodes(nodes, parentPath = '') {
+      let sections = [];
+      
+      if (!Array.isArray(nodes)) {
+        return sections;
+      }
+
+      for (const node of nodes) {
+        // If this is a leaf node with titles, add it as a section
+        if (node.titles && node.titles.length > 0) {
+          const enTitle = node.titles.find(t => t.lang === 'en')?.text || node.title;
+          const heTitle = node.titles.find(t => t.lang === 'he')?.text || node.heTitle;
+          
+          // Build the full reference path
+          const fullPath = parentPath ? `${parentPath}/${node.key || node.title}` : node.key || node.title;
+          
+          sections.push({
+            ref: fullPath,
+            title: enTitle,
+            heTitle: heTitle,
+            key: node.key || node.title
+          });
+        }
+        
+        // Recursively process child nodes
+        if (node.nodes) {
+          const childPath = parentPath ? `${parentPath}/${node.key || node.title}` : node.key || node.title;
+          sections = sections.concat(this.processSchemaNodes(node.nodes, childPath));
+        }
+      }
+      
+      return sections;
     },
     async fetchBookContent(refOverride = null, stackOverride = null) {
       this.loading = true;
       try {
         const bookTitle = this.selectedBook?.title || '';
-        const ref = (refOverride || bookTitle).replace(/;/g, '_').replace(/\s+/g, '_');
+        let ref;
+        
+        if (refOverride) {
+          // For complex books, use the full path
+          if (this.isComplexBook(this.selectedBook)) {
+            // Format the reference according to Sefaria's API requirements
+            const parts = refOverride.split('/');
+            // Remove any parenthetical notes from the last part
+            const lastPart = parts[parts.length - 1].replace(/\s*\([^)]*\)/, '');
+            parts[parts.length - 1] = lastPart;
+            
+            // For complex books, we need to include the book title in the path
+            // and use the correct format for the API
+            ref = `${bookTitle}, ${parts.join(', ')}`;
+          } else {
+            ref = refOverride;
+          }
+        } else {
+          ref = bookTitle;
+        }
+        
+        // Clean up the reference
+        ref = ref.replace(/;/g, '_').replace(/\s+/g, '_');
         const encodedRef = encodeURIComponent(ref);
         const apiUrl = `https://sefaria-proxy-worker.cogitations.workers.dev/proxy/api/texts/${encodedRef}`;
-        this.log('Fetching from URL:', apiUrl);
+        
+        this.log('Fetching book content:', {
+          originalTitle: bookTitle,
+          processedRef: ref,
+          encodedRef: encodedRef,
+          apiUrl: apiUrl,
+          offset: this.first,
+          limit: this.rowsPerPage,
+          isComplex: this.isComplexBook(this.selectedBook),
+          refOverride: refOverride
+        });
         
         const response = await axios.get(apiUrl, {
           params: {
@@ -276,11 +413,16 @@ export default {
           }
         });
 
-        this.log('API Response:', {
+        this.log('API Response details:', {
           status: response.status,
+          statusText: response.statusText,
+          headers: response.headers,
           hasText: !!response.data.text,
           hasHebrew: !!response.data.he,
-          isArray: Array.isArray(response.data)
+          isArray: Array.isArray(response.data),
+          dataType: typeof response.data,
+          dataKeys: Object.keys(response.data),
+          fullData: response.data
         });
 
         let textData = [];
