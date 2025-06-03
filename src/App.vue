@@ -55,7 +55,7 @@
                   ({{ currentChapter }})
                 </template>
               </span>
-              <Button icon="pi pi-times" @click="selectedBook = null" class="p-button-text" />
+              <Button icon="pi pi-times" @click="handleCloseBook" class="p-button-text" />
             </div>
           </template>
           <template #content>
@@ -825,6 +825,22 @@ export default {
       if (this.nextSectionRef) {
         this.first = 0;
         await this.fetchBookContent(this.nextSectionRef);
+      }
+    },
+    handleCloseBook() {
+      if (this.isComplexBook(this.selectedBook)) {
+        // If in a complex section, restore the TOC (complexSections)
+        this.currentPageText = [];
+        this.totalRecords = 0;
+        this.sectionStack = [];
+        if (!this.complexSections) {
+          // If TOC is not set, re-fetch it
+          this.fetchComplexBookToc(this.selectedBook);
+        }
+        // Do NOT clear selectedBook, so the TOC remains visible
+      } else {
+        // For non-complex, go back to main navigation
+        this.selectedBook = null;
       }
     },
   }
