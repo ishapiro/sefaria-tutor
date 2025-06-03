@@ -79,7 +79,7 @@
               <div v-if="currentPageText.length === 0" class="text-center text-gray-500 py-8">
                 <div>No content or sections found for this book.</div>
                 <div class="mt-2 text-xs">(Debug: If you expected sections, check the console for the full API response.)</div>
-                <div v-if="nextSectionRef" class="mt-4">
+                <div v-if="nextSectionRef" class="mt-8">
                   <Button label="Go to Next Available Section" icon="pi pi-arrow-right" @click="goToNextSection" />
                 </div>
               </div>
@@ -91,7 +91,7 @@
                 <template v-for="(section, index) in currentPageText" :key="'verse-' + index">
                   <div class="verse-row">
                     <div class="verse-col english-verse">
-                      <span class="verse-number">{{ section.displayNumber }}</span>
+                      <span class="verse-number">{{ section.displayNumber }}&nbsp;&nbsp;</span>
                       <span v-html="section.en"></span>
                     </div>
                     <div class="verse-col hebrew-verse"
@@ -331,6 +331,28 @@ export default {
         return;
       }
 
+      // First check if the book is available via the API
+      try {
+        const searchResponse = await axios.get(`https://sefaria-proxy-worker.cogitations.workers.dev/proxy/api/search?q=${encodeURIComponent(event.data.title)}`);
+        
+        // Check if the book is in the search results
+        const isAvailable = searchResponse.data.results.some(result => 
+          result.ref && result.ref.includes(event.data.title)
+        );
+
+        if (!isAvailable) {
+          this.errorMessage = `This book (${event.data.title}) is not available via the API. Please visit the Sefaria website directly to access it.`;
+          this.showErrorDialog = true;
+          return;
+        }
+      } catch (error) {
+        this.log('Error checking book availability:', {
+          message: error.message,
+          status: error.response?.status
+        });
+        // Continue anyway, as the search API might be temporarily unavailable
+      }
+
       this.selectedBook = event.data;
       this.first = 0;
       
@@ -450,12 +472,56 @@ export default {
         } else {
           // Calculate chapter and verse based on pagination
           chapter = Math.floor(this.first / this.rowsPerPage) + 1;
-          ref = `${bookTitle} ${chapter}`;
+          
+          // Handle different book types
+          const isTanakh = this.selectedBook?.categories?.includes('Tanakh');
+          const isChasidut = this.selectedBook?.categories?.includes('Chasidut');
+          const isJewishThought = this.selectedBook?.categories?.includes('Jewish Thought');
+          
+          if (isTanakh) {
+            // Tanakh books use simple format: "Book Chapter"
+            ref = `${bookTitle} ${chapter}`;
+          } else if (isChasidut) {
+            // For Chasidut books, use the index title format
+            try {
+              const indexResponse = await axios.get(`https://sefaria-proxy-worker.cogitations.workers.dev/proxy/api/index/${encodeURIComponent(bookTitle)}`);
+              if (indexResponse.data && indexResponse.data.title) {
+                // For Chasidut books, use the format "Book, Chapter"
+                ref = `${indexResponse.data.title}, ${chapter}`;
+              } else {
+                ref = `${bookTitle}, ${chapter}`;
+              }
+            } catch (error) {
+              ref = `${bookTitle}, ${chapter}`;
+            }
+          } else if (isJewishThought) {
+            // For Jewish Thought books, use the underscore format
+            // Replace spaces with underscores
+            const underscoredTitle = bookTitle.replace(/\s+/g, '_');
+            ref = underscoredTitle;
+          } else {
+            // For other books, try to get the index title
+            try {
+              const indexResponse = await axios.get(`https://sefaria-proxy-worker.cogitations.workers.dev/proxy/api/index/${encodeURIComponent(bookTitle)}`);
+              if (indexResponse.data && indexResponse.data.title) {
+                ref = `${indexResponse.data.title} ${chapter}`;
+              } else {
+                ref = `${bookTitle} ${chapter}`;
+              }
+            } catch (error) {
+              // If index lookup fails, try using just the first part of the title
+              const baseTitle = bookTitle.split(/[;:]/)[0].trim();
+              ref = `${baseTitle} ${chapter}`;
+            }
+          }
         }
         this.currentChapter = chapter;
         
-        // Clean up the reference
-        ref = ref.replace(/;/g, '_').replace(/\s+/g, '_');
+        // Clean up the reference - use proper Sefaria API format
+        // Don't replace underscores for Jewish Thought books
+        if (!this.selectedBook?.categories?.includes('Jewish Thought')) {
+          ref = ref.replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+        }
         const encodedRef = encodeURIComponent(ref);
         const apiUrl = `https://sefaria-proxy-worker.cogitations.workers.dev/proxy/api/texts/${encodedRef}`;
         
@@ -466,7 +532,8 @@ export default {
           apiUrl: apiUrl,
           chapter: chapter,
           isComplex: this.isComplexBook(this.selectedBook),
-          refOverride: refOverride
+          refOverride: refOverride,
+          categoryPath: this.selectedBook?.path
         });
         
         const response = await axios.get(apiUrl);
@@ -560,6 +627,33 @@ export default {
               };
             });
           }
+        } else if (response.data.he) {
+          // Handle books with only Hebrew text
+          const hebrewTexts = Array.isArray(response.data.he) ? response.data.he : [response.data.he];
+          const heVerses = response.data.he_verses || hebrewTexts.map((_, i) => i + 1);
+          
+          textData = hebrewTexts.map((he, idx) => {
+            const verseNum = heVerses[idx];
+            let displayNumber;
+            
+            // Try to get display number from various sources
+            if (response.data.verses && response.data.verses[idx]) {
+              const match = response.data.verses[idx].match(/(\d+):(\d+)/);
+              displayNumber = match ? `${match[1]}:${match[2]}` : response.data.verses[idx];
+            } else if (response.data.textRefs && response.data.textRefs[idx]) {
+              const match = response.data.textRefs[idx].match(/(\d+):(\d+)/);
+              displayNumber = match ? `${match[1]}:${match[2]}` : response.data.textRefs[idx];
+            } else {
+              displayNumber = `${chapter}:${idx + 1}`;
+            }
+            
+            return {
+              number: verseNum,
+              displayNumber,
+              en: '',  // Empty English text
+              he: he
+            };
+          });
         } else if (response.data.text) {
           textData = Array.isArray(response.data.text) ? response.data.text : [response.data.text];
           textData = textData.map((en, idx) => ({
@@ -623,7 +717,14 @@ export default {
         });
         this.currentPageText = [];
         this.totalRecords = 0;
-        this.errorMessage = error.message;
+        
+        // Show specific message for 400 errors
+        if (error.response?.status === 400) {
+          this.errorMessage = `This book (${this.selectedBook.title}) is not available via the API. Please visit the Sefaria website directly to access it.`;
+        } else {
+          this.errorMessage = error.message;
+        }
+        
         this.showErrorDialog = true;
         this.complexSections = null;
         this.nextSectionRef = null;
@@ -828,20 +929,16 @@ export default {
       }
     },
     handleCloseBook() {
-      if (this.isComplexBook(this.selectedBook)) {
-        // If in a complex section, restore the TOC (complexSections)
-        this.currentPageText = [];
-        this.totalRecords = 0;
-        this.sectionStack = [];
-        if (!this.complexSections) {
-          // If TOC is not set, re-fetch it
-          this.fetchComplexBookToc(this.selectedBook);
-        }
-        // Do NOT clear selectedBook, so the TOC remains visible
-      } else {
-        // For non-complex, go back to main navigation
-        this.selectedBook = null;
-      }
+      // Always return to home screen
+      this.selectedBook = null;
+      this.currentPageText = [];
+      this.totalRecords = 0;
+      this.sectionStack = [];
+      this.complexSections = null;
+      // Clear error states
+      this.errorMessage = '';
+      this.showErrorDialog = false;
+      this.nextSectionRef = null;
     },
   }
 }
@@ -1295,10 +1392,15 @@ small {
 
 .english-verse {
   text-align: left;
+  font-size: 0.95rem;
+  line-height: 1.4;
 }
 
 .hebrew-verse {
   text-align: right;
   direction: rtl;
+  font-size: 1.4rem;
+  line-height: 1.6;
+  font-family: 'SBL Hebrew', 'Times New Roman', serif;
 }
 </style> 
