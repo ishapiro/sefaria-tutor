@@ -49,7 +49,12 @@
         <Card class="mb-4">
           <template #title>
             <div class="flex justify-between items-center">
-              <span>{{ selectedBook.title }}</span>
+              <span>
+                {{ selectedBook.title }}
+                <template v-if="totalRecords > 0 && totalRecords !== 1 && currentChapter">
+                  ({{ currentChapter }})
+                </template>
+              </span>
               <Button icon="pi pi-times" @click="selectedBook = null" class="p-button-text" />
             </div>
           </template>
@@ -71,31 +76,32 @@
                   </li>
                 </ul>
               </div>
-              <div v-if="!complexSections && !currentPageText.length" class="text-center text-gray-500 py-8">
+              <div v-if="currentPageText.length === 0" class="text-center text-gray-500 py-8">
                 <div>No content or sections found for this book.</div>
                 <div class="mt-2 text-xs">(Debug: If you expected sections, check the console for the full API response.)</div>
-              </div>
-              <div v-else-if="!complexSections">
-                <div class="verses-flex">
-                  <div class="verses-header">
-                    <div class="english-header">&nbsp;</div>
-                    <div class="hebrew-header">Select text to translate</div>
-                  </div>
-                  <template v-for="(section, index) in currentPageText" :key="'verse-' + index">
-                    <div class="verse-row">
-                      <div class="verse-col english-verse">
-                        <span class="verse-number">{{ section.number }}</span>
-                        <span v-html="section.en"></span>
-                      </div>
-                      <div class="verse-col hebrew-verse"
-                           @mouseup="handleTextSelection"
-                           style="direction: rtl;">
-                        <span class="verse-number rtl">{{ toHebrewNumeral(section.number) }}</span>
-                        <span v-html="section.he"></span>
-                      </div>
-                    </div>
-                  </template>
+                <div v-if="nextSectionRef" class="mt-4">
+                  <Button label="Go to Next Available Section" icon="pi pi-arrow-right" @click="goToNextSection" />
                 </div>
+              </div>
+              <div v-else class="verses-flex">
+                <div class="verses-header">
+                  <div class="english-header">&nbsp;</div>
+                  <div class="hebrew-header">Select text to translate</div>
+                </div>
+                <template v-for="(section, index) in currentPageText" :key="'verse-' + index">
+                  <div class="verse-row">
+                    <div class="verse-col english-verse">
+                      <span class="verse-number">{{ section.displayNumber }}</span>
+                      <span v-html="section.en"></span>
+                    </div>
+                    <div class="verse-col hebrew-verse"
+                         @mouseup="handleTextSelection"
+                         style="direction: rtl;">
+                      <span class="verse-number rtl">{{ toHebrewNumeral(section.displayNumber) }}</span>
+                      <span v-html="section.he"></span>
+                    </div>
+                  </div>
+                </template>
               </div>
             </div>
             <Paginator v-if="!complexSections" v-model:first="first" :rows="rowsPerPage" :totalRecords="totalRecords"
@@ -176,6 +182,8 @@ export default {
       translationLoading: false,
       formattedTranslation: [],
       lastIndexUpdate: null,
+      nextSectionRef: null,
+      currentChapter: null,
     }
   },
   computed: {
@@ -421,6 +429,8 @@ export default {
       try {
         const bookTitle = this.selectedBook?.title || '';
         let ref;
+        let chapter = 1;
+        let sectionLabel = null;
         
         if (refOverride) {
           // For complex books, use the full path
@@ -439,9 +449,10 @@ export default {
           }
         } else {
           // Calculate chapter and verse based on pagination
-          const chapter = Math.floor(this.first / this.rowsPerPage) + 1;
+          chapter = Math.floor(this.first / this.rowsPerPage) + 1;
           ref = `${bookTitle} ${chapter}`;
         }
+        this.currentChapter = chapter;
         
         // Clean up the reference
         ref = ref.replace(/;/g, '_').replace(/\s+/g, '_');
@@ -453,7 +464,7 @@ export default {
           processedRef: ref,
           encodedRef: encodedRef,
           apiUrl: apiUrl,
-          chapter: Math.floor(this.first / this.rowsPerPage) + 1,
+          chapter: chapter,
           isComplex: this.isComplexBook(this.selectedBook),
           refOverride: refOverride
         });
@@ -472,6 +483,27 @@ export default {
           fullData: response.data
         });
 
+        // Store next/firstAvailableSectionRef for navigation if no content
+        this.nextSectionRef = response.data.next || response.data.firstAvailableSectionRef || null;
+
+        // Determine current chapter/section label for header
+        const isTanakh = this.selectedBook?.categories?.includes('Tanakh');
+        if (isTanakh) {
+          this.currentChapter = chapter;
+        } else {
+          // Try to get section label from sections, sectionRef, or ref
+          if (Array.isArray(response.data.sections) && response.data.sections.length > 0) {
+            sectionLabel = response.data.sections.join(' ');
+          } else if (response.data.sectionRef) {
+            const match = response.data.sectionRef.match(/ ([^ ]+)$/);
+            sectionLabel = match ? match[1] : response.data.sectionRef;
+          } else if (response.data.ref) {
+            const match = response.data.ref.match(/ ([^ ]+)$/);
+            sectionLabel = match ? match[1] : response.data.ref;
+          }
+          this.currentChapter = sectionLabel;
+        }
+
         let textData = [];
         if (Array.isArray(response.data)) {
           textData = response.data;
@@ -481,7 +513,6 @@ export default {
           const hebrewTexts = Array.isArray(response.data.he) ? response.data.he : [response.data.he];
           const enVerses = response.data.verses || englishTexts.map((_, i) => i + 1);
           const heVerses = response.data.he_verses || enVerses;
-
           // Build maps for fast lookup
           const enMap = {};
           englishTexts.forEach((en, i) => {
@@ -491,24 +522,60 @@ export default {
           hebrewTexts.forEach((he, i) => {
             heMap[heVerses[i]] = he;
           });
-
           // Union of all verse numbers
           const allVerseNumbers = Array.from(new Set([...enVerses, ...heVerses])).sort((a, b) => a - b);
 
-          textData = allVerseNumbers.map(num => ({
-            number: num,
-            en: enMap[num] || '',
-            he: heMap[num] || ''
-          }));
+          // Branch logic: Tanakh vs. other
+          const isTanakh = this.selectedBook?.categories?.includes('Tanakh');
+          if (isTanakh) {
+            textData = allVerseNumbers.map((num, idx) => {
+              return {
+                number: num,
+                displayNumber: `${chapter}:${idx + 1}`,
+                en: enMap[num] || '',
+                he: heMap[num] || ''
+              };
+            });
+          } else {
+            // Previous logic: try to get displayNumber from Sefaria fields, fallback to num
+            let enRefs = response.data.textRefs || response.data.verseMapping || response.data.versesRefs || null;
+            if (!enRefs && response.data.verses && typeof response.data.verses[0] === 'string') {
+              enRefs = response.data.verses;
+            }
+            textData = allVerseNumbers.map((num, idx) => {
+              let displayNumber = num;
+              if (enRefs && enRefs[idx]) {
+                const match = enRefs[idx].match(/(\d+):(\d+)/);
+                if (match) {
+                  displayNumber = `${match[1]}:${match[2]}`;
+                } else {
+                  displayNumber = enRefs[idx];
+                }
+              }
+              return {
+                number: num,
+                displayNumber,
+                en: enMap[num] || '',
+                he: heMap[num] || ''
+              };
+            });
+          }
         } else if (response.data.text) {
           textData = Array.isArray(response.data.text) ? response.data.text : [response.data.text];
+          textData = textData.map((en, idx) => ({
+            en,
+            he: '',
+            number: idx + 1,
+            displayNumber: `${chapter}:${idx + 1}`
+          }));
         } else if (response.data.he && response.data.en) {
           textData = [{
             ...response.data,
-            number: response.data.verses ? response.data.verses[0] : 1
+            number: 1,
+            displayNumber: `${chapter}:1`
           }];
         } else if (typeof response.data === 'string') {
-          textData = [{ he: response.data, en: '', number: 1 }];
+          textData = [{ he: response.data, en: '', number: 1, displayNumber: `${chapter}:1` }];
         }
 
         // Get the total number of verses in the chapter
@@ -521,15 +588,20 @@ export default {
         const pageText = textData.slice(startIndex, endIndex);
 
         this.currentPageText = pageText.map(text => {
-          const obj = {
+          return {
             he: text.he || '',
             en: text.en || '',
-            number: text.number || 1
+            number: text.number || 1,
+            displayNumber: text.displayNumber || text.number || 1
           };
-          // Log the raw Hebrew text and number
-          console.log('[HEBREW VERSE DATA]', obj.number, obj.he);
-          return obj;
         });
+
+        // If there is no content and a next section is available, automatically fetch the next section
+        if (this.currentPageText.length === 0 && this.nextSectionRef && !refOverride) {
+          await this.fetchBookContent(this.nextSectionRef);
+          return;
+        }
+
         // Log the full currentPageText array
         console.log('[currentPageText]', JSON.stringify(this.currentPageText, null, 2));
         // Wait for DOM update, then log computed styles
@@ -554,6 +626,7 @@ export default {
         this.errorMessage = error.message;
         this.showErrorDialog = true;
         this.complexSections = null;
+        this.nextSectionRef = null;
       }
       this.loading = false;
     },
@@ -747,6 +820,12 @@ export default {
       }
       
       return result;
+    },
+    async goToNextSection() {
+      if (this.nextSectionRef) {
+        this.first = 0;
+        await this.fetchBookContent(this.nextSectionRef);
+      }
     },
   }
 }
