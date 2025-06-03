@@ -75,28 +75,24 @@
                 <div>No content or sections found for this book.</div>
                 <div class="mt-2 text-xs">(Debug: If you expected sections, check the console for the full API response.)</div>
               </div>
-              <div v-else-if="!complexSections" class="grid grid-cols-2 gap-4">
-                <div class="english-column">
-                  <div class="column-header">&nbsp;</div>
-                  <template v-for="(section, index) in currentPageText" :key="'en-' + index">
-                    <div v-if="section.isHeading" class="mb-4 border-b-2 border-gray-200 pb-2 mt-8">
-                      <h3 class="text-xl font-bold">{{ section.en }}</h3>
-                    </div>
-                    <div v-else class="mb-4">
-                      <div class="english-text" v-html="section.en"></div>
-                    </div>
-                  </template>
-                </div>
-                <div class="hebrew-column">
-                  <div class="column-header">Select text to translate</div>
-                  <template v-for="(section, index) in currentPageText" :key="'he-' + index">
-                    <div v-if="section.isHeading" class="mb-4 border-b-2 border-gray-200 pb-2 mt-8">
-                      <h3 class="text-xl font-bold text-right">{{ section.he }}</h3>
-                    </div>
-                    <div v-else class="mb-4">
-                      <div class="hebrew-text text-right" 
+              <div v-else-if="!complexSections">
+                <div class="verses-flex">
+                  <div class="verses-header">
+                    <div class="english-header">&nbsp;</div>
+                    <div class="hebrew-header">Select text to translate</div>
+                  </div>
+                  <template v-for="(section, index) in currentPageText" :key="'verse-' + index">
+                    <div class="verse-row">
+                      <div class="verse-col english-verse">
+                        <span class="verse-number">{{ section.number }}</span>
+                        <span v-html="section.en"></span>
+                      </div>
+                      <div class="verse-col hebrew-verse"
                            @mouseup="handleTextSelection"
-                           v-html="section.he"></div>
+                           style="direction: rtl;">
+                        <span class="verse-number rtl">{{ toHebrewNumeral(section.number) }}</span>
+                        <span v-html="section.he"></span>
+                      </div>
                     </div>
                   </template>
                 </div>
@@ -128,7 +124,7 @@
 
 <script>
 import axios from 'axios'
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import InputText from 'primevue/inputtext'
 import Dialog from 'primevue/dialog'
 import Accordion from 'primevue/accordion'
@@ -480,18 +476,39 @@ export default {
         if (Array.isArray(response.data)) {
           textData = response.data;
         } else if (response.data.text && response.data.he) {
+          // Build verse maps
           const englishTexts = Array.isArray(response.data.text) ? response.data.text : [response.data.text];
           const hebrewTexts = Array.isArray(response.data.he) ? response.data.he : [response.data.he];
-          textData = englishTexts.map((en, index) => ({
-            en: en,
-            he: hebrewTexts[index] || ''
+          const enVerses = response.data.verses || englishTexts.map((_, i) => i + 1);
+          const heVerses = response.data.he_verses || enVerses;
+
+          // Build maps for fast lookup
+          const enMap = {};
+          englishTexts.forEach((en, i) => {
+            enMap[enVerses[i]] = en;
+          });
+          const heMap = {};
+          hebrewTexts.forEach((he, i) => {
+            heMap[heVerses[i]] = he;
+          });
+
+          // Union of all verse numbers
+          const allVerseNumbers = Array.from(new Set([...enVerses, ...heVerses])).sort((a, b) => a - b);
+
+          textData = allVerseNumbers.map(num => ({
+            number: num,
+            en: enMap[num] || '',
+            he: heMap[num] || ''
           }));
         } else if (response.data.text) {
           textData = Array.isArray(response.data.text) ? response.data.text : [response.data.text];
         } else if (response.data.he && response.data.en) {
-          textData = [response.data];
+          textData = [{
+            ...response.data,
+            number: response.data.verses ? response.data.verses[0] : 1
+          }];
         } else if (typeof response.data === 'string') {
-          textData = [{ he: response.data, en: '' }];
+          textData = [{ he: response.data, en: '', number: 1 }];
         }
 
         // Get the total number of verses in the chapter
@@ -504,14 +521,19 @@ export default {
         const pageText = textData.slice(startIndex, endIndex);
 
         this.currentPageText = pageText.map(text => {
-          if (typeof text === 'string') {
-            return { he: text, en: '' };
-          }
-          return {
-            he: text.he || text.hebrew || text.text || '',
-            en: text.en || text.english || text.translation || ''
+          const obj = {
+            he: text.he || '',
+            en: text.en || '',
+            number: text.number || 1
           };
+          // Log the raw Hebrew text and number
+          console.log('[HEBREW VERSE DATA]', obj.number, obj.he);
+          return obj;
         });
+        // Log the full currentPageText array
+        console.log('[currentPageText]', JSON.stringify(this.currentPageText, null, 2));
+        // Wait for DOM update, then log computed styles
+        await nextTick();
 
         this.complexSections = null;
         this.log('Processed text data:', {
@@ -668,7 +690,64 @@ export default {
       } finally {
         this.translationLoading = false;
       }
-    }
+    },
+    toHebrewNumeral(num) {
+      const hebrewNumerals = {
+        1: 'א',
+        2: 'ב',
+        3: 'ג',
+        4: 'ד',
+        5: 'ה',
+        6: 'ו',
+        7: 'ז',
+        8: 'ח',
+        9: 'ט',
+        10: 'י',
+        20: 'כ',
+        30: 'ל',
+        40: 'מ',
+        50: 'נ',
+        60: 'ס',
+        70: 'ע',
+        80: 'פ',
+        90: 'צ',
+        100: 'ק',
+        200: 'ר',
+        300: 'ש',
+        400: 'ת'
+      };
+
+      if (num === 0) return '';
+      if (num <= 10) return hebrewNumerals[num];
+      
+      let result = '';
+      let remaining = num;
+      
+      // Handle special case for 15 and 16
+      if (num === 15) return 'טו';
+      if (num === 16) return 'טז';
+      
+      // Handle hundreds
+      if (remaining >= 100) {
+        const hundreds = Math.floor(remaining / 100);
+        result += hebrewNumerals[hundreds * 100];
+        remaining %= 100;
+      }
+      
+      // Handle tens
+      if (remaining >= 10) {
+        const tens = Math.floor(remaining / 10);
+        result += hebrewNumerals[tens * 10];
+        remaining %= 10;
+      }
+      
+      // Handle ones
+      if (remaining > 0) {
+        result += hebrewNumerals[remaining];
+      }
+      
+      return result;
+    },
   }
 }
 </script>
@@ -682,6 +761,8 @@ export default {
   font-family: 'SBL Hebrew', 'Times New Roman', serif;
   font-size: 1.2rem;
   line-height: 1.6;
+  direction: rtl;
+  text-align: right;
 }
 
 .english-text {
@@ -1052,5 +1133,77 @@ small {
   text-align: center;
   margin-bottom: 1.5rem;
   color: #1976d2;
+}
+
+.verse-number {
+  font-size: 0.9rem;
+  color: #666;
+  font-weight: bold;
+}
+
+.verse-number.rtl {
+  margin-left: 0.5rem;
+  margin-right: 0;
+  display: inline;
+}
+
+.hebrew-column .verse-number {
+  margin-right: 0;
+  margin-left: 0.5rem;
+  display: block;
+  margin-top: 0.25rem;
+}
+
+.english-text, .hebrew-text {
+  display: inline;
+}
+
+.hebrew-verse-line {
+  display: inline-block;
+  width: 100%;
+  white-space: pre-line;
+}
+
+.verses-flex {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.verses-header {
+  display: flex;
+  flex-direction: row;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+}
+
+.english-header, .hebrew-header {
+  flex: 1 1 0;
+  text-align: center;
+  font-size: 1.1rem;
+  color: #1976d2;
+}
+
+.verse-row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.verse-col {
+  flex: 1 1 0;
+  padding: 0.25rem 0.5rem;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.english-verse {
+  text-align: left;
+}
+
+.hebrew-verse {
+  text-align: right;
+  direction: rtl;
 }
 </style> 
