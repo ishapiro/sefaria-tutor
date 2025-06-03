@@ -77,10 +77,9 @@
                 </ul>
               </div>
               <div v-if="currentPageText.length === 0" class="text-center text-gray-500 py-8">
-                <div>No content or sections found for this book.</div>
-                <div class="mt-2 text-xs">(Debug: If you expected sections, check the console for the full API response.)</div>
-                <div v-if="nextSectionRef" class="mt-8">
-                  <Button label="Go to Next Available Section" icon="pi pi-arrow-right" @click="goToNextSection" />
+                <div>
+                  This book is not available via the API. Please visit the Sefaria website 
+                  at <a href="https://www.sefaria.org" target="_blank">https://www.sefaria.org</a> directly to access it.
                 </div>
               </div>
               <div v-else class="verses-flex">
@@ -331,51 +330,44 @@ export default {
         return;
       }
 
-      // First check if the book is available via the API
-      try {
-        const searchResponse = await axios.get(`https://sefaria-proxy-worker.cogitations.workers.dev/proxy/api/search?q=${encodeURIComponent(event.data.title)}`);
-        
-        // Check if the book is in the search results
-        const isAvailable = searchResponse.data.results.some(result => 
-          result.ref && result.ref.includes(event.data.title)
-        );
-
-        if (!isAvailable) {
-          this.errorMessage = `This book (${event.data.title}) is not available via the API. Please visit the Sefaria website directly to access it.`;
-          this.showErrorDialog = true;
-          return;
-        }
-      } catch (error) {
-        this.log('Error checking book availability:', {
-          message: error.message,
-          status: error.response?.status
-        });
-        // Continue anyway, as the search API might be temporarily unavailable
-      }
-
       this.selectedBook = event.data;
       this.first = 0;
       
-      // Add logging for complex book detection
-      const isComplex = this.isComplexBook(event.data);
-      this.log('Book complexity check:', {
-        title: event.data.title,
-        isComplex: isComplex,
-        categories: event.data.categories,
-        fullData: event.data
-      });
-
-      if (isComplex) {
-        // For complex books, first try to get the table of contents
-        await this.fetchComplexBookToc(event.data);
-      } else {
+      // Try to fetch the book content first
+      try {
+        const ref = event.data.title.replace(/\s+/g, '_');
+        const encodedRef = encodeURIComponent(ref);
+        const apiUrl = `https://sefaria-proxy-worker.cogitations.workers.dev/proxy/api/texts/${encodedRef}`;
+        
+        const response = await axios.get(apiUrl);
+        // If we get here, it's a simple text
         await this.fetchBookContent();
+      } catch (error) {
+        // Check if the error indicates a complex text
+        const isComplex = error.response?.data?.error?.includes('complex') && 
+                         error.response?.data?.error?.includes('book-level ref');
+        
+        this.log('Book complexity check:', {
+          title: event.data.title,
+          isComplex: isComplex,
+          error: error.response?.data?.error
+        });
+
+        if (isComplex) {
+          // For complex books, get the table of contents
+          await this.fetchComplexBookToc(event.data);
+        } else {
+          // For other errors, show the error message
+          this.errorMessage = error.response?.data?.error || error.message;
+          this.showErrorDialog = true;
+        }
       }
     },
     async fetchComplexBookToc(book) {
       this.loading = true;
       try {
-        const ref = book.title.replace(/;/g, '_').replace(/\s+/g, '_');
+        // For Haggadah, use the underscore format
+        const ref = book.title.replace(/\s+/g, '_');
         const encodedRef = encodeURIComponent(ref);
         const apiUrl = `https://sefaria-proxy-worker.cogitations.workers.dev/proxy/api/index/${encodedRef}`;
         
@@ -477,10 +469,14 @@ export default {
           const isTanakh = this.selectedBook?.categories?.includes('Tanakh');
           const isChasidut = this.selectedBook?.categories?.includes('Chasidut');
           const isJewishThought = this.selectedBook?.categories?.includes('Jewish Thought');
+          const isHaggadah = this.selectedBook?.categories?.includes('Haggadah');
           
           if (isTanakh) {
             // Tanakh books use simple format: "Book Chapter"
             ref = `${bookTitle} ${chapter}`;
+          } else if (isHaggadah) {
+            // For Haggadah, use the underscore format
+            ref = bookTitle.replace(/\s+/g, '_');
           } else if (isChasidut) {
             // For Chasidut books, use the index title format
             try {
@@ -518,8 +514,8 @@ export default {
         this.currentChapter = chapter;
         
         // Clean up the reference - use proper Sefaria API format
-        // Don't replace underscores for Jewish Thought books
-        if (!this.selectedBook?.categories?.includes('Jewish Thought')) {
+        // Don't replace underscores for Jewish Thought books or Haggadah
+        if (!this.selectedBook?.categories?.includes('Jewish Thought') && !this.selectedBook?.categories?.includes('Haggadah')) {
           ref = ref.replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
         }
         const encodedRef = encodeURIComponent(ref);
@@ -630,30 +626,12 @@ export default {
         } else if (response.data.he) {
           // Handle books with only Hebrew text
           const hebrewTexts = Array.isArray(response.data.he) ? response.data.he : [response.data.he];
-          const heVerses = response.data.he_verses || hebrewTexts.map((_, i) => i + 1);
-          
-          textData = hebrewTexts.map((he, idx) => {
-            const verseNum = heVerses[idx];
-            let displayNumber;
-            
-            // Try to get display number from various sources
-            if (response.data.verses && response.data.verses[idx]) {
-              const match = response.data.verses[idx].match(/(\d+):(\d+)/);
-              displayNumber = match ? `${match[1]}:${match[2]}` : response.data.verses[idx];
-            } else if (response.data.textRefs && response.data.textRefs[idx]) {
-              const match = response.data.textRefs[idx].match(/(\d+):(\d+)/);
-              displayNumber = match ? `${match[1]}:${match[2]}` : response.data.textRefs[idx];
-            } else {
-              displayNumber = `${chapter}:${idx + 1}`;
-            }
-            
-            return {
-              number: verseNum,
-              displayNumber,
-              en: '',  // Empty English text
-              he: he
-            };
-          });
+          textData = hebrewTexts.map((he, idx) => ({
+            number: idx + 1,
+            displayNumber: `${chapter}:${idx + 1}`,
+            en: '',
+            he: he
+          }));
         } else if (response.data.text) {
           textData = Array.isArray(response.data.text) ? response.data.text : [response.data.text];
           textData = textData.map((en, idx) => ({
@@ -732,15 +710,9 @@ export default {
       this.loading = false;
     },
     isComplexBook(book) {
-      // Check if the book is a Siddur or other complex book based on categories
-      return book && (
-        book.categories?.some(cat => 
-          cat.toLowerCase().includes('siddur') || 
-          cat.toLowerCase().includes('machzor')
-        ) ||
-        book.title?.toLowerCase().includes('siddur') || 
-        book.title?.toLowerCase().includes('machzor')
-      );
+      // This method is now only used for initial UI decisions
+      // The actual complexity check happens in onBookSelect
+      return false;
     },
     findTocNode(ref, node) {
       if (!node) return null;
