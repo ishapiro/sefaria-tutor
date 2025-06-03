@@ -183,6 +183,7 @@ export default {
       lastIndexUpdate: null,
       nextSectionRef: null,
       currentChapter: null,
+      isComplexBookFlag: false,  // Renamed from isComplexBook to avoid conflict
     }
   },
   computed: {
@@ -345,6 +346,9 @@ export default {
         fullData: event.data
       });
 
+      // Set the complex book flag
+      this.isComplexBookFlag = isComplex;
+
       if (isComplex) {
         // For complex books, first try to get the table of contents
         await this.fetchComplexBookToc(event.data);
@@ -441,7 +445,7 @@ export default {
         
         if (refOverride) {
           // For complex books, use the full path
-          if (this.isComplexBook(this.selectedBook)) {
+          if (this.isComplexBookFlag) {
             // Format the reference according to Sefaria's API requirements
             const parts = refOverride.split('/');
             // Remove any parenthetical notes from the last part
@@ -472,7 +476,7 @@ export default {
           encodedRef: encodedRef,
           apiUrl: apiUrl,
           chapter: chapter,
-          isComplex: this.isComplexBook(this.selectedBook),
+          isComplex: this.isComplexBookFlag,
           refOverride: refOverride,
           categoryPath: this.selectedBook?.path
         });
@@ -868,17 +872,42 @@ export default {
     },
     handleCloseBook() {
       this.loading = false;
-      // Clear all states
-      this.currentPageText = [];
-      this.totalRecords = 0;
-      this.sectionStack = [];
-      this.complexSections = null;
-      this.nextSectionRef = null;
-      this.errorMessage = '';
-      this.showErrorDialog = false;
       
-      // Always return to home screen
-      this.selectedBook = null;
+      if (this.isComplexBookFlag) {
+        if (this.currentPageText.length > 0) {
+          // If we're viewing a section of a complex book, return to TOC
+          this.currentPageText = [];
+          this.totalRecords = 0;
+          this.sectionStack = [];
+          this.nextSectionRef = null;
+          this.errorMessage = '';
+          this.showErrorDialog = false;
+          // Keep selectedBook and complexSections for TOC view
+          this.fetchComplexBookToc(this.selectedBook);
+        } else {
+          // If we're at the TOC, return to home
+          this.currentPageText = [];
+          this.totalRecords = 0;
+          this.sectionStack = [];
+          this.complexSections = null;
+          this.nextSectionRef = null;
+          this.errorMessage = '';
+          this.showErrorDialog = false;
+          this.isComplexBookFlag = false;
+          this.selectedBook = null;
+        }
+      } else {
+        // For non-complex books, return to home
+        this.currentPageText = [];
+        this.totalRecords = 0;
+        this.sectionStack = [];
+        this.complexSections = null;
+        this.nextSectionRef = null;
+        this.errorMessage = '';
+        this.showErrorDialog = false;
+        this.isComplexBookFlag = false;
+        this.selectedBook = null;
+      }
     },
   }
 }
