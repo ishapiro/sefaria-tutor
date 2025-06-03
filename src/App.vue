@@ -11,11 +11,18 @@
     <div v-else>
       <!-- Book List -->
       <div v-if="!selectedBook" class="mb-4">
-        <div class="mb-4">
-          <span class="p-input-icon-left w-full">
+        <div class="flex items-center gap-8 mb-4">
+          <span class="p-input-icon-left flex-grow">
             <i class="pi pi-search" />
             <InputText v-model="searchQuery" placeholder="Search books..." class="w-full pl-10 py-2 border rounded" />
           </span>
+          <Button 
+            icon="pi pi-refresh" 
+            label="Refresh Index" 
+            @click="refreshIndex" 
+            class="p-button-outlined whitespace-nowrap"
+            :loading="loading"
+          />
         </div>
         <CategoryAccordion 
           :categories="filteredCategories" 
@@ -70,6 +77,7 @@
               </div>
               <div v-else-if="!complexSections" class="grid grid-cols-2 gap-4">
                 <div class="english-column">
+                  <div class="column-header">&nbsp;</div>
                   <template v-for="(section, index) in currentPageText" :key="'en-' + index">
                     <div v-if="section.isHeading" class="mb-4 border-b-2 border-gray-200 pb-2 mt-8">
                       <h3 class="text-xl font-bold">{{ section.en }}</h3>
@@ -80,13 +88,14 @@
                   </template>
                 </div>
                 <div class="hebrew-column">
+                  <div class="column-header">Select text to translate</div>
                   <template v-for="(section, index) in currentPageText" :key="'he-' + index">
                     <div v-if="section.isHeading" class="mb-4 border-b-2 border-gray-200 pb-2 mt-8">
                       <h3 class="text-xl font-bold text-right">{{ section.he }}</h3>
                     </div>
                     <div v-else class="mb-4">
                       <div class="hebrew-text text-right" 
-                           @click.stop.prevent="handleHebrewTextClick"
+                           @mouseup="handleTextSelection"
                            v-html="section.he"></div>
                     </div>
                   </template>
@@ -105,7 +114,7 @@
             :modal="true" 
             :closable="true" 
             :dismissableMask="true"
-            :style="{ width: '50vw' }"
+            :style="{ width: '75vw' }"
             header="Translation">
       <div class="p-4">
         <div v-if="translationLoading" class="text-center">
@@ -126,6 +135,7 @@ import Accordion from 'primevue/accordion'
 import AccordionTab from 'primevue/accordiontab'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
+import Button from 'primevue/button'
 import CategoryAccordion from './components/CategoryAccordion.vue'
 import { marked } from 'marked'
 
@@ -144,7 +154,8 @@ export default {
     AccordionTab,
     DataTable,
     Column,
-    CategoryAccordion
+    CategoryAccordion,
+    Button
   },
   data() {
     return {
@@ -168,6 +179,7 @@ export default {
       showTranslationDialog: false,
       translationLoading: false,
       formattedTranslation: [],
+      lastIndexUpdate: null,
     }
   },
   computed: {
@@ -219,18 +231,48 @@ export default {
     },
     async fetchAndCacheFullIndex() {
       logTime('Start fetchAndCacheFullIndex');
-      if (this.fullIndex) return; // Already cached
+      
+      // Try to load from cache first
+      const cachedIndex = localStorage.getItem('sefariaIndex');
+      const cachedTimestamp = localStorage.getItem('sefariaIndexTimestamp');
+      
+      if (cachedIndex && cachedTimestamp) {
+        try {
+          this.fullIndex = JSON.parse(cachedIndex);
+          this.lastIndexUpdate = new Date(cachedTimestamp);
+          // Set top-level categories for display
+          this.categories = this.fullIndex.map(cat => ({
+            ...cat,
+            type: 'category',
+            path: cat.category || cat.title,
+            loaded: false,
+            children: []
+          }));
+          logTime('End fetchAndCacheFullIndex (from cache)');
+          return;
+        } catch (e) {
+          console.error('Error parsing cached index:', e);
+          // If there's an error parsing the cache, we'll fetch fresh data
+        }
+      }
+      
       this.loading = true;
       try {
         const response = await axios.get('https://sefaria-proxy-worker.cogitations.workers.dev/proxy/api/index');
         this.fullIndex = response.data;
-        // Set top-level categories for display, but do not process children yet
+        this.lastIndexUpdate = new Date();
+        
+        // Cache the index and timestamp
+        localStorage.setItem('sefariaIndex', JSON.stringify(this.fullIndex));
+        localStorage.setItem('sefariaIndexTimestamp', this.lastIndexUpdate.toISOString());
+        
+        // Set top-level categories for display
         this.categories = this.fullIndex.map(cat => ({
           ...cat,
           type: 'category',
           path: cat.category || cat.title,
-          loaded: false, // Not loaded yet
-          children: []   // Will process on demand
+          loaded: false,
+          children: []
         }));
       } catch (error) {
         this.errorMessage = 'Failed to load categories.';
@@ -239,6 +281,19 @@ export default {
         this.loading = false;
         logTime('End fetchAndCacheFullIndex');
       }
+    },
+    async refreshIndex() {
+      // Clear the cache
+      localStorage.removeItem('sefariaIndex');
+      localStorage.removeItem('sefariaIndexTimestamp');
+      
+      // Reset the state
+      this.fullIndex = null;
+      this.categories = [];
+      this.selectedBook = null;
+      
+      // Fetch fresh data
+      await this.fetchAndCacheFullIndex();
     },
     onCategoryExpand(category) {
       if (!category.loaded && category.contents) {
@@ -539,42 +594,21 @@ export default {
       this.selectedBook = null;
       logTime('End onBackFromBook');
     },
-    handleHebrewTextClick(event) {
-      event.preventDefault();
-      event.stopPropagation();
-      
+    handleTextSelection(event) {
       const selection = window.getSelection();
-      const range = document.caretRangeFromPoint(event.clientX, event.clientY);
+      const selectedText = selection.toString().trim();
       
-      if (range) {
-        // Move to start of sentence
-        while (range.startOffset > 0 && 
-               !['.', '!', '?', '׃', '׀', '׆'].includes(range.startContainer.textContent[range.startOffset - 1])) {
-          range.setStart(range.startContainer, range.startOffset - 1);
-        }
+      if (selectedText) {
+        // Create a temporary div to parse the HTML
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = selectedText;
+        // Get the text content without HTML tags
+        const cleanText = tempDiv.textContent || tempDiv.innerText;
         
-        // Move to end of sentence
-        while (range.endOffset < range.endContainer.textContent.length && 
-               !['.', '!', '?', '׃', '׀', '׆'].includes(range.endContainer.textContent[range.endOffset])) {
-          range.setEnd(range.endContainer, range.endOffset + 1);
-        }
+        this.translate_with_openai(cleanText);
         
+        // Clear the selection
         selection.removeAllRanges();
-        selection.addRange(range);
-        
-        // Get the selected HTML content
-        const selectedHtml = selection.toString().trim();
-        if (selectedHtml) {
-          // Create a temporary div to parse the HTML
-          const tempDiv = document.createElement('div');
-          tempDiv.innerHTML = selectedHtml;
-          // Get the text content without HTML tags
-          const cleanText = tempDiv.textContent || tempDiv.innerText;
-          
-          this.translate_with_openai(cleanText);
-          // Clear the selection after we're done
-          selection.removeAllRanges();
-        }
       }
     },
     async translate_with_openai(text) {
@@ -634,60 +668,6 @@ export default {
       } finally {
         this.translationLoading = false;
       }
-    },
-    markdownToHtml(markdown) {
-      // Convert newlines to <br> tags
-      let html = markdown.replace(/\n/g, '<br>');
-      
-      // Convert tables
-      html = html.replace(/\|([^\n]+)\|\n\|([^\n]+)\|\n\|([^\n]+)\|/g, (match, header, separator, content) => {
-        const headers = header.split('|').map(h => h.trim()).filter(Boolean);
-        const contents = content.split('|').map(c => c.trim()).filter(Boolean);
-        
-        let tableHtml = '<table class="translation-table">';
-        
-        // Add headers
-        tableHtml += '<thead><tr>';
-        headers.forEach(h => {
-          tableHtml += `<th>${h}</th>`;
-        });
-        tableHtml += '</tr></thead>';
-        
-        // Add content
-        tableHtml += '<tbody><tr>';
-        contents.forEach(c => {
-          tableHtml += `<td>${c}</td>`;
-        });
-        tableHtml += '</tr></tbody></table>';
-        
-        return tableHtml;
-      });
-      
-      // Convert word sections (Hebrew - English pairs)
-      html = html.replace(/([א-ת\s]+)\s*-\s*([A-Za-z\s]+)/g, 
-        '<div class="word-section"><span class="hebrew-word">$1</span> - <span class="english-word">$2</span></div>');
-      
-      // Convert root word sections
-      html = html.replace(/שׁורש\s*-\s*([א-ת\s]+)/g, 
-        '<div class="root-section">Root: <span class="hebrew-word">$1</span></div>');
-      
-      // Convert pattern sections
-      html = html.replace(/משקל\s*-\s*([א-ת\s]+)/g, 
-        '<div class="pattern-section">Pattern: <span class="hebrew-word">$1</span></div>');
-      
-      // Convert verb form sections
-      html = html.replace(/בנין\s*-\s*([א-ת\s]+)/g, 
-        '<div class="verb-form-section">Verb Form: <span class="hebrew-word">$1</span></div>');
-      
-      // Convert tense sections
-      html = html.replace(/זמנים\s*-\s*([A-Za-z\s]+)/g, 
-        '<div class="tense-section">Tense: <span class="english-word">$1</span></div>');
-      
-      // Convert translation sections
-      html = html.replace(/Translation\s*-\s*([A-Za-z\s]+)/g, 
-        '<div class="translation-section">Translation: <span class="english-word">$1</span></div>');
-      
-      return html;
     }
   }
 }
@@ -891,12 +871,12 @@ small {
   width: 100%;
   border-collapse: collapse;
   margin: 1rem 0;
-  font-size: 0.9rem;
+  font-size: 1.1rem;
 }
 
 .translation-content th,
 .translation-content td {
-  padding: 0.5rem;
+  padding: 0.75rem;
   border: 1px solid #ddd;
   text-align: left;
 }
@@ -905,6 +885,7 @@ small {
   background-color: #f8f9fa;
   font-weight: bold;
   color: #2c3e50;
+  font-size: 1.1rem;
 }
 
 .translation-content td {
@@ -917,12 +898,13 @@ small {
 
 .translation-content .hebrew-word {
   font-family: 'SBL Hebrew', 'Times New Roman', serif;
-  font-size: 1.1rem;
+  font-size: 1.3rem;
   color: #2c3e50;
 }
 
 .translation-content .english-word {
   font-family: Arial, sans-serif;
+  font-size: 1.1rem;
   color: #666;
 }
 
@@ -1012,12 +994,12 @@ small {
   width: 100%;
   border-collapse: collapse;
   margin: 1rem 0;
-  font-size: 0.9rem;
+  font-size: 1.1rem;
 }
 
 .translation-table th,
 .translation-table td {
-  padding: 0.5rem;
+  padding: 0.75rem;
   border: 1px solid #ddd;
   text-align: left;
 }
@@ -1026,6 +1008,7 @@ small {
   background-color: #f8f9fa;
   font-weight: bold;
   color: #2c3e50;
+  font-size: 1.1rem;
 }
 
 .translation-table td {
@@ -1038,12 +1021,36 @@ small {
 
 .translation-table .hebrew-word {
   font-family: 'SBL Hebrew', 'Times New Roman', serif;
-  font-size: 1.1rem;
+  font-size: 1.3rem;
   color: #2c3e50;
 }
 
 .translation-table .english-word {
   font-family: Arial, sans-serif;
+  font-size: 1.1rem;
   color: #666;
+}
+
+.p-button-outlined {
+  border: 1px solid #2196F3;
+  color: #2196F3;
+  background: transparent;
+}
+
+.p-button-outlined:hover {
+  background: rgba(33, 150, 243, 0.1);
+}
+
+.p-button-outlined:disabled {
+  border-color: #ccc;
+  color: #ccc;
+}
+
+.column-header {
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 1.5rem;
+  color: #1976d2;
 }
 </style> 
