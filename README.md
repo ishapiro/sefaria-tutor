@@ -1,6 +1,10 @@
 # Sefaria Book Reader
 
-A Vue 3 application that integrates with the Sefaria API to display Jewish texts with Hebrew and English translations side by side.
+A Vue 3 application that integrates with the Sefaria API to display Jewish texts in Hebrew and English, side by side.
+
+After navigating to a text, clicking on any sentence sends it to ChatGPT, which returns a table breaking down each word with its translation, root, and grammatical forms.
+
+In the next release, you'll be able to click on a root to view its full conjugation along with usage examples.
 
 ## Features
 
@@ -36,7 +40,7 @@ To start the development server:
 npm run dev
 ```
 
-The application will be available at `http://localhost:5173`
+The application will be available at `https://sefaria-tutor.cogitations.com`
 
 ## Building for Production
 
@@ -158,4 +162,12 @@ This project uses the Sefaria API. For more information about the API, visit:
 
 ## License
 
-[Your chosen license] 
+This project is licensed under the MIT License.
+
+The MIT License is a permissive open-source license with the following key features:
+
+Free Use: Anyone can use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the software.
+
+Attribution Required: The original license and copyright notice must be included in all copies or substantial portions of the software.  Please attribute to Irv Shapiro, Cogitations, LLC.
+
+No Warranty: The software is provided "as is", without warranty of any kind—express or implied—including but not limited to warranties of merchantability or fitness for a particular purpose.
