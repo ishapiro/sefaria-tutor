@@ -493,7 +493,10 @@ export default {
               isArray: Array.isArray(response.data),
               dataType: typeof response.data,
               dataKeys: Object.keys(response.data),
-              fullData: response.data
+              textLength: response.data.text ? (Array.isArray(response.data.text) ? response.data.text.length : 1) : 0,
+              hebrewLength: response.data.he ? (Array.isArray(response.data.he) ? response.data.he.length : 1) : 0,
+              verses: response.data.verses ? (Array.isArray(response.data.verses) ? response.data.verses.length : 1) : 0,
+              heVerses: response.data.he_verses ? (Array.isArray(response.data.he_verses) ? response.data.he_verses.length : 1) : 0
             });
 
             // Store next/firstAvailableSectionRef for navigation if no content
@@ -520,12 +523,57 @@ export default {
             let textData = [];
             if (Array.isArray(response.data)) {
               textData = response.data;
+              console.log('Processing array response data:', {
+                length: textData.length,
+                structure: textData.map(item => ({
+                  hasText: !!item.text,
+                  hasHebrew: !!item.he,
+                  hasVerses: !!item.verses
+                }))
+              });
+            } else if (this.isComplexBookFlag && response.data.he) {
+              // Special handling for complex books with Hebrew text
+              const hebrewTexts = Array.isArray(response.data.he) ? response.data.he : [response.data.he];
+              console.log('Complex book Hebrew texts:', {
+                length: hebrewTexts.length,
+                isArray: Array.isArray(response.data.he)
+              });
+
+              textData = hebrewTexts.map((he, idx) => {
+                let displayNumber = `${idx + 1}`;
+                // Try to get section information if available
+                if (response.data.sections && response.data.sections[idx]) {
+                  displayNumber = response.data.sections[idx];
+                } else if (response.data.sectionRef) {
+                  displayNumber = response.data.sectionRef;
+                }
+                
+                return {
+                  number: idx + 1,
+                  displayNumber,
+                  en: '',
+                  he: he
+                };
+              });
+
+              console.log('Processed complex book Hebrew text:', {
+                length: textData.length,
+                hasContent: textData.some(item => item.he)
+              });
             } else if (response.data.text && response.data.he) {
               // Build verse maps
               const englishTexts = Array.isArray(response.data.text) ? response.data.text : [response.data.text];
               const hebrewTexts = Array.isArray(response.data.he) ? response.data.he : [response.data.he];
+              console.log('Text arrays:', {
+                englishLength: englishTexts.length,
+                hebrewLength: hebrewTexts.length
+              });
               const enVerses = response.data.verses || englishTexts.map((_, i) => i + 1);
               const heVerses = response.data.he_verses || enVerses;
+              console.log('Verse arrays:', {
+                englishVerses: enVerses.length,
+                hebrewVerses: heVerses.length
+              });
               // Build maps for fast lookup
               const enMap = {};
               englishTexts.forEach((en, i) => {
@@ -535,8 +583,16 @@ export default {
               hebrewTexts.forEach((he, i) => {
                 heMap[heVerses[i]] = he;
               });
+              console.log('Text maps:', {
+                englishMapSize: Object.keys(enMap).length,
+                hebrewMapSize: Object.keys(heMap).length
+              });
               // Union of all verse numbers
               const allVerseNumbers = Array.from(new Set([...enVerses, ...heVerses])).sort((a, b) => a - b);
+              console.log('All verse numbers:', {
+                count: allVerseNumbers.length,
+                range: allVerseNumbers.length > 0 ? `${allVerseNumbers[0]}-${allVerseNumbers[allVerseNumbers.length - 1]}` : 'none'
+              });
 
               // Branch logic: Tanakh vs. other
               const isTanakh = this.selectedBook?.categories?.includes('Tanakh');
@@ -573,41 +629,92 @@ export default {
                   };
                 });
               }
+              console.log('Processed text data:', {
+                length: textData.length,
+                hasContent: textData.some(item => item.en || item.he)
+              });
             } else if (response.data.he) {
               // Handle books with only Hebrew text
               const hebrewTexts = Array.isArray(response.data.he) ? response.data.he : [response.data.he];
-              textData = hebrewTexts.map((he, idx) => ({
-                number: idx + 1,
-                displayNumber: `${chapter}:${idx + 1}`,
-                en: '',
-                he: he
-              }));
+              console.log('Hebrew only texts:', {
+                length: hebrewTexts.length,
+                isArray: Array.isArray(response.data.he)
+              });
+              
+              // If we have Hebrew text but no verses, treat each text entry as a verse
+              textData = hebrewTexts.map((he, idx) => {
+                // Try to get a more descriptive display number if available
+                let displayNumber = `${idx + 1}`;
+                if (response.data.verses && response.data.verses[idx]) {
+                  const match = response.data.verses[idx].match(/(\d+):(\d+)/);
+                  if (match) {
+                    displayNumber = `${match[1]}:${match[2]}`;
+                  } else {
+                    displayNumber = response.data.verses[idx];
+                  }
+                }
+                
+                return {
+                  number: idx + 1,
+                  displayNumber,
+                  en: '',
+                  he: he
+                };
+              });
+              
+              console.log('Processed Hebrew only text data:', {
+                length: textData.length,
+                hasContent: textData.some(item => item.he)
+              });
             } else if (response.data.text) {
               textData = Array.isArray(response.data.text) ? response.data.text : [response.data.text];
+              console.log('English only texts:', {
+                length: textData.length,
+                isArray: Array.isArray(response.data.text)
+              });
               textData = textData.map((en, idx) => ({
                 en,
                 he: '',
                 number: idx + 1,
-                displayNumber: `${chapter}:${idx + 1}`
+                displayNumber: `${idx + 1}`
               }));
+              console.log('Processed English only text data:', {
+                length: textData.length,
+                hasContent: textData.some(item => item.en)
+              });
             } else if (response.data.he && response.data.en) {
               textData = [{
                 ...response.data,
                 number: 1,
-                displayNumber: `${chapter}:1`
+                displayNumber: '1'
               }];
+              console.log('Single verse text data:', {
+                hasHebrew: !!response.data.he,
+                hasEnglish: !!response.data.en
+              });
             } else if (typeof response.data === 'string') {
-              textData = [{ he: response.data, en: '', number: 1, displayNumber: `${chapter}:1` }];
+              textData = [{ he: response.data, en: '', number: 1, displayNumber: '1' }];
+              console.log('String response text data:', {
+                length: response.data.length,
+                type: typeof response.data
+              });
             }
 
             // Get the total number of verses in the chapter
             const totalVerses = textData.length;
             this.totalRecords = totalVerses;
+            console.log('Total verses:', totalVerses);
 
             // Slice the text data based on the current page
             const startIndex = this.first % this.rowsPerPage;
             const endIndex = Math.min(startIndex + this.rowsPerPage, totalVerses);
             const pageText = textData.slice(startIndex, endIndex);
+            console.log('Page text slice:', {
+              startIndex,
+              endIndex,
+              length: pageText.length,
+              hasContent: pageText.some(item => item.en || item.he)
+            });
 
             this.currentPageText = pageText.map(text => {
               return {
@@ -617,6 +724,16 @@ export default {
                 displayNumber: text.displayNumber || text.number || 1
               };
             });
+            console.log('Final currentPageText:', {
+              length: this.currentPageText.length,
+              hasContent: this.currentPageText.some(item => item.en || item.he)
+            });
+
+            // Only show no content message if there's no Hebrew text either
+            if (this.currentPageText.length === 0 && !response.data.he) {
+              this.errorMessage = 'This book is not available via the API. Please visit the Sefaria website directly to access it.';
+              this.showErrorDialog = true;
+            }
 
             // If there is no content and a next section is available, automatically fetch the next section
             if (this.currentPageText.length === 0 && this.nextSectionRef && !refOverride) {
@@ -685,7 +802,10 @@ export default {
           isArray: Array.isArray(response.data),
           dataType: typeof response.data,
           dataKeys: Object.keys(response.data),
-          fullData: response.data
+          textLength: response.data.text ? (Array.isArray(response.data.text) ? response.data.text.length : 1) : 0,
+          hebrewLength: response.data.he ? (Array.isArray(response.data.he) ? response.data.he.length : 1) : 0,
+          verses: response.data.verses ? (Array.isArray(response.data.verses) ? response.data.verses.length : 1) : 0,
+          heVerses: response.data.he_verses ? (Array.isArray(response.data.he_verses) ? response.data.he_verses.length : 1) : 0
         });
 
         // Store next/firstAvailableSectionRef for navigation if no content
@@ -712,12 +832,57 @@ export default {
         let textData = [];
         if (Array.isArray(response.data)) {
           textData = response.data;
+          console.log('Processing array response data:', {
+            length: textData.length,
+            structure: textData.map(item => ({
+              hasText: !!item.text,
+              hasHebrew: !!item.he,
+              hasVerses: !!item.verses
+            }))
+          });
+        } else if (this.isComplexBookFlag && response.data.he) {
+          // Special handling for complex books with Hebrew text
+          const hebrewTexts = Array.isArray(response.data.he) ? response.data.he : [response.data.he];
+          console.log('Complex book Hebrew texts:', {
+            length: hebrewTexts.length,
+            isArray: Array.isArray(response.data.he)
+          });
+
+          textData = hebrewTexts.map((he, idx) => {
+            let displayNumber = `${idx + 1}`;
+            // Try to get section information if available
+            if (response.data.sections && response.data.sections[idx]) {
+              displayNumber = response.data.sections[idx];
+            } else if (response.data.sectionRef) {
+              displayNumber = response.data.sectionRef;
+            }
+            
+            return {
+              number: idx + 1,
+              displayNumber,
+              en: '',
+              he: he
+            };
+          });
+
+          console.log('Processed complex book Hebrew text:', {
+            length: textData.length,
+            hasContent: textData.some(item => item.he)
+          });
         } else if (response.data.text && response.data.he) {
           // Build verse maps
           const englishTexts = Array.isArray(response.data.text) ? response.data.text : [response.data.text];
           const hebrewTexts = Array.isArray(response.data.he) ? response.data.he : [response.data.he];
+          console.log('Text arrays:', {
+            englishLength: englishTexts.length,
+            hebrewLength: hebrewTexts.length
+          });
           const enVerses = response.data.verses || englishTexts.map((_, i) => i + 1);
           const heVerses = response.data.he_verses || enVerses;
+          console.log('Verse arrays:', {
+            englishVerses: enVerses.length,
+            hebrewVerses: heVerses.length
+          });
           // Build maps for fast lookup
           const enMap = {};
           englishTexts.forEach((en, i) => {
@@ -727,8 +892,16 @@ export default {
           hebrewTexts.forEach((he, i) => {
             heMap[heVerses[i]] = he;
           });
+          console.log('Text maps:', {
+            englishMapSize: Object.keys(enMap).length,
+            hebrewMapSize: Object.keys(heMap).length
+          });
           // Union of all verse numbers
           const allVerseNumbers = Array.from(new Set([...enVerses, ...heVerses])).sort((a, b) => a - b);
+          console.log('All verse numbers:', {
+            count: allVerseNumbers.length,
+            range: allVerseNumbers.length > 0 ? `${allVerseNumbers[0]}-${allVerseNumbers[allVerseNumbers.length - 1]}` : 'none'
+          });
 
           // Branch logic: Tanakh vs. other
           const isTanakh = this.selectedBook?.categories?.includes('Tanakh');
@@ -765,41 +938,92 @@ export default {
               };
             });
           }
+          console.log('Processed text data:', {
+            length: textData.length,
+            hasContent: textData.some(item => item.en || item.he)
+          });
         } else if (response.data.he) {
           // Handle books with only Hebrew text
           const hebrewTexts = Array.isArray(response.data.he) ? response.data.he : [response.data.he];
-          textData = hebrewTexts.map((he, idx) => ({
-            number: idx + 1,
-            displayNumber: `${chapter}:${idx + 1}`,
-            en: '',
-            he: he
-          }));
+          console.log('Hebrew only texts:', {
+            length: hebrewTexts.length,
+            isArray: Array.isArray(response.data.he)
+          });
+          
+          // If we have Hebrew text but no verses, treat each text entry as a verse
+          textData = hebrewTexts.map((he, idx) => {
+            // Try to get a more descriptive display number if available
+            let displayNumber = `${idx + 1}`;
+            if (response.data.verses && response.data.verses[idx]) {
+              const match = response.data.verses[idx].match(/(\d+):(\d+)/);
+              if (match) {
+                displayNumber = `${match[1]}:${match[2]}`;
+              } else {
+                displayNumber = response.data.verses[idx];
+              }
+            }
+            
+            return {
+              number: idx + 1,
+              displayNumber,
+              en: '',
+              he: he
+            };
+          });
+          
+          console.log('Processed Hebrew only text data:', {
+            length: textData.length,
+            hasContent: textData.some(item => item.he)
+          });
         } else if (response.data.text) {
           textData = Array.isArray(response.data.text) ? response.data.text : [response.data.text];
+          console.log('English only texts:', {
+            length: textData.length,
+            isArray: Array.isArray(response.data.text)
+          });
           textData = textData.map((en, idx) => ({
             en,
             he: '',
             number: idx + 1,
-            displayNumber: `${chapter}:${idx + 1}`
+            displayNumber: `${idx + 1}`
           }));
+          console.log('Processed English only text data:', {
+            length: textData.length,
+            hasContent: textData.some(item => item.en)
+          });
         } else if (response.data.he && response.data.en) {
           textData = [{
             ...response.data,
             number: 1,
-            displayNumber: `${chapter}:1`
+            displayNumber: '1'
           }];
+          console.log('Single verse text data:', {
+            hasHebrew: !!response.data.he,
+            hasEnglish: !!response.data.en
+          });
         } else if (typeof response.data === 'string') {
-          textData = [{ he: response.data, en: '', number: 1, displayNumber: `${chapter}:1` }];
+          textData = [{ he: response.data, en: '', number: 1, displayNumber: '1' }];
+          console.log('String response text data:', {
+            length: response.data.length,
+            type: typeof response.data
+          });
         }
 
         // Get the total number of verses in the chapter
         const totalVerses = textData.length;
         this.totalRecords = totalVerses;
+        console.log('Total verses:', totalVerses);
 
         // Slice the text data based on the current page
         const startIndex = this.first % this.rowsPerPage;
         const endIndex = Math.min(startIndex + this.rowsPerPage, totalVerses);
         const pageText = textData.slice(startIndex, endIndex);
+        console.log('Page text slice:', {
+          startIndex,
+          endIndex,
+          length: pageText.length,
+          hasContent: pageText.some(item => item.en || item.he)
+        });
 
         this.currentPageText = pageText.map(text => {
           return {
@@ -809,6 +1033,16 @@ export default {
             displayNumber: text.displayNumber || text.number || 1
           };
         });
+        console.log('Final currentPageText:', {
+          length: this.currentPageText.length,
+          hasContent: this.currentPageText.some(item => item.en || item.he)
+        });
+
+        // Only show no content message if there's no Hebrew text either
+        if (this.currentPageText.length === 0 && !response.data.he) {
+          this.errorMessage = 'This book is not available via the API. Please visit the Sefaria website directly to access it.';
+          this.showErrorDialog = true;
+        }
 
         // If there is no content and a next section is available, automatically fetch the next section
         if (this.currentPageText.length === 0 && this.nextSectionRef && !refOverride) {
