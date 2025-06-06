@@ -1033,8 +1033,11 @@ export default {
         
         log(this.debug, 'Making translation request for text:', text);
         
+        // Check if the current book is from the Talmud
+        const isTalmud = this.selectedBook?.categories?.includes('Talmud');
+        
         const requestBody = {
-          prompt: `${text}`,
+          prompt: isTalmud ? `Translate this phrase from the Talmud to english:${text}` : `Translate this phraseto english:${text}`,
           model: 'gpt-3.5-turbo'
         };
         log(this.debug, 'Request body:', JSON.stringify(requestBody, null, 2));
