@@ -359,32 +359,60 @@ export default {
     async fetchComplexBookToc(book) {
       this.loading = true;
       try {
-        // For Haggadah, use the underscore format
-        const ref = book.title.replace(/\s+/g, '_');
-        const encodedRef = encodeURIComponent(ref);
-        const apiUrl = `https://sefaria-proxy-worker.cogitations.workers.dev/proxy/api/index/${encodedRef}`;
-        
-        this.log('Fetching complex book TOC:', {
-          originalTitle: book.title,
-          processedRef: ref,
-          encodedRef: encodedRef,
-          apiUrl: apiUrl
-        });
-        
-        const response = await axios.get(apiUrl);
-        
-        this.log('TOC Response:', {
-          status: response.status,
-          statusText: response.statusText,
-          data: response.data
-        });
-
-        if (response.data && response.data.schema) {
-          // Process the schema to extract sections
-          this.complexSections = this.processSchemaNodes(response.data.schema.nodes);
-          this.log('Processed complex sections:', this.complexSections);
+        // For Talmud books, we need to handle them differently
+        if (book.categories?.includes('Talmud')) {
+          const ref = book.title.replace(/\s+/g, '_');
+          const encodedRef = encodeURIComponent(ref);
+          const apiUrl = `https://sefaria-proxy-worker.cogitations.workers.dev/proxy/api/index/${encodedRef}`;
+          
+          this.log('Fetching Talmud TOC:', {
+            originalTitle: book.title,
+            processedRef: ref,
+            encodedRef: encodedRef,
+            apiUrl: apiUrl
+          });
+          
+          const response = await axios.get(apiUrl);
+          
+          if (response.data && response.data.schema) {
+            // For Talmud, we need to create sections based on daf numbers
+            const sections = [];
+            // Get the total number of dafim from the schema
+            const totalDafim = response.data.schema.lengths?.[0] || 0;
+            
+            // Create sections for each daf (both a and b sides)
+            for (let daf = 1; daf <= totalDafim; daf++) {
+              sections.push({
+                ref: `${book.title} ${daf}a`,
+                title: `${daf}a`,
+                heTitle: `${this.toHebrewNumeral(daf)}א`
+              });
+              sections.push({
+                ref: `${book.title} ${daf}b`,
+                title: `${daf}b`,
+                heTitle: `${this.toHebrewNumeral(daf)}ב`
+              });
+            }
+            
+            this.complexSections = sections;
+            this.log('Processed Talmud sections:', this.complexSections);
+          } else {
+            throw new Error('No schema found for Talmud book');
+          }
         } else {
-          throw new Error('No schema found for complex book');
+          // Original complex book handling
+          const ref = book.title.replace(/\s+/g, '_');
+          const encodedRef = encodeURIComponent(ref);
+          const apiUrl = `https://sefaria-proxy-worker.cogitations.workers.dev/proxy/api/index/${encodedRef}`;
+          
+          const response = await axios.get(apiUrl);
+          
+          if (response.data && response.data.schema) {
+            this.complexSections = this.processSchemaNodes(response.data.schema.nodes);
+            this.log('Processed complex sections:', this.complexSections);
+          } else {
+            throw new Error('No schema found for complex book');
+          }
         }
       } catch (error) {
         this.log('Error fetching TOC:', {
@@ -443,6 +471,9 @@ export default {
         let chapter = 1;
         let sectionLabel = null;
         
+        // Check if it's a Talmud book
+        const isTalmud = this.selectedBook?.categories?.includes('Talmud');
+        
         if (refOverride) {
           // For complex books, use the full path
           if (this.isComplexBookFlag) {
@@ -458,325 +489,36 @@ export default {
             // Clean up the reference - replace spaces with underscores and handle apostrophes
             ref = ref.replace(/\s+/g, '_')
                     .replace(/'([A-Za-z])/g, (match, letter) => 'e' + letter.toLowerCase());  // Replace apostrophe + any letter with 'e' + lowercase letter
-            const encodedRef = encodeURIComponent(ref);
-            const apiUrl = `https://sefaria-proxy-worker.cogitations.workers.dev/proxy/api/texts/${encodedRef}`;
-            
-            this.log('Fetching book content:', {
-              originalTitle: bookTitle,
-              processedRef: ref,
-              encodedRef: encodedRef,
-              apiUrl: apiUrl,
-              chapter: chapter,
-              isComplex: this.isComplexBookFlag,
-              refOverride: refOverride,
-              categoryPath: this.selectedBook?.path
-            });
-            
-            const response = await axios.get(apiUrl);
-
-            this.log("Sefaria Proxy Response:", response);
-            console.log("================================================")
-
-            if (response.data && response.data.error) {
-              this.errorMessage = `API Error: ${response.data.error}`;
-              this.showErrorDialog = true;
-              this.loading = false;
-              return;
-            }
-
-            this.log('API Response details:', {
-              status: response.status,
-              statusText: response.statusText,
-              headers: response.headers,
-              hasText: !!response.data.text,
-              hasHebrew: !!response.data.he,
-              isArray: Array.isArray(response.data),
-              dataType: typeof response.data,
-              dataKeys: Object.keys(response.data),
-              textLength: response.data.text ? (Array.isArray(response.data.text) ? response.data.text.length : 1) : 0,
-              hebrewLength: response.data.he ? (Array.isArray(response.data.he) ? response.data.he.length : 1) : 0,
-              verses: response.data.verses ? (Array.isArray(response.data.verses) ? response.data.verses.length : 1) : 0,
-              heVerses: response.data.he_verses ? (Array.isArray(response.data.he_verses) ? response.data.he_verses.length : 1) : 0
-            });
-
-            // Store next/firstAvailableSectionRef for navigation if no content
-            this.nextSectionRef = response.data.next || response.data.firstAvailableSectionRef || null;
-
-            // Determine current chapter/section label for header
-            const isTanakh = this.selectedBook?.categories?.includes('Tanakh');
-            if (isTanakh) {
-              this.currentChapter = chapter;
-            } else {
-              // Try to get section label from sections, sectionRef, or ref
-              if (Array.isArray(response.data.sections) && response.data.sections.length > 0) {
-                sectionLabel = response.data.sections.join(' ');
-              } else if (response.data.sectionRef) {
-                const match = response.data.sectionRef.match(/ ([^ ]+)$/);
-                sectionLabel = match ? match[1] : response.data.sectionRef;
-              } else if (response.data.ref) {
-                const match = response.data.ref.match(/ ([^ ]+)$/);
-                sectionLabel = match ? match[1] : response.data.ref;
-              }
-              this.currentChapter = sectionLabel;
-            }
-
-            let textData = [];
-            if (Array.isArray(response.data)) {
-              textData = response.data;
-              console.log('Processing array response data:', {
-                length: textData.length,
-                structure: textData.map(item => ({
-                  hasText: !!item.text,
-                  hasHebrew: !!item.he,
-                  hasVerses: !!item.verses
-                }))
-              });
-            } else if (this.isComplexBookFlag && response.data.he) {
-              // Special handling for complex books with Hebrew text
-              const hebrewTexts = Array.isArray(response.data.he) ? response.data.he : [response.data.he];
-              console.log('Complex book Hebrew texts:', {
-                length: hebrewTexts.length,
-                isArray: Array.isArray(response.data.he)
-              });
-
-              textData = hebrewTexts.map((he, idx) => {
-                let displayNumber = `${idx + 1}`;
-                // Try to get section information if available
-                if (response.data.sections && response.data.sections[idx]) {
-                  displayNumber = response.data.sections[idx];
-                } else if (response.data.sectionRef) {
-                  displayNumber = response.data.sectionRef;
-                }
-                
-                return {
-                  number: idx + 1,
-                  displayNumber,
-                  en: '',
-                  he: he
-                };
-              });
-
-              console.log('Processed complex book Hebrew text:', {
-                length: textData.length,
-                hasContent: textData.some(item => item.he)
-              });
-            } else if (response.data.text && response.data.he) {
-              // Build verse maps
-              const englishTexts = Array.isArray(response.data.text) ? response.data.text : [response.data.text];
-              const hebrewTexts = Array.isArray(response.data.he) ? response.data.he : [response.data.he];
-              console.log('Text arrays:', {
-                englishLength: englishTexts.length,
-                hebrewLength: hebrewTexts.length
-              });
-              const enVerses = response.data.verses || englishTexts.map((_, i) => i + 1);
-              const heVerses = response.data.he_verses || enVerses;
-              console.log('Verse arrays:', {
-                englishVerses: enVerses.length,
-                hebrewVerses: heVerses.length
-              });
-              // Build maps for fast lookup
-              const enMap = {};
-              englishTexts.forEach((en, i) => {
-                enMap[enVerses[i]] = en;
-              });
-              const heMap = {};
-              hebrewTexts.forEach((he, i) => {
-                heMap[heVerses[i]] = he;
-              });
-              console.log('Text maps:', {
-                englishMapSize: Object.keys(enMap).length,
-                hebrewMapSize: Object.keys(heMap).length
-              });
-              // Union of all verse numbers
-              const allVerseNumbers = Array.from(new Set([...enVerses, ...heVerses])).sort((a, b) => a - b);
-              console.log('All verse numbers:', {
-                count: allVerseNumbers.length,
-                range: allVerseNumbers.length > 0 ? `${allVerseNumbers[0]}-${allVerseNumbers[allVerseNumbers.length - 1]}` : 'none'
-              });
-
-              // Branch logic: Tanakh vs. other
-              const isTanakh = this.selectedBook?.categories?.includes('Tanakh');
-              if (isTanakh) {
-                textData = allVerseNumbers.map((num, idx) => {
-                  return {
-                    number: num,
-                    displayNumber: `${chapter}:${idx + 1}`,
-                    en: enMap[num] || '',
-                    he: heMap[num] || ''
-                  };
-                });
-              } else {
-                // Previous logic: try to get displayNumber from Sefaria fields, fallback to num
-                let enRefs = response.data.textRefs || response.data.verseMapping || response.data.versesRefs || null;
-                if (!enRefs && response.data.verses && typeof response.data.verses[0] === 'string') {
-                  enRefs = response.data.verses;
-                }
-                textData = allVerseNumbers.map((num, idx) => {
-                  let displayNumber = num;
-                  if (enRefs && enRefs[idx]) {
-                    const match = enRefs[idx].match(/(\d+):(\d+)/);
-                    if (match) {
-                      displayNumber = `${match[1]}:${match[2]}`;
-                    } else {
-                      displayNumber = enRefs[idx];
-                    }
-                  }
-                  return {
-                    number: num,
-                    displayNumber,
-                    en: enMap[num] || '',
-                    he: heMap[num] || ''
-                  };
-                });
-              }
-              console.log('Processed text data:', {
-                length: textData.length,
-                hasContent: textData.some(item => item.en || item.he)
-              });
-            } else if (response.data.he) {
-              // Handle books with only Hebrew text
-              const hebrewTexts = Array.isArray(response.data.he) ? response.data.he : [response.data.he];
-              console.log('Hebrew only texts:', {
-                length: hebrewTexts.length,
-                isArray: Array.isArray(response.data.he)
-              });
-              
-              // If we have Hebrew text but no verses, treat each text entry as a verse
-              textData = hebrewTexts.map((he, idx) => {
-                // Try to get a more descriptive display number if available
-                let displayNumber = `${idx + 1}`;
-                if (response.data.verses && response.data.verses[idx]) {
-                  const match = response.data.verses[idx].match(/(\d+):(\d+)/);
-                  if (match) {
-                    displayNumber = `${match[1]}:${match[2]}`;
-                  } else {
-                    displayNumber = response.data.verses[idx];
-                  }
-                }
-                
-                return {
-                  number: idx + 1,
-                  displayNumber,
-                  en: '',
-                  he: he
-                };
-              });
-              
-              console.log('Processed Hebrew only text data:', {
-                length: textData.length,
-                hasContent: textData.some(item => item.he)
-              });
-            } else if (response.data.text) {
-              textData = Array.isArray(response.data.text) ? response.data.text : [response.data.text];
-              console.log('English only texts:', {
-                length: textData.length,
-                isArray: Array.isArray(response.data.text)
-              });
-              textData = textData.map((en, idx) => ({
-                en,
-                he: '',
-                number: idx + 1,
-                displayNumber: `${idx + 1}`
-              }));
-              console.log('Processed English only text data:', {
-                length: textData.length,
-                hasContent: textData.some(item => item.en)
-              });
-            } else if (response.data.he && response.data.en) {
-              textData = [{
-                ...response.data,
-                number: 1,
-                displayNumber: '1'
-              }];
-              console.log('Single verse text data:', {
-                hasHebrew: !!response.data.he,
-                hasEnglish: !!response.data.en
-              });
-            } else if (typeof response.data === 'string') {
-              textData = [{ he: response.data, en: '', number: 1, displayNumber: '1' }];
-              console.log('String response text data:', {
-                length: response.data.length,
-                type: typeof response.data
-              });
-            }
-
-            // Get the total number of verses in the chapter
-            const totalVerses = textData.length;
-            this.totalRecords = totalVerses;
-            console.log('Total verses:', totalVerses);
-
-            // Slice the text data based on the current page
-            const startIndex = this.first % this.rowsPerPage;
-            const endIndex = Math.min(startIndex + this.rowsPerPage, totalVerses);
-            const pageText = textData.slice(startIndex, endIndex);
-            console.log('Page text slice:', {
-              startIndex,
-              endIndex,
-              length: pageText.length,
-              hasContent: pageText.some(item => item.en || item.he)
-            });
-
-            this.currentPageText = pageText.map(text => {
-              return {
-                he: text.he || '',
-                en: text.en || '',
-                number: text.number || 1,
-                displayNumber: text.displayNumber || text.number || 1
-              };
-            });
-            console.log('Final currentPageText:', {
-              length: this.currentPageText.length,
-              hasContent: this.currentPageText.some(item => item.en || item.he)
-            });
-
-            // Only show no content message if there's no Hebrew text either
-            if (this.currentPageText.length === 0 && !response.data.he) {
-              this.errorMessage = 'This book is not available via the API. Please visit the Sefaria website directly to access it.';
-              this.showErrorDialog = true;
-            }
-
-            // If there is no content and a next section is available, automatically fetch the next section
-            if (this.currentPageText.length === 0 && this.nextSectionRef && !refOverride) {
-              await this.fetchBookContent(this.nextSectionRef);
-              return;
-            }
-
-            // Log the full currentPageText array
-            console.log('[currentPageText]', JSON.stringify(this.currentPageText, null, 2));
-            // Wait for DOM update, then log computed styles
-            await nextTick();
-
-            this.complexSections = null;
-            this.log('Processed text data:', {
-              sections: this.currentPageText.length,
-              hasContent: this.currentPageText.length > 0,
-              totalVerses: totalVerses,
-              startIndex: startIndex,
-              endIndex: endIndex
-            });
           }
         } else {
           // Calculate chapter and verse based on pagination
           chapter = Math.floor(this.first / this.rowsPerPage) + 1;
-          ref = `${bookTitle} ${chapter}`;
+          
+          if (isTalmud) {
+            // For Talmud, convert chapter number to daf reference (e.g., 2a, 2b)
+            const daf = Math.floor((chapter - 1) / 2) + 1;
+            const side = (chapter - 1) % 2 === 0 ? 'a' : 'b';
+            ref = `${bookTitle} ${daf}${side}`;
+            this.currentChapter = `${daf}${side}`;
+          } else {
+            ref = `${bookTitle} ${chapter}`;
+            this.currentChapter = chapter;
+          }
         }
-        this.currentChapter = chapter;
         
         // Clean up the reference
         ref = ref.replace(/;/g, '_').replace(/\s+/g, '_');
         const encodedRef = encodeURIComponent(ref);
         const apiUrl = `https://sefaria-proxy-worker.cogitations.workers.dev/proxy/api/texts/${encodedRef}`;
-        const sefariaURL = `https://www.sefaria.org/api/texts/${encodedRef}`;
         
-        console.log("================================================")
         this.log('Fetching book content:', {
           originalTitle: bookTitle,
           processedRef: ref,
           encodedRef: encodedRef,
           apiUrl: apiUrl,
-          sefariaURL: sefariaURL,
           chapter: chapter,
           isComplex: this.isComplexBookFlag,
+          isTalmud: isTalmud,
           refOverride: refOverride,
           categoryPath: this.selectedBook?.path
         });
@@ -811,26 +553,50 @@ export default {
         // Store next/firstAvailableSectionRef for navigation if no content
         this.nextSectionRef = response.data.next || response.data.firstAvailableSectionRef || null;
 
-        // Determine current chapter/section label for header
-        const isTanakh = this.selectedBook?.categories?.includes('Tanakh');
-        if (isTanakh) {
-          this.currentChapter = chapter;
-        } else {
-          // Try to get section label from sections, sectionRef, or ref
-          if (Array.isArray(response.data.sections) && response.data.sections.length > 0) {
-            sectionLabel = response.data.sections.join(' ');
-          } else if (response.data.sectionRef) {
-            const match = response.data.sectionRef.match(/ ([^ ]+)$/);
-            sectionLabel = match ? match[1] : response.data.sectionRef;
-          } else if (response.data.ref) {
-            const match = response.data.ref.match(/ ([^ ]+)$/);
-            sectionLabel = match ? match[1] : response.data.ref;
-          }
-          this.currentChapter = sectionLabel;
-        }
-
         let textData = [];
-        if (Array.isArray(response.data)) {
+        
+        // Special handling for Talmud books
+        if (isTalmud && response.data) {
+          // For Talmud, we need to use the correct reference format
+          const ref = response.data.ref || response.data.sectionRef;
+          const dafMatch = ref.match(/(\d+)([ab])/);
+          
+          // If we have no text content, try to fetch the next available section
+          if ((!response.data.text || response.data.text.length === 0) && 
+              (!response.data.he || response.data.he.length === 0)) {
+            if (response.data.next) {
+              this.log('No content in current daf, fetching next section:', response.data.next);
+              await this.fetchBookContent(response.data.next);
+              return;
+            }
+          }
+
+          // Build verse maps
+          const englishTexts = Array.isArray(response.data.text) ? response.data.text : [];
+          const hebrewTexts = Array.isArray(response.data.he) ? response.data.he : [];
+          
+          textData = englishTexts.map((en, idx) => {
+            let displayNumber = `${idx + 1}`;
+            if (dafMatch) {
+              const [_, daf, side] = dafMatch;
+              displayNumber = `${daf}${side}:${idx + 1}`;
+            }
+            
+            return {
+              number: idx + 1,
+              displayNumber,
+              en: en || '',
+              he: hebrewTexts[idx] || ''
+            };
+          });
+
+          // If we still have no content, try to fetch the next section
+          if (textData.length === 0 && response.data.next) {
+            this.log('No content after processing, fetching next section:', response.data.next);
+            await this.fetchBookContent(response.data.next);
+            return;
+          }
+        } else if (Array.isArray(response.data)) {
           textData = response.data;
           console.log('Processing array response data:', {
             length: textData.length,
@@ -863,11 +629,6 @@ export default {
               en: '',
               he: he
             };
-          });
-
-          console.log('Processed complex book Hebrew text:', {
-            length: textData.length,
-            hasContent: textData.some(item => item.he)
           });
         } else if (response.data.text && response.data.he) {
           // Build verse maps
@@ -938,10 +699,6 @@ export default {
               };
             });
           }
-          console.log('Processed text data:', {
-            length: textData.length,
-            hasContent: textData.some(item => item.en || item.he)
-          });
         } else if (response.data.he) {
           // Handle books with only Hebrew text
           const hebrewTexts = Array.isArray(response.data.he) ? response.data.he : [response.data.he];
@@ -970,11 +727,6 @@ export default {
               he: he
             };
           });
-          
-          console.log('Processed Hebrew only text data:', {
-            length: textData.length,
-            hasContent: textData.some(item => item.he)
-          });
         } else if (response.data.text) {
           textData = Array.isArray(response.data.text) ? response.data.text : [response.data.text];
           console.log('English only texts:', {
@@ -987,26 +739,14 @@ export default {
             number: idx + 1,
             displayNumber: `${idx + 1}`
           }));
-          console.log('Processed English only text data:', {
-            length: textData.length,
-            hasContent: textData.some(item => item.en)
-          });
         } else if (response.data.he && response.data.en) {
           textData = [{
             ...response.data,
             number: 1,
             displayNumber: '1'
           }];
-          console.log('Single verse text data:', {
-            hasHebrew: !!response.data.he,
-            hasEnglish: !!response.data.en
-          });
         } else if (typeof response.data === 'string') {
           textData = [{ he: response.data, en: '', number: 1, displayNumber: '1' }];
-          console.log('String response text data:', {
-            length: response.data.length,
-            type: typeof response.data
-          });
         }
 
         // Get the total number of verses in the chapter
@@ -1022,7 +762,17 @@ export default {
           startIndex,
           endIndex,
           length: pageText.length,
-          hasContent: pageText.some(item => item.en || item.he)
+          hasContent: pageText.some(item => item.en || item.he),
+          items: pageText.map(item => ({
+            number: item.number,
+            displayNumber: item.displayNumber,
+            hasHebrew: !!item.he,
+            hasEnglish: !!item.en,
+            hebrewLength: item.he?.length || 0,
+            englishLength: item.en?.length || 0,
+            hebrewPreview: item.he?.substring(0, 50) + (item.he?.length > 50 ? '...' : ''),
+            englishPreview: item.en?.substring(0, 50) + (item.en?.length > 50 ? '...' : '')
+          }))
         });
 
         this.currentPageText = pageText.map(text => {
@@ -1035,7 +785,17 @@ export default {
         });
         console.log('Final currentPageText:', {
           length: this.currentPageText.length,
-          hasContent: this.currentPageText.some(item => item.en || item.he)
+          hasContent: this.currentPageText.some(item => item.en || item.he),
+          items: this.currentPageText.map(item => ({
+            number: item.number,
+            displayNumber: item.displayNumber,
+            hasHebrew: !!item.he,
+            hasEnglish: !!item.en,
+            hebrewLength: item.he?.length || 0,
+            englishLength: item.en?.length || 0,
+            hebrewPreview: item.he?.substring(0, 50) + (item.he?.length > 50 ? '...' : ''),
+            englishPreview: item.en?.substring(0, 50) + (item.en?.length > 50 ? '...' : '')
+          }))
         });
 
         // Only show no content message if there's no Hebrew text either
@@ -1089,6 +849,12 @@ export default {
     },
     async isComplexBook(book) {
       if (!book) return false;
+      
+      // Check if it's a Talmud book
+      const isTalmud = book.categories?.includes('Talmud');
+      if (isTalmud) {
+        return true; // Talmud books are complex and need special handling
+      }
       
       try {
         // Try to fetch the book content
