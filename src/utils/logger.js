@@ -28,8 +28,16 @@ function processObject(obj, preserveFields = [], isTranslationResponse = false, 
   }
 
   if (Array.isArray(obj)) {
-    // Only summarize arrays that are nested within objects
+    // For arrays, show full entries if they're short enough
     if (isNested && obj.length > 3) {
+      // Check if all items are short enough to show
+      const allItemsShort = obj.every(item => 
+        typeof item === 'string' ? item.length <= 15 : true
+      );
+      
+      if (allItemsShort) {
+        return obj.map(item => processObject(item, preserveFields, isTranslationResponse, true));
+      }
       return `[Array with ${obj.length} items]`;
     }
     return obj.map(item => processObject(item, preserveFields, isTranslationResponse, true));
@@ -44,7 +52,16 @@ function processObject(obj, preserveFields = [], isTranslationResponse = false, 
       processed[key] = truncateText(value);
     } else if (Array.isArray(value)) {
       if (value.length > 3) {
-        processed[key] = `[Array with ${value.length} items]`;
+        // Check if all items are short enough to show
+        const allItemsShort = value.every(item => 
+          typeof item === 'string' ? item.length <= 15 : true
+        );
+        
+        if (allItemsShort) {
+          processed[key] = value.map(item => processObject(item, preserveFields, isTranslationResponse, true));
+        } else {
+          processed[key] = `[Array with ${value.length} items]`;
+        }
       } else {
         processed[key] = value.map(item => processObject(item, preserveFields, isTranslationResponse, true));
       }

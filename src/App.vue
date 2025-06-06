@@ -918,21 +918,7 @@ export default {
         log(this.debug, 'Making translation request for text:', text);
         
         const requestBody = {
-          prompt: `Translate this Hebrew text to English and return the response as a JSON object with the following structure:
-{
-  "originalPhrase": "Hebrew text",
-  "translatedPhrase": "English translation",
-  "wordTable": [
-    {
-      "word": "Hebrew word",
-      "wordRoot": "root letters",
-      "wordPartOfSpeech": "part of speech",
-      "wordBinyan": "binyan or null",
-      "wordGender": "gender or null",
-      "wordTense": "tense or null"
-    }
-  ]
-}: ${text}`,
+          prompt: `${text}`,
           model: 'gpt-3.5-turbo'
         };
         log(this.debug, 'Request body:', JSON.stringify(requestBody, null, 2));
@@ -1000,7 +986,9 @@ export default {
                   <table class="translation-table">
                     <thead>
                       <tr>
+                        <th>Translation</th>
                         <th>Word</th>
+                        <th>Hebrew/Aramaic</th>
                         <th>Root</th>
                         <th>Part of Speech</th>
                         <th>Binyan</th>
@@ -1015,7 +1003,9 @@ export default {
             translationData.wordTable.forEach(word => {
               tableHtml += `
                 <tr>
+                  <td class="english-word">${word.wordTranslation || '-'}</td>
                   <td class="hebrew-word">${word.word}</td>
+                  <td class="language-type">${word.hebrewAramaic || '-'}</td>
                   <td class="root-letters">${word.wordRoot || '-'}</td>
                   <td class="part-of-speech">${word.wordPartOfSpeech || '-'}</td>
                   <td class="binyan">${word.wordBinyan || '-'}</td>
