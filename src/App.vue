@@ -139,13 +139,7 @@ import Column from 'primevue/column'
 import Button from 'primevue/button'
 import CategoryAccordion from './components/CategoryAccordion.vue'
 import { marked } from 'marked'
-
-let lastTime = performance.now();
-function logTime(label) {
-  const now = performance.now();
-  console.log(`[Timing] ${label}: ${(now - lastTime).toFixed(2)}ms`);
-  lastTime = now;
-}
+import { log, logTime } from './utils/logger'
 
 export default {
   components: {
@@ -221,18 +215,6 @@ export default {
     logTime('End created');
   },
   methods: {
-    log(...args) {
-      if (this.debug) {
-        // Convert objects to expanded JSON strings
-        const expandedArgs = args.map(arg => {
-          if (typeof arg === 'object' && arg !== null) {
-            return JSON.stringify(arg, null, 2);
-          }
-          return arg;
-        });
-        console.log(...expandedArgs);
-      }
-    },
     async fetchAndCacheFullIndex() {
       logTime('Start fetchAndCacheFullIndex');
       
@@ -320,7 +302,7 @@ export default {
     async onBookSelect(event) {
       this.loading = true;
       
-      this.log('Book selection event:', {
+      log(this.debug, 'Book selection event:', {
         type: event.data.type,
         title: event.data.title,
         path: event.data.path,
@@ -339,7 +321,7 @@ export default {
       
       // Add logging for complex book detection
       const isComplex = await this.isComplexBook(event.data);
-      this.log('Book complexity check:', {
+      log(this.debug, 'Book complexity check:', {
         title: event.data.title,
         isComplex: isComplex,
         categories: event.data.categories,
@@ -365,7 +347,7 @@ export default {
           const encodedRef = encodeURIComponent(ref);
           const apiUrl = `https://sefaria-proxy-worker.cogitations.workers.dev/proxy/api/index/${encodedRef}`;
           
-          this.log('Fetching Talmud TOC:', {
+          log(this.debug, 'Fetching Talmud TOC:', {
             originalTitle: book.title,
             processedRef: ref,
             encodedRef: encodedRef,
@@ -395,7 +377,7 @@ export default {
             }
             
             this.complexSections = sections;
-            this.log('Processed Talmud sections:', this.complexSections);
+            log(this.debug, 'Processed Talmud sections:', this.complexSections);
           } else {
             throw new Error('No schema found for Talmud book');
           }
@@ -409,13 +391,13 @@ export default {
           
           if (response.data && response.data.schema) {
             this.complexSections = this.processSchemaNodes(response.data.schema.nodes);
-            this.log('Processed complex sections:', this.complexSections);
+            log(this.debug, 'Processed complex sections:', this.complexSections);
           } else {
             throw new Error('No schema found for complex book');
           }
         }
       } catch (error) {
-        this.log('Error fetching TOC:', {
+        log(this.debug, 'Error fetching TOC:', {
           message: error.message,
           status: error.response?.status,
           data: error.response?.data
@@ -511,7 +493,7 @@ export default {
         const encodedRef = encodeURIComponent(ref);
         const apiUrl = `https://sefaria-proxy-worker.cogitations.workers.dev/proxy/api/texts/${encodedRef}`;
         
-        this.log('Fetching book content:', {
+        log(this.debug, 'Fetching book content:', {
           originalTitle: bookTitle,
           processedRef: ref,
           encodedRef: encodedRef,
@@ -525,8 +507,8 @@ export default {
 
         const response = await axios.get(apiUrl);
 
-        this.log("Sefaria Proxy Response:", response);
-        console.log("================================================")
+        log(this.debug, "Sefaria Proxy Response:", response);
+        log(this.debug, "================================================")
 
         if (response.data && response.data.error) {
           this.errorMessage = `API Error: ${response.data.error}`;
@@ -534,21 +516,6 @@ export default {
           this.loading = false;
           return;
         }
-
-        this.log('API Response details:', {
-          status: response.status,
-          statusText: response.statusText,
-          headers: response.headers,
-          hasText: !!response.data.text,
-          hasHebrew: !!response.data.he,
-          isArray: Array.isArray(response.data),
-          dataType: typeof response.data,
-          dataKeys: Object.keys(response.data),
-          textLength: response.data.text ? (Array.isArray(response.data.text) ? response.data.text.length : 1) : 0,
-          hebrewLength: response.data.he ? (Array.isArray(response.data.he) ? response.data.he.length : 1) : 0,
-          verses: response.data.verses ? (Array.isArray(response.data.verses) ? response.data.verses.length : 1) : 0,
-          heVerses: response.data.he_verses ? (Array.isArray(response.data.he_verses) ? response.data.he_verses.length : 1) : 0
-        });
 
         // Store next/firstAvailableSectionRef for navigation if no content
         this.nextSectionRef = response.data.next || response.data.firstAvailableSectionRef || null;
@@ -565,7 +532,7 @@ export default {
           if ((!response.data.text || response.data.text.length === 0) && 
               (!response.data.he || response.data.he.length === 0)) {
             if (response.data.next) {
-              this.log('No content in current daf, fetching next section:', response.data.next);
+              log(this.debug, 'No content in current daf, fetching next section:', response.data.next);
               await this.fetchBookContent(response.data.next);
               return;
             }
@@ -592,13 +559,13 @@ export default {
 
           // If we still have no content, try to fetch the next section
           if (textData.length === 0 && response.data.next) {
-            this.log('No content after processing, fetching next section:', response.data.next);
+            log(this.debug, 'No content after processing, fetching next section:', response.data.next);
             await this.fetchBookContent(response.data.next);
             return;
           }
         } else if (Array.isArray(response.data)) {
           textData = response.data;
-          console.log('Processing array response data:', {
+          log(this.debug, 'Processing array response data:', {
             length: textData.length,
             structure: textData.map(item => ({
               hasText: !!item.text,
@@ -609,7 +576,7 @@ export default {
         } else if (this.isComplexBookFlag && response.data.he) {
           // Special handling for complex books with Hebrew text
           const hebrewTexts = Array.isArray(response.data.he) ? response.data.he : [response.data.he];
-          console.log('Complex book Hebrew texts:', {
+          log(this.debug, 'Complex book Hebrew texts:', {
             length: hebrewTexts.length,
             isArray: Array.isArray(response.data.he)
           });
@@ -634,13 +601,13 @@ export default {
           // Build verse maps
           const englishTexts = Array.isArray(response.data.text) ? response.data.text : [response.data.text];
           const hebrewTexts = Array.isArray(response.data.he) ? response.data.he : [response.data.he];
-          console.log('Text arrays:', {
+          log(this.debug, 'Text arrays:', {
             englishLength: englishTexts.length,
             hebrewLength: hebrewTexts.length
           });
           const enVerses = response.data.verses || englishTexts.map((_, i) => i + 1);
           const heVerses = response.data.he_verses || enVerses;
-          console.log('Verse arrays:', {
+          log(this.debug, 'Verse arrays:', {
             englishVerses: enVerses.length,
             hebrewVerses: heVerses.length
           });
@@ -653,13 +620,13 @@ export default {
           hebrewTexts.forEach((he, i) => {
             heMap[heVerses[i]] = he;
           });
-          console.log('Text maps:', {
+          log(this.debug, 'Text maps:', {
             englishMapSize: Object.keys(enMap).length,
             hebrewMapSize: Object.keys(heMap).length
           });
           // Union of all verse numbers
           const allVerseNumbers = Array.from(new Set([...enVerses, ...heVerses])).sort((a, b) => a - b);
-          console.log('All verse numbers:', {
+          log(this.debug, 'All verse numbers:', {
             count: allVerseNumbers.length,
             range: allVerseNumbers.length > 0 ? `${allVerseNumbers[0]}-${allVerseNumbers[allVerseNumbers.length - 1]}` : 'none'
           });
@@ -702,7 +669,7 @@ export default {
         } else if (response.data.he) {
           // Handle books with only Hebrew text
           const hebrewTexts = Array.isArray(response.data.he) ? response.data.he : [response.data.he];
-          console.log('Hebrew only texts:', {
+          log(this.debug, 'Hebrew only texts:', {
             length: hebrewTexts.length,
             isArray: Array.isArray(response.data.he)
           });
@@ -729,7 +696,7 @@ export default {
           });
         } else if (response.data.text) {
           textData = Array.isArray(response.data.text) ? response.data.text : [response.data.text];
-          console.log('English only texts:', {
+          log(this.debug, 'English only texts:', {
             length: textData.length,
             isArray: Array.isArray(response.data.text)
           });
@@ -752,13 +719,13 @@ export default {
         // Get the total number of verses in the chapter
         const totalVerses = textData.length;
         this.totalRecords = totalVerses;
-        console.log('Total verses:', totalVerses);
+        log(this.debug, 'Total verses:', totalVerses);
 
         // Slice the text data based on the current page
         const startIndex = this.first % this.rowsPerPage;
         const endIndex = Math.min(startIndex + this.rowsPerPage, totalVerses);
         const pageText = textData.slice(startIndex, endIndex);
-        console.log('Page text slice:', {
+        log(this.debug, 'Page text slice:', {
           startIndex,
           endIndex,
           length: pageText.length,
@@ -783,7 +750,7 @@ export default {
             displayNumber: text.displayNumber || text.number || 1
           };
         });
-        console.log('Final currentPageText:', {
+        log(this.debug, 'Final currentPageText:', {
           length: this.currentPageText.length,
           hasContent: this.currentPageText.some(item => item.en || item.he),
           items: this.currentPageText.map(item => ({
@@ -811,12 +778,12 @@ export default {
         }
 
         // Log the full currentPageText array
-        console.log('[currentPageText]', JSON.stringify(this.currentPageText, null, 2));
+        log(this.debug, '[currentPageText]', JSON.stringify(this.currentPageText, null, 2));
         // Wait for DOM update, then log computed styles
         await nextTick();
 
         this.complexSections = null;
-        this.log('Processed text data:', {
+        log(this.debug, 'Processed text data:', {
           sections: this.currentPageText.length,
           hasContent: this.currentPageText.length > 0,
           totalVerses: totalVerses,
@@ -824,7 +791,7 @@ export default {
           endIndex: endIndex
         });
       } catch (error) {
-        this.log('Error fetching content:', {
+        log(this.debug, 'Error fetching content:', {
           message: error.message,
           status: error.response?.status,
           url: error.config?.url
@@ -870,7 +837,7 @@ export default {
         const isComplex = error.response?.data?.error?.includes('complex') && 
                          error.response?.data?.error?.includes('book-level ref');
         
-        this.log('Complex book detection:', {
+        log(this.debug, 'Complex book detection:', {
           title: book.title,
           isComplex: isComplex,
           error: error.response?.data?.error
