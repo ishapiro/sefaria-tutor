@@ -15,9 +15,15 @@ function truncateText(text, maxLength = 50) {
  * @param {string[]} preserveFields - Array of field names to preserve without truncation
  * @param {boolean} isTranslationResponse - Whether this is a translation response
  * @param {boolean} isNested - Whether this object is nested within another object
+ * @param {boolean} showFull - Whether to show full content without truncation
  * @returns {any} Processed object with truncated text fields
  */
-function processObject(obj, preserveFields = [], isTranslationResponse = false, isNested = false) {
+function processObject(obj, preserveFields = [], isTranslationResponse = false, isNested = false, showFull = false) {
+  // If showFull is true, return the object as is
+  if (showFull) {
+    return obj;
+  }
+
   // If this is a translation response, preserve the entire structure
   if (isTranslationResponse) {
     return obj;
@@ -36,11 +42,11 @@ function processObject(obj, preserveFields = [], isTranslationResponse = false, 
       );
       
       if (allItemsShort) {
-        return obj.map(item => processObject(item, preserveFields, isTranslationResponse, true));
+        return obj.map(item => processObject(item, preserveFields, isTranslationResponse, true, showFull));
       }
       return `[Array with ${obj.length} items]`;
     }
-    return obj.map(item => processObject(item, preserveFields, isTranslationResponse, true));
+    return obj.map(item => processObject(item, preserveFields, isTranslationResponse, true, showFull));
   }
 
   const processed = {};
@@ -58,15 +64,15 @@ function processObject(obj, preserveFields = [], isTranslationResponse = false, 
         );
         
         if (allItemsShort) {
-          processed[key] = value.map(item => processObject(item, preserveFields, isTranslationResponse, true));
+          processed[key] = value.map(item => processObject(item, preserveFields, isTranslationResponse, true, showFull));
         } else {
           processed[key] = `[Array with ${value.length} items]`;
         }
       } else {
-        processed[key] = value.map(item => processObject(item, preserveFields, isTranslationResponse, true));
+        processed[key] = value.map(item => processObject(item, preserveFields, isTranslationResponse, true, showFull));
       }
     } else if (typeof value === 'object' && value !== null) {
-      processed[key] = processObject(value, preserveFields, isTranslationResponse, true);
+      processed[key] = processObject(value, preserveFields, isTranslationResponse, true, showFull);
     } else {
       processed[key] = value;
     }
@@ -77,9 +83,10 @@ function processObject(obj, preserveFields = [], isTranslationResponse = false, 
 /**
  * Utility function for logging debug information
  * @param {boolean} debug - Whether debug logging is enabled
+ * @param {boolean} showFull - Whether to show full content without truncation
  * @param {...any} args - Arguments to log
  */
-export function log(debug, ...args) {
+export function log(debug, showFull = false, ...args) {
   if (debug) {
     // Process and convert objects to expanded JSON strings
     const expandedArgs = args.map(arg => {
@@ -89,10 +96,10 @@ export function log(debug, ...args) {
         
         // Preserve certain fields that need to be parsed as JSON
         const preserveFields = ['content', 'message', 'choices', 'data'];
-        const processed = processObject(arg, preserveFields, isTranslationResponse, false);
+        const processed = processObject(arg, preserveFields, isTranslationResponse, false, showFull);
         return JSON.stringify(processed, null, 2);
       }
-      return truncateText(arg);
+      return showFull ? arg : truncateText(arg);
     });
     console.log(...expandedArgs);
   }

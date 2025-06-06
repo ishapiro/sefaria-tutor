@@ -115,13 +115,125 @@
             :modal="true" 
             :closable="true" 
             :dismissableMask="true"
-            :style="{ width: '75vw' }"
+            :style="{ width: '90vw' }"
             header="Translation">
       <div class="p-4">
         <div v-if="translationLoading" class="text-center">
           <i class="pi pi-spin pi-spinner" style="font-size: 2rem"></i>
         </div>
-        <div v-else class="translation-content" v-html="formattedTranslation"></div>
+        <div v-else-if="translationData" class="space-y-6">
+          <div>
+            <div class="bg-gray-50 p-4 rounded-lg space-y-5">
+              <div class="text-[30px] mb-3 text-right text-gray-900">{{ translationData.originalPhrase }}</div>
+              <div class="mt-2 text-4xl text-gray-900">{{ translationData.translatedPhrase }}</div>
+            </div>
+          </div>
+          <div>
+            <h3 class="text-xl font-semibold text-gray-800 mb-4">Word Analysis</h3>
+            <DataTable 
+              :value="translationData.wordTable" 
+              class="p-datatable-sm"
+              :scrollable="true"
+              scrollHeight="400px"
+              :rowHover="true"
+              stripedRows
+              showGridlines
+              tableStyle="min-width: 50rem"
+            >
+              <Column 
+                field="wordTranslation" 
+                header="Translation" 
+                class="min-w-[120px]"
+                :bodyStyle="{ padding: '0.75rem', fontSize: '0.875rem', color: '#4B5563' }"
+                :headerStyle="{ padding: '0.75rem', fontSize: '0.875rem', fontWeight: '600', color: '#374151', backgroundColor: '#F9FAFB' }"
+              >
+                <template #body="{ data }">
+                  <span class="text-gray-600">{{ data.wordTranslation || '-' }}</span>
+                </template>
+              </Column>
+              <Column 
+                field="word" 
+                header="Word" 
+                class="min-w-[100px]"
+                :bodyStyle="{ padding: '0.75rem', fontSize: '0.875rem', textAlign: 'right' }"
+                :headerStyle="{ padding: '0.75rem', fontSize: '0.875rem', fontWeight: '600', color: '#374151', backgroundColor: '#F9FAFB' }"
+              >
+                <template #body="{ data }">
+                  <span class="font-['SBL_Hebrew'] text-gray-900">{{ data.word }}</span>
+                </template>
+              </Column>
+              <Column 
+                field="hebrewAramaic" 
+                header="Language" 
+                class="min-w-[100px]"
+                :bodyStyle="{ padding: '0.75rem', fontSize: '0.875rem', color: '#4B5563' }"
+                :headerStyle="{ padding: '0.75rem', fontSize: '0.875rem', fontWeight: '600', color: '#374151', backgroundColor: '#F9FAFB' }"
+              >
+                <template #body="{ data }">
+                  <span class="text-gray-600">{{ data.hebrewAramaic || '-' }}</span>
+                </template>
+              </Column>
+              <Column 
+                field="wordRoot" 
+                header="Root" 
+                class="min-w-[80px]"
+                :bodyStyle="{ padding: '0.75rem', fontSize: '0.875rem', color: '#4B5563' }"
+                :headerStyle="{ padding: '0.75rem', fontSize: '0.875rem', fontWeight: '600', color: '#374151', backgroundColor: '#F9FAFB' }"
+              >
+                <template #body="{ data }">
+                  <span class="font-['SBL_Hebrew'] text-gray-600">{{ data.wordRoot || '-' }}</span>
+                </template>
+              </Column>
+              <Column 
+                field="wordPartOfSpeech" 
+                header="Class" 
+                class="min-w-[120px]"
+                :bodyStyle="{ padding: '0.75rem', fontSize: '0.875rem', color: '#4B5563' }"
+                :headerStyle="{ padding: '0.75rem', fontSize: '0.875rem', fontWeight: '600', color: '#374151', backgroundColor: '#F9FAFB' }"
+              >
+                <template #body="{ data }">
+                  <span class="text-gray-600">{{ data.wordPartOfSpeech || '-' }}</span>
+                </template>
+              </Column>
+              <Column 
+                field="wordBinyan" 
+                header="Binyan" 
+                class="min-w-[100px]"
+                :bodyStyle="{ padding: '0.75rem', fontSize: '0.875rem', color: '#4B5563' }"
+                :headerStyle="{ padding: '0.75rem', fontSize: '0.875rem', fontWeight: '600', color: '#374151', backgroundColor: '#F9FAFB' }"
+              >
+                <template #body="{ data }">
+                  <span class="text-gray-600">{{ data.wordBinyan || '-' }}</span>
+                </template>
+              </Column>
+              <Column 
+                field="wordGender" 
+                header="Gender" 
+                class="min-w-[100px]"
+                :bodyStyle="{ padding: '0.75rem', fontSize: '0.875rem', color: '#4B5563' }"
+                :headerStyle="{ padding: '0.75rem', fontSize: '0.875rem', fontWeight: '600', color: '#374151', backgroundColor: '#F9FAFB' }"
+              >
+                <template #body="{ data }">
+                  <span class="text-gray-600">{{ data.wordGender || '-' }}</span>
+                </template>
+              </Column>
+              <Column 
+                field="wordTense" 
+                header="Tense" 
+                class="min-w-[100px]"
+                :bodyStyle="{ padding: '0.75rem', fontSize: '0.875rem', color: '#4B5563' }"
+                :headerStyle="{ padding: '0.75rem', fontSize: '0.875rem', fontWeight: '600', color: '#374151', backgroundColor: '#F9FAFB' }"
+              >
+                <template #body="{ data }">
+                  <span class="text-gray-600">{{ data.wordTense || '-' }}</span>
+                </template>
+              </Column>
+            </DataTable>
+          </div>
+        </div>
+        <div v-else-if="translationError" class="text-center py-8">
+          <p class="text-red-600">{{ translationError }}</p>
+        </div>
       </div>
     </Dialog>
   </div>
@@ -173,7 +285,8 @@ export default {
       debug: true,
       showTranslationDialog: false,
       translationLoading: false,
-      formattedTranslation: [],
+      translationData: null,
+      translationError: null,
       lastIndexUpdate: null,
       nextSectionRef: null,
       currentChapter: null,
@@ -915,6 +1028,9 @@ export default {
       try {
         this.translationLoading = true;
         this.showTranslationDialog = true;
+        this.translationData = null;
+        this.translationError = null;
+        
         log(this.debug, 'Making translation request for text:', text);
         
         const requestBody = {
@@ -968,62 +1084,11 @@ export default {
             
             // Validate the required fields
             if (!translationData.originalPhrase || !translationData.translatedPhrase || !translationData.wordTable) {
+              log(this.debug, true,'Missing required fields in translation data:', translationData);
               throw new Error('Missing required fields in translation data');
             }
             
-            // Create HTML table structure
-            let tableHtml = `
-              <div class="translation-container">
-                <div class="translation-header">
-                  <h3>Translation</h3>
-                  <div class="translation-text">
-                    <div class="hebrew-text">${translationData.originalPhrase}</div>
-                    <div class="english-text">${translationData.translatedPhrase}</div>
-                  </div>
-                </div>
-                <div class="word-by-word">
-                  <h3>Word Analysis</h3>
-                  <table class="translation-table">
-                    <thead>
-                      <tr>
-                        <th>Translation</th>
-                        <th>Word</th>
-                        <th>Hebrew/Aramaic</th>
-                        <th>Root</th>
-                        <th>Part of Speech</th>
-                        <th>Binyan</th>
-                        <th>Gender</th>
-                        <th>Tense</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-            `;
-            
-            // Add each word to the table
-            translationData.wordTable.forEach(word => {
-              tableHtml += `
-                <tr>
-                  <td class="english-word">${word.wordTranslation || '-'}</td>
-                  <td class="hebrew-word">${word.word}</td>
-                  <td class="language-type">${word.hebrewAramaic || '-'}</td>
-                  <td class="root-letters">${word.wordRoot || '-'}</td>
-                  <td class="part-of-speech">${word.wordPartOfSpeech || '-'}</td>
-                  <td class="binyan">${word.wordBinyan || '-'}</td>
-                  <td class="gender">${word.wordGender || '-'}</td>
-                  <td class="tense">${word.wordTense || '-'}</td>
-                </tr>
-              `;
-            });
-            
-            // Close the table
-            tableHtml += `
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            `;
-            
-            this.formattedTranslation = tableHtml;
+            this.translationData = translationData;
           } catch (parseError) {
             log(this.debug, 'Error parsing translation JSON:', {
               error: parseError,
@@ -1034,21 +1099,7 @@ export default {
               contentPreview: data.choices[0].message.content.substring(0, 100) + '...'
             });
             
-            // Show the raw response content when JSON parsing fails
-            const rawContent = data.choices[0].message.content;
-            this.formattedTranslation = `
-              <div class="translation-container">
-                <div class="translation-header">
-                  <h3>Translation</h3>
-                  <div class="translation-text">
-                    <div class="hebrew-text">${rawContent}</div>
-                  </div>
-                </div>
-                <div class="translation-error">
-                  <p>Note: The response could not be parsed as structured data. Showing raw translation.</p>
-                </div>
-              </div>
-            `;
+            this.translationError = 'The response could not be parsed as structured data.';
           }
         }
       } catch (error) {
@@ -1058,7 +1109,7 @@ export default {
           message: error.message,
           stack: error.stack
         });
-        alert('Failed to translate text. Please try again.');
+        this.translationError = 'Failed to translate text. Please try again.';
       } finally {
         this.translationLoading = false;
       }
@@ -1170,22 +1221,9 @@ export default {
 </script>
 
 <style>
+/* Remove all the custom translation-related classes */
 .container {
   max-width: 1200px;
-}
-
-.hebrew-text {
-  font-family: 'SBL Hebrew', 'Times New Roman', serif;
-  font-size: 1.2rem;
-  line-height: 1.6;
-  direction: rtl;
-  text-align: right;
-}
-
-.english-text {
-  font-size: 1rem;
-  line-height: 1.4;
-  color: #666;
 }
 
 .book-content {
@@ -1226,15 +1264,6 @@ export default {
   :deep(.p-dialog) {
     width: 95vw !important;
     max-width: 95vw !important;
-  }
-
-  /* Adjust text sizes for better mobile readability */
-  .hebrew-text {
-    font-size: 1.1rem;
-  }
-
-  .english-text {
-    font-size: 0.95rem;
   }
 
   /* Adjust spacing for mobile */
@@ -1360,216 +1389,6 @@ small {
   padding: 0.5rem;
 }
 
-.translation-content {
-  font-family: 'SBL Hebrew', 'Times New Roman', serif;
-  line-height: 1.6;
-}
-
-.translation-content table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 1rem 0;
-  font-size: 1.1rem;
-}
-
-.translation-content th,
-.translation-content td {
-  padding: 0.75rem;
-  border: 1px solid #ddd;
-  text-align: left;
-}
-
-.translation-content th {
-  background-color: #f8f9fa;
-  font-weight: bold;
-  color: #2c3e50;
-  font-size: 1.1rem;
-}
-
-.translation-content td {
-  color: #666;
-}
-
-.translation-content tr:hover {
-  background-color: #f8f9fa;
-}
-
-.translation-content .hebrew-word {
-  font-family: 'SBL Hebrew', 'Times New Roman', serif;
-  font-size: 1.3rem;
-  color: #2c3e50;
-}
-
-.translation-content .english-word {
-  font-family: Arial, sans-serif;
-  font-size: 1.1rem;
-  color: #666;
-}
-
-/* Additional styles for other markdown elements */
-.translation-content h1,
-.translation-content h2,
-.translation-content h3,
-.translation-content h4,
-.translation-content h5,
-.translation-content h6 {
-  margin-top: 1.5rem;
-  margin-bottom: 1rem;
-  color: #2c3e50;
-}
-
-.translation-content p {
-  margin-bottom: 1rem;
-}
-
-.translation-content ul,
-.translation-content ol {
-  margin-bottom: 1rem;
-  padding-left: 2rem;
-}
-
-.translation-content li {
-  margin-bottom: 0.5rem;
-}
-
-.translation-content code {
-  background-color: #f8f9fa;
-  padding: 0.2rem 0.4rem;
-  border-radius: 3px;
-  font-family: monospace;
-}
-
-.translation-content pre {
-  background-color: #f8f9fa;
-  padding: 1rem;
-  border-radius: 4px;
-  overflow-x: auto;
-  margin-bottom: 1rem;
-}
-
-.translation-content blockquote {
-  border-left: 4px solid #ddd;
-  padding-left: 1rem;
-  margin-left: 0;
-  margin-bottom: 1rem;
-  color: #666;
-}
-
-.word-section {
-  margin-bottom: 1rem;
-  padding: 0.5rem;
-  border-bottom: 1px solid #eee;
-}
-
-.hebrew-word {
-  font-family: 'SBL Hebrew', 'Times New Roman', serif;
-  font-size: 1.2rem;
-  color: #2c3e50;
-}
-
-.english-word {
-  font-family: Arial, sans-serif;
-  color: #666;
-}
-
-.root-section,
-.pattern-section,
-.verb-form-section,
-.tense-section,
-.translation-section {
-  margin-left: 1rem;
-  font-size: 0.9rem;
-  color: #666;
-}
-
-.translation-section {
-  font-weight: bold;
-  color: #2c3e50;
-  margin-top: 0.5rem;
-}
-
-.translation-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 1rem;
-  background-color: white;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  font-size: 0.9rem;
-}
-
-.translation-table th {
-  background-color: #f8f9fa;
-  padding: 0.75rem;
-  text-align: left;
-  font-weight: 600;
-  color: #2c3e50;
-  border-bottom: 2px solid #e9ecef;
-  white-space: nowrap;
-}
-
-.translation-table td {
-  padding: 0.75rem;
-  border-bottom: 1px solid #e9ecef;
-  vertical-align: top;
-}
-
-.translation-table .hebrew-word {
-  font-family: 'SBL Hebrew', 'Times New Roman', serif;
-  font-size: 1.2rem;
-  color: #2c3e50;
-  text-align: right;
-  direction: rtl;
-  min-width: 80px;
-}
-
-.translation-table .root-letters {
-  font-family: 'SBL Hebrew', 'Times New Roman', serif;
-  color: #666;
-  min-width: 60px;
-}
-
-.translation-table .part-of-speech {
-  color: #666;
-  min-width: 100px;
-}
-
-.translation-table .binyan {
-  color: #666;
-  min-width: 80px;
-}
-
-.translation-table .gender {
-  color: #666;
-  min-width: 80px;
-}
-
-.translation-table .tense {
-  color: #666;
-  min-width: 80px;
-}
-
-.translation-table tr:hover {
-  background-color: #f8f9fa;
-}
-
-@media screen and (max-width: 768px) {
-  .translation-table {
-    display: block;
-    overflow-x: auto;
-    white-space: nowrap;
-    font-size: 0.85rem;
-  }
-  
-  .translation-table th,
-  .translation-table td {
-    padding: 0.5rem;
-  }
-  
-  .translation-table .hebrew-word {
-    font-size: 1.1rem;
-  }
-}
-
 .p-button-outlined {
   border: 1px solid #2196F3;
   color: #2196F3;
@@ -1668,145 +1487,5 @@ small {
   font-size: 1.4rem;
   line-height: 1.6;
   font-family: 'SBL Hebrew', 'Times New Roman', serif;
-}
-
-.translation-container {
-  padding: 1rem;
-}
-
-.translation-header {
-  margin-bottom: 2rem;
-}
-
-.translation-header h3,
-.word-by-word h3 {
-  color: #2c3e50;
-  margin-bottom: 1rem;
-  font-size: 1.2rem;
-}
-
-.translation-text {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 1rem;
-  background-color: #f8f9fa;
-  border-radius: 4px;
-}
-
-.translation-text .hebrew-text {
-  font-family: 'SBL Hebrew', 'Times New Roman', serif;
-  font-size: 1.4rem;
-  line-height: 1.6;
-  color: #2c3e50;
-  text-align: right;
-  direction: rtl;
-}
-
-.translation-text .english-text {
-  font-size: 1.1rem;
-  line-height: 1.4;
-  color: #666;
-}
-
-.word-by-word {
-  margin-top: 2rem;
-}
-
-.translation-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 1rem;
-  background-color: white;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  font-size: 0.9rem;
-}
-
-.translation-table th {
-  background-color: #f8f9fa;
-  padding: 0.75rem;
-  text-align: left;
-  font-weight: 600;
-  color: #2c3e50;
-  border-bottom: 2px solid #e9ecef;
-  white-space: nowrap;
-}
-
-.translation-table td {
-  padding: 0.75rem;
-  border-bottom: 1px solid #e9ecef;
-  vertical-align: top;
-}
-
-.translation-table .hebrew-word {
-  font-family: 'SBL Hebrew', 'Times New Roman', serif;
-  font-size: 1.2rem;
-  color: #2c3e50;
-  text-align: right;
-  direction: rtl;
-  min-width: 80px;
-}
-
-.translation-table .root-letters {
-  font-family: 'SBL Hebrew', 'Times New Roman', serif;
-  color: #666;
-  min-width: 60px;
-}
-
-.translation-table .part-of-speech {
-  color: #666;
-  min-width: 100px;
-}
-
-.translation-table .binyan {
-  color: #666;
-  min-width: 80px;
-}
-
-.translation-table .gender {
-  color: #666;
-  min-width: 80px;
-}
-
-.translation-table .tense {
-  color: #666;
-  min-width: 80px;
-}
-
-.translation-table tr:hover {
-  background-color: #f8f9fa;
-}
-
-@media screen and (max-width: 768px) {
-  .translation-table {
-    display: block;
-    overflow-x: auto;
-    white-space: nowrap;
-    font-size: 0.85rem;
-  }
-  
-  .translation-table th,
-  .translation-table td {
-    padding: 0.5rem;
-  }
-  
-  .translation-table .hebrew-word {
-    font-size: 1.1rem;
-  }
-}
-
-.translation-error {
-  padding: 2rem;
-  text-align: center;
-  color: #dc3545;
-}
-
-.translation-error h3 {
-  margin-bottom: 1rem;
-  font-size: 1.2rem;
-}
-
-.translation-error p {
-  color: #666;
 }
 </style> 

@@ -1,6 +1,7 @@
 import { createApp } from 'vue'
 import PrimeVue from 'primevue/config'
 import App from './App.vue'
+import './assets/main.css'
 
 // PrimeVue components
 import DataTable from 'primevue/datatable'
