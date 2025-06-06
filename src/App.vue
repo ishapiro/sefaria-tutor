@@ -915,13 +915,27 @@ export default {
       try {
         this.translationLoading = true;
         this.showTranslationDialog = true;
-        console.log('Making translation request for text:', text);
+        log(this.debug, 'Making translation request for text:', text);
         
         const requestBody = {
-          prompt: `Translate this Hebrew text to English: ${text}`,
+          prompt: `Translate this Hebrew text to English and return the response as a JSON object with the following structure:
+{
+  "originalPhrase": "Hebrew text",
+  "translatedPhrase": "English translation",
+  "wordTable": [
+    {
+      "word": "Hebrew word",
+      "wordRoot": "root letters",
+      "wordPartOfSpeech": "part of speech",
+      "wordBinyan": "binyan or null",
+      "wordGender": "gender or null",
+      "wordTense": "tense or null"
+    }
+  ]
+}: ${text}`,
           model: 'gpt-3.5-turbo'
         };
-        console.log('Request body:', JSON.stringify(requestBody, null, 2));
+        log(this.debug, 'Request body:', JSON.stringify(requestBody, null, 2));
 
         const response = await fetch('https://sefaria-openai.cogitations.workers.dev', {
           method: 'POST',
@@ -932,34 +946,124 @@ export default {
           body: JSON.stringify(requestBody)
         });
 
-        console.log('Response status:', response.status);
-        console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+        log(this.debug, 'Response status:', response.status);
+        log(this.debug, 'Response headers:', Object.fromEntries(response.headers.entries()));
 
         if (!response.ok) {
           throw new Error('Translation request failed');
         }
 
         const data = await response.json();
-        console.log('Response data:', JSON.stringify(data, null, 2));
+        log(this.debug, 'Response data:', JSON.stringify(data, null, 2));
         
         if (data.choices && Array.isArray(data.choices)) {
           data.choices.forEach((choice, index) => {
-            console.log(`Choice ${index}:`, JSON.stringify(choice, null, 2));
+            log(this.debug, `Choice ${index}:`, JSON.stringify(choice, null, 2));
           });
           
-          // Convert markdown to HTML using marked
-          const content = data.choices[0].message.content;
-          this.formattedTranslation = marked.parse(content, {
-            gfm: true, // GitHub Flavored Markdown
-            breaks: true, // Convert line breaks to <br>
-            headerIds: false, // Don't add IDs to headers
-            mangle: false, // Don't escape HTML
-            sanitize: false // Allow HTML
-          });
+          // Parse the content as JSON
+          try {
+            log(this.debug, 'Raw translation content:', data.choices[0].message.content);
+            
+            // Try to clean the content if it's not valid JSON
+            let contentToParse = data.choices[0].message.content;
+            if (!contentToParse.trim().startsWith('{')) {
+              log(this.debug, 'Content does not start with {, attempting to extract JSON');
+              // Try to find JSON-like content between curly braces
+              const jsonMatch = contentToParse.match(/\{[\s\S]*\}/);
+              if (jsonMatch) {
+                contentToParse = jsonMatch[0];
+                log(this.debug, 'Extracted JSON content:', contentToParse);
+              }
+            }
+            
+            const translationData = JSON.parse(contentToParse);
+            log(this.debug, 'Successfully parsed translation data:', translationData);
+            
+            // Validate the required fields
+            if (!translationData.originalPhrase || !translationData.translatedPhrase || !translationData.wordTable) {
+              throw new Error('Missing required fields in translation data');
+            }
+            
+            // Create HTML table structure
+            let tableHtml = `
+              <div class="translation-container">
+                <div class="translation-header">
+                  <h3>Translation</h3>
+                  <div class="translation-text">
+                    <div class="hebrew-text">${translationData.originalPhrase}</div>
+                    <div class="english-text">${translationData.translatedPhrase}</div>
+                  </div>
+                </div>
+                <div class="word-by-word">
+                  <h3>Word Analysis</h3>
+                  <table class="translation-table">
+                    <thead>
+                      <tr>
+                        <th>Word</th>
+                        <th>Root</th>
+                        <th>Part of Speech</th>
+                        <th>Binyan</th>
+                        <th>Gender</th>
+                        <th>Tense</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            // Add each word to the table
+            translationData.wordTable.forEach(word => {
+              tableHtml += `
+                <tr>
+                  <td class="hebrew-word">${word.word}</td>
+                  <td class="root-letters">${word.wordRoot || '-'}</td>
+                  <td class="part-of-speech">${word.wordPartOfSpeech || '-'}</td>
+                  <td class="binyan">${word.wordBinyan || '-'}</td>
+                  <td class="gender">${word.wordGender || '-'}</td>
+                  <td class="tense">${word.wordTense || '-'}</td>
+                </tr>
+              `;
+            });
+            
+            // Close the table
+            tableHtml += `
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            `;
+            
+            this.formattedTranslation = tableHtml;
+          } catch (parseError) {
+            log(this.debug, 'Error parsing translation JSON:', {
+              error: parseError,
+              errorMessage: parseError.message,
+              errorStack: parseError.stack,
+              rawContent: data.choices[0].message.content,
+              contentLength: data.choices[0].message.content.length,
+              contentPreview: data.choices[0].message.content.substring(0, 100) + '...'
+            });
+            
+            // Show the raw response content when JSON parsing fails
+            const rawContent = data.choices[0].message.content;
+            this.formattedTranslation = `
+              <div class="translation-container">
+                <div class="translation-header">
+                  <h3>Translation</h3>
+                  <div class="translation-text">
+                    <div class="hebrew-text">${rawContent}</div>
+                  </div>
+                </div>
+                <div class="translation-error">
+                  <p>Note: The response could not be parsed as structured data. Showing raw translation.</p>
+                </div>
+              </div>
+            `;
+          }
         }
       } catch (error) {
-        console.error('Translation error:', error);
-        console.error('Error details:', {
+        log(this.debug, 'Translation error:', error);
+        log(this.debug, 'Error details:', {
           name: error.name,
           message: error.message,
           stack: error.stack
@@ -1397,42 +1501,83 @@ small {
 .translation-table {
   width: 100%;
   border-collapse: collapse;
-  margin: 1rem 0;
-  font-size: 1.1rem;
-}
-
-.translation-table th,
-.translation-table td {
-  padding: 0.75rem;
-  border: 1px solid #ddd;
-  text-align: left;
+  margin-top: 1rem;
+  background-color: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  font-size: 0.9rem;
 }
 
 .translation-table th {
   background-color: #f8f9fa;
-  font-weight: bold;
+  padding: 0.75rem;
+  text-align: left;
+  font-weight: 600;
   color: #2c3e50;
-  font-size: 1.1rem;
+  border-bottom: 2px solid #e9ecef;
+  white-space: nowrap;
 }
 
 .translation-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #e9ecef;
+  vertical-align: top;
+}
+
+.translation-table .hebrew-word {
+  font-family: 'SBL Hebrew', 'Times New Roman', serif;
+  font-size: 1.2rem;
+  color: #2c3e50;
+  text-align: right;
+  direction: rtl;
+  min-width: 80px;
+}
+
+.translation-table .root-letters {
+  font-family: 'SBL Hebrew', 'Times New Roman', serif;
   color: #666;
+  min-width: 60px;
+}
+
+.translation-table .part-of-speech {
+  color: #666;
+  min-width: 100px;
+}
+
+.translation-table .binyan {
+  color: #666;
+  min-width: 80px;
+}
+
+.translation-table .gender {
+  color: #666;
+  min-width: 80px;
+}
+
+.translation-table .tense {
+  color: #666;
+  min-width: 80px;
 }
 
 .translation-table tr:hover {
   background-color: #f8f9fa;
 }
 
-.translation-table .hebrew-word {
-  font-family: 'SBL Hebrew', 'Times New Roman', serif;
-  font-size: 1.3rem;
-  color: #2c3e50;
-}
-
-.translation-table .english-word {
-  font-family: Arial, sans-serif;
-  font-size: 1.1rem;
-  color: #666;
+@media screen and (max-width: 768px) {
+  .translation-table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+    font-size: 0.85rem;
+  }
+  
+  .translation-table th,
+  .translation-table td {
+    padding: 0.5rem;
+  }
+  
+  .translation-table .hebrew-word {
+    font-size: 1.1rem;
+  }
 }
 
 .p-button-outlined {
@@ -1533,5 +1678,145 @@ small {
   font-size: 1.4rem;
   line-height: 1.6;
   font-family: 'SBL Hebrew', 'Times New Roman', serif;
+}
+
+.translation-container {
+  padding: 1rem;
+}
+
+.translation-header {
+  margin-bottom: 2rem;
+}
+
+.translation-header h3,
+.word-by-word h3 {
+  color: #2c3e50;
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+}
+
+.translation-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+}
+
+.translation-text .hebrew-text {
+  font-family: 'SBL Hebrew', 'Times New Roman', serif;
+  font-size: 1.4rem;
+  line-height: 1.6;
+  color: #2c3e50;
+  text-align: right;
+  direction: rtl;
+}
+
+.translation-text .english-text {
+  font-size: 1.1rem;
+  line-height: 1.4;
+  color: #666;
+}
+
+.word-by-word {
+  margin-top: 2rem;
+}
+
+.translation-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+  background-color: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  font-size: 0.9rem;
+}
+
+.translation-table th {
+  background-color: #f8f9fa;
+  padding: 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  color: #2c3e50;
+  border-bottom: 2px solid #e9ecef;
+  white-space: nowrap;
+}
+
+.translation-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #e9ecef;
+  vertical-align: top;
+}
+
+.translation-table .hebrew-word {
+  font-family: 'SBL Hebrew', 'Times New Roman', serif;
+  font-size: 1.2rem;
+  color: #2c3e50;
+  text-align: right;
+  direction: rtl;
+  min-width: 80px;
+}
+
+.translation-table .root-letters {
+  font-family: 'SBL Hebrew', 'Times New Roman', serif;
+  color: #666;
+  min-width: 60px;
+}
+
+.translation-table .part-of-speech {
+  color: #666;
+  min-width: 100px;
+}
+
+.translation-table .binyan {
+  color: #666;
+  min-width: 80px;
+}
+
+.translation-table .gender {
+  color: #666;
+  min-width: 80px;
+}
+
+.translation-table .tense {
+  color: #666;
+  min-width: 80px;
+}
+
+.translation-table tr:hover {
+  background-color: #f8f9fa;
+}
+
+@media screen and (max-width: 768px) {
+  .translation-table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+    font-size: 0.85rem;
+  }
+  
+  .translation-table th,
+  .translation-table td {
+    padding: 0.5rem;
+  }
+  
+  .translation-table .hebrew-word {
+    font-size: 1.1rem;
+  }
+}
+
+.translation-error {
+  padding: 2rem;
+  text-align: center;
+  color: #dc3545;
+}
+
+.translation-error h3 {
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+}
+
+.translation-error p {
+  color: #666;
 }
 </style> 
