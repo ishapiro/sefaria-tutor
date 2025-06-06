@@ -115,7 +115,7 @@
             :modal="true" 
             :closable="true" 
             :dismissableMask="true"
-            :style="{ width: '90vw' }"
+            :style="{ width: '80vw' }"
             header="Translation">
       <div class="p-4">
         <div v-if="translationLoading" class="text-center">
@@ -124,8 +124,8 @@
         <div v-else-if="translationData" class="space-y-6">
           <div>
             <div class="bg-gray-50 p-4 rounded-lg space-y-5">
-              <div class="text-[30px] mb-3 text-right text-gray-900">{{ translationData.originalPhrase }}</div>
-              <div class="mt-2 text-4xl text-gray-900">{{ translationData.translatedPhrase }}</div>
+              <div class="text-2xl mb-3 text-right text-gray-900">{{ translationData.originalPhrase }}</div>
+              <div class="mt-2 text-xl text-gray-900">{{ translationData.translatedPhrase }}</div>
             </div>
           </div>
           <div>
@@ -143,20 +143,20 @@
               <Column 
                 field="wordTranslation" 
                 header="Translation" 
-                class="min-w-[120px]"
-                :bodyStyle="{ padding: '0.75rem', fontSize: '0.875rem', color: '#4B5563' }"
-                :headerStyle="{ padding: '0.75rem', fontSize: '0.875rem', fontWeight: '600', color: '#374151', backgroundColor: '#F9FAFB' }"
+                class="min-w-[120px] text-lg"
+                :bodyStyle="{ color: '#4B5563' }"
+                :headerStyle="{  fontWeight: '600', color: '#374151', backgroundColor: '#F9FAFB' }"
               >
                 <template #body="{ data }">
-                  <span class="text-gray-600">{{ data.wordTranslation || '-' }}</span>
+                  <span class="text-gray-600 text-lg">{{ data.wordTranslation || '-' }}</span>
                 </template>
               </Column>
               <Column 
                 field="word" 
                 header="Word" 
-                class="min-w-[100px]"
-                :bodyStyle="{ padding: '0.75rem', fontSize: '0.875rem', textAlign: 'right' }"
-                :headerStyle="{ padding: '0.75rem', fontSize: '0.875rem', fontWeight: '600', color: '#374151', backgroundColor: '#F9FAFB' }"
+                class="min-w-[100px] text-xl"
+                :bodyStyle="{  textAlign: 'right' }"
+                :headerStyle="{  fontWeight: '600', color: '#374151', backgroundColor: '#F9FAFB' }"
               >
                 <template #body="{ data }">
                   <span class="font-['SBL_Hebrew'] text-gray-900">{{ data.word }}</span>
@@ -165,9 +165,9 @@
               <Column 
                 field="hebrewAramaic" 
                 header="Language" 
-                class="min-w-[100px]"
-                :bodyStyle="{ padding: '0.75rem', fontSize: '0.875rem', color: '#4B5563' }"
-                :headerStyle="{ padding: '0.75rem', fontSize: '0.875rem', fontWeight: '600', color: '#374151', backgroundColor: '#F9FAFB' }"
+                class="min-w-[100px] text-lg"
+                :bodyStyle="{  color: '#4B5563' }"
+                :headerStyle="{  fontWeight: '600', color: '#374151', backgroundColor: '#F9FAFB' }"
               >
                 <template #body="{ data }">
                   <span class="text-gray-600">{{ data.hebrewAramaic || '-' }}</span>
@@ -176,9 +176,9 @@
               <Column 
                 field="wordRoot" 
                 header="Root" 
-                class="min-w-[80px]"
-                :bodyStyle="{ padding: '0.75rem', fontSize: '0.875rem', color: '#4B5563' }"
-                :headerStyle="{ padding: '0.75rem', fontSize: '0.875rem', fontWeight: '600', color: '#374151', backgroundColor: '#F9FAFB' }"
+                class="min-w-[80px] text-lg"
+                :bodyStyle="{  color: '#4B5563' }"
+                :headerStyle="{ fontWeight: '600', color: '#374151', backgroundColor: '#F9FAFB' }"
               >
                 <template #body="{ data }">
                   <span class="font-['SBL_Hebrew'] text-gray-600">{{ data.wordRoot || '-' }}</span>
@@ -187,20 +187,20 @@
               <Column 
                 field="wordPartOfSpeech" 
                 header="Class" 
-                class="min-w-[120px]"
-                :bodyStyle="{ padding: '0.75rem', fontSize: '0.875rem', color: '#4B5563' }"
-                :headerStyle="{ padding: '0.75rem', fontSize: '0.875rem', fontWeight: '600', color: '#374151', backgroundColor: '#F9FAFB' }"
+                class="min-w-[120px] text-lg"
+                :bodyStyle="{  color: '#4B5563' }"
+                :headerStyle="{  fontWeight: '600', color: '#374151', backgroundColor: '#F9FAFB' }"
               >
                 <template #body="{ data }">
-                  <span class="text-gray-600">{{ data.wordPartOfSpeech || '-' }}</span>
+                  <span class="text-gray-600 text-lg">{{ data.wordPartOfSpeech || '-' }}</span>
                 </template>
               </Column>
               <Column 
                 field="wordBinyan" 
                 header="Binyan" 
-                class="min-w-[100px]"
-                :bodyStyle="{ padding: '0.75rem', fontSize: '0.875rem', color: '#4B5563' }"
-                :headerStyle="{ padding: '0.75rem', fontSize: '0.875rem', fontWeight: '600', color: '#374151', backgroundColor: '#F9FAFB' }"
+                class="min-w-[100px] text-lg"
+                :bodyStyle="{  color: '#4B5563' }"
+                :headerStyle="{  fontWeight: '600', color: '#374151', backgroundColor: '#F9FAFB' }"
               >
                 <template #body="{ data }">
                   <span class="text-gray-600">{{ data.wordBinyan || '-' }}</span>
@@ -209,9 +209,9 @@
               <Column 
                 field="wordGender" 
                 header="Gender" 
-                class="min-w-[100px]"
-                :bodyStyle="{ padding: '0.75rem', fontSize: '0.875rem', color: '#4B5563' }"
-                :headerStyle="{ padding: '0.75rem', fontSize: '0.875rem', fontWeight: '600', color: '#374151', backgroundColor: '#F9FAFB' }"
+                class="min-w-[100px] text-lg"
+                :bodyStyle="{  color: '#4B5563' }"
+                :headerStyle="{  fontWeight: '600', color: '#374151', backgroundColor: '#F9FAFB' }"
               >
                 <template #body="{ data }">
                   <span class="text-gray-600">{{ data.wordGender || '-' }}</span>
@@ -220,9 +220,9 @@
               <Column 
                 field="wordTense" 
                 header="Tense" 
-                class="min-w-[100px]"
-                :bodyStyle="{ padding: '0.75rem', fontSize: '0.875rem', color: '#4B5563' }"
-                :headerStyle="{ padding: '0.75rem', fontSize: '0.875rem', fontWeight: '600', color: '#374151', backgroundColor: '#F9FAFB' }"
+                class="min-w-[100px] text-lg"
+                :bodyStyle="{  color: '#4B5563' }"
+                :headerStyle="{ fontWeight: '600', color: '#374151', backgroundColor: '#F9FAFB' }"
               >
                 <template #body="{ data }">
                   <span class="text-gray-600">{{ data.wordTense || '-' }}</span>
