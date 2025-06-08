@@ -69,10 +69,17 @@
                   <div class="text-lg font-semibold">Select a section:</div>
                 </div>
                 <ul class="space-y-2">
-                  <li v-for="section in complexSections" :key="section.ref">
-                    <button @click="fetchBookContent(section.ref)" class="text-blue-600 hover:underline font-medium">
-                      {{ section.title }}<span v-if="section.heTitle"> / {{ section.heTitle }}</span>
-                    </button>
+                  <li v-for="section in complexSections" :key="section.ref" class="flex items-center">
+                    <template v-if="isLeafNode(section)">
+                      <button @click="fetchBookContent(section.ref)" class="text-blue-600 hover:underline font-medium">
+                        {{ section.title }}<span v-if="section.heTitle"> / {{ section.heTitle }}</span>
+                      </button>
+                    </template>
+                    <template v-else>
+                      <span class="text-gray-500 font-medium cursor-not-allowed">
+                        {{ section.title }}<span v-if="section.heTitle"> / {{ section.heTitle }}</span>
+                      </span>
+                    </template>
                   </li>
                 </ul>
               </div>
@@ -1257,6 +1264,21 @@ export default {
         this.isComplexBookFlag = false;
         this.selectedBook = null;
       }
+    },
+    isLeafNode(section) {
+      // Find the index of the current section
+      const currentIndex = this.complexSections.findIndex(s => s.ref === section.ref);
+      
+      // If this is the last section, it's a leaf node
+      if (currentIndex === this.complexSections.length - 1) {
+        return true;
+      }
+      
+      // Get the next section
+      const nextSection = this.complexSections[currentIndex + 1];
+      
+      // If the next section's ref starts with this section's ref, then this is a parent node
+      return !nextSection.ref.startsWith(section.ref + '/');
     },
   }
 }
