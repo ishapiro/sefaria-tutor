@@ -1,3 +1,7 @@
+import { createError, defineEventHandler, getHeader, readBody } from 'h3'
+import { useRuntimeConfig } from 'nitropack/runtime/internal/config'
+import { $fetch } from 'ofetch'
+
 const SYSTEM_PROMPT = `You are a Torah teacher—like a rabbi—who ONLY assists with translating Hebrew or Aramaic into English.
 
 When given a Hebrew or Aramaic phrase, follow these strict instructions:
@@ -34,8 +38,10 @@ Here is an example of correct output:
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig(event)
-  const apiAuthToken = config.apiAuthToken || (process.env as Record<string, string>).API_AUTH_TOKEN || ''
-  const openaiApiKey = config.openaiApiKey || (process.env as Record<string, string>).OPENAI_API_KEY || ''
+  // Runtime config is populated from NUXT_* env vars; fallback to process.env for OPENAI_API_KEY / API_AUTH_TOKEN in .env
+  const env = (globalThis as unknown as { process?: { env?: Record<string, string> } }).process?.env
+  const apiAuthToken = config.apiAuthToken || env?.API_AUTH_TOKEN || ''
+  const openaiApiKey = config.openaiApiKey || env?.OPENAI_API_KEY || ''
 
   const authHeader = getHeader(event, 'authorization')
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -71,26 +77,36 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const response = await $fetch<{
-    id: string
-    model: string
-    choices: Array<{ message: { content: string }; finish_reason: string }>
-    usage?: { prompt_tokens: number; completion_tokens: number }
-  }>('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${openaiApiKey}`,
-    },
-    body: {
-      model: body.model || 'gpt-4-turbo',
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: body.prompt },
-      ],
-      max_tokens: 4095,
-    },
-  })
-
-  return response
+  try {
+    const response = await $fetch<{
+      id: string
+      model: string
+      choices: Array<{ message: { content: string }; finish_reason: string }>
+      usage?: { prompt_tokens: number; completion_tokens: number }
+    }>('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${openaiApiKey}`,
+      },
+      body: {
+        model: body.model || 'gpt-4o',
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: body.prompt },
+        ],
+        max_tokens: 4095,
+      },
+    })
+    return response
+  } catch (err: unknown) {
+    const status = (err as { statusCode?: number })?.statusCode ?? 500
+    const data = (err as { data?: { error?: { message?: string } } })?.data
+    const message = data?.error?.message ?? (err instanceof Error ? err.message : 'OpenAI request failed')
+    throw createError({
+      statusCode: status >= 400 && status < 500 ? status : 502,
+      statusMessage: status === 400 ? 'Bad Request' : 'Bad Gateway',
+      message,
+    })
+  }
 })

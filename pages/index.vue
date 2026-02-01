@@ -153,7 +153,7 @@
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto py-8"
       @click.self="showTranslationDialog = false"
     >
-      <div class="bg-white rounded-lg shadow-xl p-6 max-w-4xl w-[95vw] max-h-[90vh] overflow-auto">
+      <div class="bg-white rounded-lg shadow-xl p-6 w-[90vw] max-h-[90vh] overflow-auto">
         <div class="flex justify-between items-center mb-4">
           <h2 class="text-xl font-bold">Translation</h2>
           <button type="button" class="text-gray-500 hover:text-gray-700 text-2xl leading-none" @click="showTranslationDialog = false">×</button>
@@ -176,7 +176,7 @@
                   <th class="px-3 py-2 text-left font-semibold text-gray-700">Translation</th>
                   <th class="px-3 py-2 text-left font-semibold text-gray-700">Word</th>
                   <th class="px-3 py-2 text-left font-semibold text-gray-700">Language</th>
-                  <th class="px-3 py-2 text-left font-semibold text-gray-700">Root</th>
+                  <th class="px-3 py-2 text-left font-semibold text-gray-700 min-w-[140px]">Root</th>
                   <th class="px-3 py-2 text-left font-semibold text-gray-700">Part of Speech</th>
                   <th class="px-3 py-2 text-left font-semibold text-gray-700">Gender</th>
                   <th class="px-3 py-2 text-left font-semibold text-gray-700">Tense</th>
@@ -189,7 +189,7 @@
                   <td class="px-3 py-2 text-gray-600">{{ row.wordTranslation ?? '—' }}</td>
                   <td class="px-3 py-2 text-right font-medium" style="direction: rtl">{{ row.word ?? '—' }}</td>
                   <td class="px-3 py-2 text-gray-600">{{ row.hebrewAramaic ?? '—' }}</td>
-                  <td class="px-3 py-2 text-gray-600">{{ row.wordRoot ?? '—' }}</td>
+                  <td class="px-3 py-2 text-gray-600 min-w-[140px]">{{ row.wordRoot ?? '—' }}</td>
                   <td class="px-3 py-2 text-gray-600">{{ row.wordPartOfSpeech ?? '—' }}</td>
                   <td class="px-3 py-2 text-gray-600">{{ row.wordGender ?? '—' }}</td>
                   <td class="px-3 py-2 text-gray-600">{{ row.wordTense ?? '—' }}</td>
@@ -641,7 +641,7 @@ async function translateWithOpenAI (text: string) {
   try {
     const response = await $fetch<{ choices?: Array<{ message?: { content?: string } }> }>('/api/openai/chat', {
       method: 'POST',
-      body: { prompt: `Translate this phrase to English: ${text}`, model: 'gpt-4-turbo' },
+      body: { prompt: `Translate this phrase to English: ${text}`, model: 'gpt-4o' },
       headers: { Authorization: `Bearer ${token}` }
     })
     rawTranslationData.value = response
