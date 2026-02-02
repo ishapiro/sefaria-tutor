@@ -97,7 +97,7 @@ export default defineEventHandler(async (event) => {
         Authorization: `Bearer ${openaiApiKey}`,
       },
       body: {
-        model: body.model || 'gpt-4o',
+        model: body.model || 'gpt-5.1',
         instructions: SYSTEM_PROMPT,
         input: body.prompt,
         max_output_tokens: body.fullSentence ? 20000 : 4096,

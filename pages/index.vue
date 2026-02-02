@@ -1,15 +1,15 @@
 <template>
   <div class="container mx-auto p-4 relative">
-    <!-- OpenAI API loading spinner overlay -->
+    <!-- API loading spinner overlay -->
     <div
-      v-if="openaiLoading"
+      v-if="apiLoading"
       class="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 pointer-events-auto"
       aria-live="polite"
       aria-busy="true"
     >
       <div class="bg-white rounded-xl shadow-xl p-6 flex flex-col items-center gap-4">
         <div class="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
-        <span class="text-gray-700 font-medium">Calling OpenAI…</span>
+        <span class="text-gray-700 font-medium">{{ apiLoadingMessage }}</span>
       </div>
     </div>
     <h1 class="text-2xl font-bold mb-4">
@@ -124,9 +124,12 @@
           </ul>
         </div>
         <div v-else class="space-y-4">
+          <p class="text-xs text-gray-500 mb-1">
+            Select Hebrew text to translate, or click a verse number to translate the whole sentence.
+          </p>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div class="font-medium text-gray-500">English</div>
-            <div class="font-medium text-gray-500 text-right" style="direction: rtl">Hebrew — select text for translation</div>
+            <div class="font-medium text-gray-500 text-right" style="direction: rtl">Hebrew</div>
           </div>
           <template v-for="(section, index) in currentPageText" :key="'v-' + index">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-b border-gray-100 pb-4 last:border-0">
@@ -183,6 +186,9 @@
         <div v-if="translationLoading" class="text-center py-8 text-gray-500 text-lg">Loading translation…</div>
         <div v-else-if="translationError" class="text-center py-8 text-red-600 text-lg">{{ translationError }}</div>
         <div v-else-if="translationData" class="space-y-6">
+          <p class="text-xs text-gray-500 -mt-2 mb-1">
+            Click the Hebrew phrase to hear it spoken. Click any word in the table to hear its pronunciation.
+          </p>
           <div class="bg-gray-50 p-4 rounded-lg space-y-2">
             <div
               class="text-3xl text-right text-gray-900 cursor-pointer hover:bg-blue-100 hover:text-blue-700 rounded px-2 py-1 -mx-2 -my-1 transition-colors"
@@ -332,6 +338,12 @@ const ttsLoading = ref(false)
 
 const openaiLoading = computed(() =>
   translationLoading.value || modelLoading.value || ttsLoading.value
+)
+
+const apiLoading = computed(() => loading.value || openaiLoading.value)
+
+const apiLoadingMessage = computed(() =>
+  loading.value ? 'Calling Sefaria…' : 'Calling OpenAI…'
 )
 
 const currentPageText = computed(() => {
