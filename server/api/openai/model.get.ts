@@ -5,11 +5,35 @@ import { $fetch } from 'ofetch'
 /** Model IDs that are general-purpose chat/completion models (excludes embeddings, TTS, etc.) */
 const GENERAL_PURPOSE_PREFIXES = ['gpt-3.5', 'gpt-4', 'gpt-5', 'o1', 'o3']
 
+/** Variant suffixes that indicate a specialized model (not the generic base) */
+const VARIANT_SUFFIXES = ['instant', 'codex', 'pro', 'mini', 'nano', 'turbo', 'vision', 'chat-latest', 'thinking']
+
 function isGeneralPurposeModel (id: string): boolean {
   return GENERAL_PURPOSE_PREFIXES.some(prefix => id.startsWith(prefix)) &&
     !id.includes('embedding') &&
     !id.startsWith('tts-') &&
     !id.startsWith('whisper')
+}
+
+/** Extract base model id (e.g. gpt-5.2 from gpt-5.2-instant or gpt-5.2-codex) */
+function getBaseModelId (id: string): string {
+  for (const suffix of VARIANT_SUFFIXES) {
+    const pattern = new RegExp(`-${suffix}(-[a-z0-9.-]*)?$`, 'i')
+    if (pattern.test(id)) {
+      return id.replace(pattern, '')
+    }
+  }
+  return id
+}
+
+/** Preference: instant > mini > turbo > base; codex excluded. Higher = better. */
+function modelPreferenceScore (id: string, baseId: string): number {
+  if (id.includes('-instant')) return 4
+  if (id.includes('-mini')) return 3
+  if (id.includes('-turbo')) return 2
+  if (id === baseId) return 1
+  if (id.includes('-codex')) return -1 // never use codex
+  return 0 // other variants (pro, etc.) - skip
 }
 
 export default defineEventHandler(async (event) => {
@@ -54,12 +78,51 @@ export default defineEventHandler(async (event) => {
 
     const generalPurpose = (list.data ?? [])
       .filter(m => isGeneralPurposeModel(m.id))
-      .sort((a, b) => (b.created ?? 0) - (a.created ?? 0))
 
-    const latest = generalPurpose[0]
-    const modelId = latest?.id ?? 'gpt-4o'
+    console.log('[openai/model] General purpose models:', generalPurpose.map(m => m.id))
 
-    return { model: modelId }
+    // Group by base model id (e.g. gpt-5.2); pick newest family by created
+    const byBase = new Map<string, typeof generalPurpose>()
+    for (const m of generalPurpose) {
+      const base = getBaseModelId(m.id)
+      if (!byBase.has(base)) byBase.set(base, [])
+      byBase.get(base)!.push(m)
+    }
+
+    // Newest family = max created among all models in that family
+    const sortedBases = [...byBase.entries()].sort(([, a], [, b]) => {
+      const maxA = Math.max(...a.map(m => m.created ?? 0))
+      const maxB = Math.max(...b.map(m => m.created ?? 0))
+      return maxB - maxA
+    })
+
+    console.log('[openai/model] Families (newest first):', sortedBases.map(([base]) => base))
+
+    // Within each family: prefer instant, then mini, then turbo, then base; skip codex
+    for (const [baseId, family] of sortedBases) {
+      if (!baseId || family.length === 0) continue
+
+      const eligible = family
+        .filter(m => modelPreferenceScore(m.id, baseId) >= 1)
+        .sort((a, b) => {
+          const scoreA = modelPreferenceScore(a.id, baseId)
+          const scoreB = modelPreferenceScore(b.id, baseId)
+          if (scoreA !== scoreB) return scoreB - scoreA
+          return (b.created ?? 0) - (a.created ?? 0)
+        })
+
+      const best = eligible[0]
+      const scores = family.map(m => ({ id: m.id, score: modelPreferenceScore(m.id, baseId) }))
+      console.log(`[openai/model] Family "${baseId}": eligible=${eligible.map(m => m.id).join(', ') || 'none'}, scores=${JSON.stringify(scores)}`)
+
+      if (best) {
+        console.log('[openai/model] Selected:', best.id)
+        return { model: best.id }
+      }
+    }
+
+    console.log('[openai/model] No eligible model found, using fallback: gpt-4o')
+    return { model: 'gpt-4o' }
   } catch (err: unknown) {
     const status = (err as { statusCode?: number })?.statusCode ?? 500
     const data = (err as { data?: { error?: { message?: string } } })?.data

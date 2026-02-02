@@ -1,6 +1,9 @@
 <template>
   <div class="container mx-auto p-4">
-    <h1 class="text-2xl font-bold mb-4">Sefaria Book Reader</h1>
+    <h1 class="text-2xl font-bold mb-4">
+      Safaria Word Explorer provided by Cogitations
+      <span class="pl-2 text-base font-normal text-gray-600">(Using OpenAI Model: {{ openaiModel }})</span>
+    </h1>
 
     <!-- Loading index -->
     <div v-if="loading && (!categories || categories.length === 0)" class="flex justify-center items-center py-12">
@@ -223,6 +226,9 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import { useRuntimeConfig } from 'nuxt/app'
+
 interface CategoryNode {
   type: string
   path: string
