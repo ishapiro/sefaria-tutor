@@ -38,8 +38,8 @@
       <CategoryAccordion
         :categories="filteredCategories"
         :loading="loading"
-        @book-select="onBookSelect"
-        @tab-open="onCategoryExpand"
+        @book-select="(e) => onBookSelect({ data: e.data as CategoryNode })"
+        @tab-open="(cat) => onCategoryExpand(cat as CategoryNode)"
       />
       <!-- Category error: please select a book -->
       <div
@@ -116,8 +116,8 @@
           <template v-for="(section, index) in currentPageText" :key="'v-' + index">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-b border-gray-100 pb-4 last:border-0">
               <div><span class="text-gray-500 mr-2">{{ section.displayNumber }}</span><span v-html="section.en" /></div>
-              <div class="text-right" style="direction: rtl" @mouseup="handleTextSelection">
-                <span class="text-gray-500 ml-2">{{ section.displayNumber }}</span><span v-html="section.he" />
+              <div class="text-right text-lg" style="direction: rtl" @mouseup="handleTextSelection">
+                <span class="text-gray-500 ml-2 text-sm">{{ section.displayNumber }}</span><span v-html="section.he" />
               </div>
             </div>
           </template>
@@ -230,6 +230,7 @@ interface CategoryNode {
   category?: string
   heCategory?: string
   title?: string
+  categories?: string[]
   [key: string]: unknown
 }
 
@@ -278,6 +279,7 @@ const translationData = ref<{
 const translationError = ref<string | null>(null)
 const showRawData = ref(false)
 const rawTranslationData = ref<unknown>(null)
+const openaiModel = ref('gpt-4o')
 
 const currentPageText = computed(() => {
   const start = first.value
@@ -639,20 +641,33 @@ async function translateWithOpenAI (text: string) {
   translationError.value = null
   rawTranslationData.value = null
   try {
-    const response = await $fetch<{ choices?: Array<{ message?: { content?: string } }> }>('/api/openai/chat', {
+    const response = await $fetch<{
+      output?: Array<{ type?: string; content?: Array<{ type?: string; text?: string }> }>
+    }>('/api/openai/chat', {
       method: 'POST',
-      body: { prompt: `Translate this phrase to English: ${text}`, model: 'gpt-4o' },
-      headers: { Authorization: `Bearer ${token}` }
+      body: { prompt: `Translate this phrase to English: ${text}`, model: openaiModel.value },
+      headers: { Authorization: `Bearer ${token}` },
     })
     rawTranslationData.value = response
-    const content = response?.choices?.[0]?.message?.content?.trim()
+    const content = extractOutputText(response)?.trim()
     if (!content) throw new Error('No translation in response')
     let jsonStr = content
     if (!jsonStr.startsWith('{')) {
       const match = jsonStr.match(/\{[\s\S]*\}/)
       if (match) jsonStr = match[0]
     }
-    const parsed = JSON.parse(jsonStr) as { originalPhrase?: string; translatedPhrase?: string; wordTable?: unknown[] }
+    type WordRow = {
+      word?: string
+      wordTranslation?: string
+      hebrewAramaic?: string
+      wordRoot?: string
+      wordPartOfSpeech?: string
+      wordGender?: string | null
+      wordTense?: string | null
+      wordBinyan?: string | null
+      grammarNotes?: string
+    }
+    const parsed = JSON.parse(jsonStr) as { originalPhrase?: string; translatedPhrase?: string; wordTable?: WordRow[] }
     if (!parsed.originalPhrase || !parsed.translatedPhrase || !parsed.wordTable) throw new Error('Missing required fields')
     translationData.value = parsed
     if (import.meta.client) window.getSelection()?.removeAllRanges()
@@ -669,7 +684,35 @@ function handleTextSelection () {
   translateWithOpenAI(text)
 }
 
+/** Extract text from Responses API output array (output_text items in message content) */
+function extractOutputText (response: { output?: Array<{ type?: string; content?: Array<{ type?: string; text?: string }> }> }): string {
+  const output = response?.output ?? []
+  const parts: string[] = []
+  for (const item of output) {
+    if (item.type !== 'message' || !Array.isArray(item.content)) continue
+    for (const c of item.content) {
+      if (c.type === 'output_text' && typeof c.text === 'string') parts.push(c.text)
+    }
+  }
+  return parts.join('').trim()
+}
+
+async function fetchLatestModel () {
+  const config = useRuntimeConfig()
+  const token = config.public.apiAuthToken as string
+  if (!token) return
+  try {
+    const res = await $fetch<{ model?: string }>('/api/openai/model', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (res?.model) openaiModel.value = res.model
+  } catch {
+    // Keep default gpt-4o if model fetch fails
+  }
+}
+
 onMounted(() => {
   fetchAndCacheFullIndex()
+  fetchLatestModel()
 })
 </script>

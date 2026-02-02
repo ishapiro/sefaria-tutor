@@ -80,10 +80,16 @@ export default defineEventHandler(async (event) => {
   try {
     const response = await $fetch<{
       id: string
+      object: string
+      created_at: number
+      status: string
       model: string
-      choices: Array<{ message: { content: string }; finish_reason: string }>
-      usage?: { prompt_tokens: number; completion_tokens: number }
-    }>('https://api.openai.com/v1/chat/completions', {
+      output: Array<{
+        type: string
+        content?: Array<{ type: string; text?: string }>
+      }>
+      usage?: { input_tokens: number; output_tokens: number; total_tokens: number }
+    }>('https://api.openai.com/v1/responses', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -91,11 +97,9 @@ export default defineEventHandler(async (event) => {
       },
       body: {
         model: body.model || 'gpt-4o',
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: body.prompt },
-        ],
-        max_tokens: 4095,
+        instructions: SYSTEM_PROMPT,
+        input: body.prompt,
+        max_output_tokens: 4095,
       },
     })
     return response

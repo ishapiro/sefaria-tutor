@@ -1,11 +1,11 @@
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event): Promise<unknown> => {
   const path = event.context.params?.path
   const pathStr = Array.isArray(path) ? path.join('/') : path || ''
   const query = getRequestURL(event).search
   const sefariaUrl = `https://www.sefaria.org/api/${pathStr}${query}`
 
   try {
-    const response = await $fetch<unknown>(sefariaUrl, {
+    const response: unknown = await $fetch(sefariaUrl, {
       method: event.method,
       headers: {
         Accept: 'application/json',
