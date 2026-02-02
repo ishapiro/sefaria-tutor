@@ -505,6 +505,7 @@ function onCategoryExpand (category: CategoryNode) {
 
 async function isComplexBook (book: CategoryNode): Promise<boolean> {
   if (book.categories?.includes('Talmud')) return true
+  if (book.categories?.includes('Liturgy')) return true
   try {
     const ref = String(book.title).replace(/\s+/g, '_')
     await $fetch(`/api/sefaria/texts/${encodeURIComponent(ref)}`)
