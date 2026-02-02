@@ -186,7 +186,7 @@
             <li v-for="section in complexSections" :key="section.ref" class="flex items-center">
               <template v-if="isLeafNode(section)">
                 <button type="button" class="text-blue-600 hover:underline font-medium text-left" @click="fetchBookContent(section.ref)">
-                  {{ section.title }}<span v-if="section.heTitle"> / {{ section.heTitle }}</span>
+                  {{ getSectionDisplayTitle(section) }}
                 </button>
               </template>
               <template v-else>
@@ -541,6 +541,12 @@ async function copyDebugToClipboard (text: string) {
     document.execCommand('copy')
     document.body.removeChild(ta)
   }
+}
+
+function getSectionDisplayTitle (section: { ref: string; title: string; heTitle?: string }): string {
+  const refTitle = buildSefariaRefForSection(section.ref)
+  if (/^Siman \d+$/.test(section.title)) return refTitle
+  return section.heTitle ? `${section.title} / ${section.heTitle}` : section.title
 }
 
 function buildSefariaRefForSection (sectionRef: string): string {
