@@ -14,11 +14,14 @@ export default defineEventHandler(async (event): Promise<unknown> => {
     })
     return response
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Unknown error'
+    const e = err as { statusCode?: number; data?: unknown; message?: string }
+    const statusCode = typeof e?.statusCode === 'number' ? e.statusCode : 500
+    const dataError = e?.data && typeof e.data === 'object' && 'error' in e.data ? (e.data as { error?: string }).error : undefined
+    const message = dataError ?? e?.message ?? 'Unknown error'
     throw createError({
-      statusCode: 500,
+      statusCode,
       statusMessage: 'Sefaria proxy error',
-      data: { error: message },
+      data: { error: String(message) },
     })
   }
 })

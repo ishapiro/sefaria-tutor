@@ -103,9 +103,16 @@
         <div v-if="loading" class="text-center py-8 text-gray-500">Loading…</div>
         <!-- Complex book: section list (when no section content loaded yet) – check before "not available" -->
         <div v-else-if="complexSections?.length && allVerseData.length === 0" class="space-y-4">
-          <div class="flex items-center gap-2 mb-4">
+          <div class="flex items-center gap-2 mb-4 flex-wrap">
             <button v-if="sectionStack.length > 0" type="button" class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm" @click="goBackSection">Back</button>
             <span class="font-semibold">Select a section:</span>
+            <button
+              type="button"
+              class="ml-2 px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100 text-gray-600"
+              @click="showSectionListDebugDialog = true"
+            >
+              Debug
+            </button>
           </div>
           <ul class="space-y-2">
             <li v-for="section in complexSections" :key="section.ref" class="flex items-center">
@@ -131,9 +138,18 @@
           </button>
         </div>
         <div v-else class="space-y-4">
-          <p class="text-xs text-gray-500 mb-1">
-            Select Hebrew text to translate, or click a verse number to translate the whole sentence.
-          </p>
+          <div class="flex items-center justify-between mb-1">
+            <p class="text-xs text-gray-500">
+              Select Hebrew text to translate, or click a verse number to translate the whole sentence.
+            </p>
+            <button
+              type="button"
+              class="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100 text-gray-600"
+              @click="showContentDebugDialog = true"
+            >
+              Debug
+            </button>
+          </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div class="font-medium text-gray-500">English</div>
             <div class="font-medium text-gray-500 text-right" style="direction: rtl">Hebrew</div>
@@ -179,6 +195,46 @@
       </div>
     </div>
 
+    <!-- Content view debug dialog -->
+    <div
+      v-if="showContentDebugDialog"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto py-8"
+      @click.self="showContentDebugDialog = false"
+    >
+      <div class="bg-white rounded-lg shadow-xl p-6 w-[90vw] max-w-3xl max-h-[90vh] overflow-auto text-sm">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-bold">Content Debug</h2>
+          <button type="button" class="text-gray-500 hover:text-gray-700 text-2xl leading-none" @click="showContentDebugDialog = false">×</button>
+        </div>
+        <p class="text-gray-600 text-xs mb-4">API response and parsed data for the currently displayed content.</p>
+        <pre class="bg-gray-100 p-4 rounded text-xs overflow-x-auto whitespace-pre-wrap font-mono max-h-[70vh] overflow-y-auto">{{ JSON.stringify(contentDebugInfo, null, 2) }}</pre>
+        <div class="mt-4 flex gap-2">
+          <button type="button" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300" @click="copyDebugToClipboard(JSON.stringify(contentDebugInfo, null, 2))">Copy to clipboard</button>
+          <button type="button" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300" @click="showContentDebugDialog = false">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section list debug dialog -->
+    <div
+      v-if="showSectionListDebugDialog"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto py-8"
+      @click.self="showSectionListDebugDialog = false"
+    >
+      <div class="bg-white rounded-lg shadow-xl p-6 w-[90vw] max-w-2xl max-h-[90vh] overflow-auto text-sm">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-bold">Section List Debug</h2>
+          <button type="button" class="text-gray-500 hover:text-gray-700 text-2xl leading-none" @click="showSectionListDebugDialog = false">×</button>
+        </div>
+        <p class="text-gray-600 text-xs mb-4">Refs that would be sent when clicking each section (first 10 leaf sections shown).</p>
+        <pre class="bg-gray-100 p-4 rounded text-xs overflow-x-auto whitespace-pre-wrap font-mono">{{ JSON.stringify(sectionListDebugInfo, null, 2) }}</pre>
+        <div class="mt-4 flex gap-2">
+          <button type="button" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300" @click="copyDebugToClipboard(JSON.stringify(sectionListDebugInfo, null, 2))">Copy to clipboard</button>
+          <button type="button" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300" @click="showSectionListDebugDialog = false">Close</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Book load debug dialog -->
     <div
       v-if="showBookLoadDebugDialog"
@@ -192,7 +248,10 @@
         </div>
         <p class="text-gray-600 text-xs mb-4">Context for debugging when a book fails to load.</p>
         <pre class="bg-gray-100 p-4 rounded text-xs overflow-x-auto whitespace-pre-wrap font-mono">{{ JSON.stringify(bookLoadDebugInfo, null, 2) }}</pre>
-        <button type="button" class="mt-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300" @click="showBookLoadDebugDialog = false">Close</button>
+        <div class="mt-4 flex gap-2">
+          <button type="button" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300" @click="copyDebugToClipboard(JSON.stringify(bookLoadDebugInfo, null, 2))">Copy to clipboard</button>
+          <button type="button" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300" @click="showBookLoadDebugDialog = false">Close</button>
+        </div>
       </div>
     </div>
 
@@ -336,6 +395,8 @@ const complexSections = ref<Array<{ ref: string; title: string; heTitle?: string
 const sectionStack = ref<unknown[]>([])
 const nextSectionRef = ref<string | null>(null)
 const showBookLoadDebugDialog = ref(false)
+const showSectionListDebugDialog = ref(false)
+const showContentDebugDialog = ref(false)
 const lastSefariaRefAttempted = ref<string | null>(null)
 const lastSefariaResponse = ref<unknown>(null)
 const lastSefariaError = ref<string | null>(null)
@@ -373,6 +434,126 @@ const apiLoading = computed(() => loading.value || openaiLoading.value)
 const apiLoadingMessage = computed(() =>
   loading.value ? 'Calling Sefaria…' : 'Calling OpenAI…'
 )
+
+/** Extract flat string[] from Sefaria text/he which may be array, string, or nested object. */
+function extractTextArray (val: unknown): string[] {
+  if (Array.isArray(val)) return val.filter((x): x is string => typeof x === 'string')
+  if (typeof val === 'string') return [val]
+  if (val && typeof val === 'object' && !Array.isArray(val)) {
+    const obj = val as Record<string, unknown>
+    const keys = Object.keys(obj).sort((a, b) => {
+      const na = Number(a)
+      const nb = Number(b)
+      if (!Number.isNaN(na) && !Number.isNaN(nb)) return na - nb
+      return String(a).localeCompare(String(b))
+    })
+    const out: string[] = []
+    for (const k of keys) {
+      const v = obj[k]
+      if (typeof v === 'string') out.push(v)
+      else if (Array.isArray(v)) out.push(...v.filter((x): x is string => typeof x === 'string'))
+      else if (v && typeof v === 'object') out.push(...extractTextArray(v))
+    }
+    return out
+  }
+  return []
+}
+
+async function copyDebugToClipboard (text: string) {
+  try {
+    await navigator.clipboard.writeText(text)
+  } catch {
+    // Fallback for older browsers
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.style.position = 'fixed'
+    ta.style.opacity = '0'
+    document.body.appendChild(ta)
+    ta.select()
+    document.execCommand('copy')
+    document.body.removeChild(ta)
+  }
+}
+
+function buildSefariaRefForSection (sectionRef: string): string {
+  if (!selectedBook.value) return sectionRef
+  const bookTitle = String(selectedBook.value.title ?? '')
+  const parts = sectionRef
+    .split('/')
+    .map(p => p.replace(/\s*\([^)]*\)/, '').trim())
+    .map(p => p.replace(/'([A-Za-z])/g, (_, c) => 'e' + c.toLowerCase()))
+  return `${bookTitle}, ${parts.join(', ')}`
+}
+
+const sectionListDebugInfo = computed(() => {
+  const list = complexSections.value ?? []
+  const leafSections = list.filter(s => isLeafNode(s)).slice(0, 10)
+  const raw = lastSefariaResponse.value
+  let lastResponseSummary: unknown = null
+  if (raw && typeof raw === 'object' && !(raw instanceof Error)) {
+    const r = raw as Record<string, unknown>
+    lastResponseSummary = {
+      textType: Array.isArray(r.text) ? 'array' : typeof r.text,
+      heType: Array.isArray(r.he) ? 'array' : typeof r.he,
+      textKeys: r.text && typeof r.text === 'object' && !Array.isArray(r.text) ? Object.keys(r.text).slice(0, 5) : undefined,
+      heKeys: r.he && typeof r.he === 'object' && !Array.isArray(r.he) ? Object.keys(r.he).slice(0, 5) : undefined,
+    }
+  }
+  return {
+    selectedBook: selectedBook.value ? { title: selectedBook.value.title } : null,
+    leafSectionsSample: leafSections.map(s => ({
+      ref: s.ref,
+      title: s.title,
+      sefariaRefWouldSend: buildSefariaRefForSection(s.ref),
+    })),
+    lastSefariaRefAttempted: lastSefariaRefAttempted.value,
+    lastSefariaError: lastSefariaError.value,
+    lastResponseSummary,
+  }
+})
+
+function summarizeForDebug (val: unknown): unknown {
+  if (Array.isArray(val)) {
+    return { _type: 'array', length: val.length, sample: val.slice(0, 5) }
+  }
+  if (val && typeof val === 'object') {
+    const obj = val as Record<string, unknown>
+    const keys = Object.keys(obj)
+    return { _type: 'object', keys, keyCount: keys.length, sample: Object.fromEntries(keys.slice(0, 5).map(k => [k, summarizeForDebug(obj[k])])) }
+  }
+  return val
+}
+
+const contentDebugInfo = computed(() => {
+  const raw = lastSefariaResponse.value
+  let responseSummary: unknown = null
+  if (raw && typeof raw === 'object' && !(raw instanceof Error)) {
+    const r = raw as Record<string, unknown>
+    responseSummary = {
+      ref: r.ref,
+      next: r.next,
+      firstAvailableSectionRef: r.firstAvailableSectionRef,
+      sectionRef: r.sectionRef,
+      error: r.error,
+      textSummary: summarizeForDebug(r.text),
+      heSummary: summarizeForDebug(r.he),
+      verses: r.verses,
+      he_verses: r.he_verses,
+      sections: r.sections,
+    }
+  }
+  return {
+    selectedBook: selectedBook.value ? { title: selectedBook.value.title } : null,
+    lastSefariaRefAttempted: lastSefariaRefAttempted.value,
+    lastSefariaError: lastSefariaError.value,
+    totalRecords: totalRecords.value,
+    allVerseDataLength: allVerseData.value.length,
+    currentChapter: currentChapter.value,
+    paginationFirst: first.value,
+    apiResponse: responseSummary,
+    parsedVerseDisplayNumbers: allVerseData.value.slice(0, 20).map(v => v.displayNumber),
+  }
+})
 
 const bookLoadDebugInfo = computed(() => {
   const raw = lastSefariaResponse.value
@@ -503,17 +684,27 @@ function onCategoryExpand (category: CategoryNode) {
   category.loaded = true
 }
 
+/** Detect if a book needs section selection (TOC) by checking the Sefaria index API. */
 async function isComplexBook (book: CategoryNode): Promise<boolean> {
-  if (book.categories?.includes('Talmud')) return true
-  if (book.categories?.includes('Liturgy')) return true
+  const ref = String(book.title ?? '').replace(/\s+/g, '_')
   try {
-    const ref = String(book.title).replace(/\s+/g, '_')
+    const indexData = await $fetch<{ schema?: { lengths?: number[]; nodes?: unknown[] } }>(`/api/sefaria/index/${encodeURIComponent(ref)}`)
+    if (!indexData?.schema) return false
+    const schema = indexData.schema
+    if (book.categories?.includes('Talmud') && schema.lengths?.[0] && schema.lengths[0] > 0) return true
+    if (schema.lengths?.[0] && schema.lengths[0] > 1) return true
+    const sections = processSchemaNodes(schema.nodes ?? [])
+    if (sections.length > 0) return true
+  } catch {
+    // Index not found or failed – fall back to texts API
+  }
+  try {
     await $fetch(`/api/sefaria/texts/${encodeURIComponent(ref)}`)
     return false
   } catch (err: unknown) {
     const data = (err as { data?: { error?: string } })?.data
-    const msg = data?.error ?? ''
-    return !!msg.includes('complex') && !!msg.includes('book-level ref')
+    const msg = String(data?.error ?? '')
+    return msg.includes('complex') || msg.includes('book-level ref')
   }
 }
 
@@ -554,6 +745,12 @@ async function fetchComplexBookToc (book: CategoryNode) {
         sections.push({ ref: `${book.title} ${daf}b`, title: `${daf}b`, heTitle: `${daf}ב` })
       }
       complexSections.value = sections
+    } else if (indexData.schema.lengths?.[0] && indexData.schema.lengths[0] > 0) {
+      const totalChapters = indexData.schema.lengths[0]
+      complexSections.value = Array.from({ length: totalChapters }, (_, i) => {
+        const n = i + 1
+        return { ref: String(n), title: `Siman ${n}`, heTitle: `סימן ${n}` }
+      })
     } else {
       complexSections.value = processSchemaNodes(indexData.schema.nodes ?? [])
     }
@@ -599,8 +796,15 @@ async function fetchBookContent (refOverride?: string | null) {
   let sefariaRef: string
   if (refOverride) {
     if (isComplexBookFlag.value) {
-      const parts = refOverride.split('/').map(p => p.replace(/\s*\([^)]*\)/, '').trim())
-      sefariaRef = `${bookTitle}, ${parts.join(', ')}`.replace(/\s+/g, '_').replace(/'([A-Za-z])/g, (_m, l: string) => 'e' + l.toLowerCase())
+      const parts = refOverride
+        .split('/')
+        .map(p => p.replace(/\s*\([^)]*\)/, '').trim())
+        .map(p => p.replace(/'([A-Za-z])/g, (_, c) => 'e' + c.toLowerCase()))
+      if (parts.length === 1 && /^\d+$/.test(parts[0])) {
+        sefariaRef = `${bookTitle} ${parts[0]}`.replace(/\s+/g, '_')
+      } else {
+        sefariaRef = `${bookTitle}, ${parts.join(', ')}`
+      }
     } else {
       sefariaRef = refOverride.replace(/\s+/g, '_').replace(/;/g, '_')
     }
@@ -643,8 +847,8 @@ async function fetchBookContent (refOverride?: string | null) {
       return
     }
     let textData: VerseSection[] = []
-    const enArr = Array.isArray(response.text) ? response.text : response.text ? [response.text] : []
-    const heArr = Array.isArray(response.he) ? response.he : response.he ? [response.he] : []
+    const enArr = extractTextArray(response.text)
+    const heArr = extractTextArray(response.he)
     if (isTalmud && (enArr.length || heArr.length)) {
       textData = heArr.map((he, idx) => ({
         number: idx + 1,
@@ -659,18 +863,24 @@ async function fetchBookContent (refOverride?: string | null) {
     } else if (isComplexBookFlag.value && heArr.length) {
       textData = heArr.map((he, idx) => ({
         number: idx + 1,
-        displayNumber: (response.sections?.[idx] ?? response.sectionRef ?? `${idx + 1}`).toString(),
+        displayNumber: (Array.isArray(response.sections) && response.sections[idx] != null)
+          ? String(response.sections[idx])
+          : `${idx + 1}`,
         en: enArr[idx] ?? '',
         he: he ?? ''
       }))
     } else if (enArr.length || heArr.length) {
       const enVerses = response.verses ?? enArr.map((_, i) => i + 1)
       const heVerses = response.he_verses ?? enVerses
-      const allNums = [...new Set([...enVerses, ...heVerses])].sort((a, b) => a - b)
+      let allNums = [...new Set([...enVerses, ...heVerses])].sort((a, b) => a - b)
+      if (allNums.length === 0 && (enArr.length || heArr.length)) {
+        const len = Math.max(enArr.length, heArr.length)
+        allNums = Array.from({ length: len }, (_, i) => i + 1)
+      }
       const enMap: Record<number, string> = {}
-      enArr.forEach((t, i) => { enMap[enVerses[i]] = t })
+      enArr.forEach((t, i) => { enMap[enVerses[i] ?? i + 1] = t })
       const heMap: Record<number, string> = {}
-      heArr.forEach((t, i) => { heMap[heVerses[i]] = t })
+      heArr.forEach((t, i) => { heMap[heVerses[i] ?? i + 1] = t })
       const isTanakh = selectedBook.value.categories?.includes('Tanakh')
       textData = allNums.map((num, idx) => ({
         number: num,
@@ -694,7 +904,6 @@ async function fetchBookContent (refOverride?: string | null) {
     showErrorDialog.value = true
     allVerseData.value = []
     totalRecords.value = 0
-    complexSections.value = null
     nextSectionRef.value = null
   } finally {
     loading.value = false
