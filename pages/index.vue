@@ -198,7 +198,17 @@
               <tbody>
                 <tr v-for="(row, i) in (translationData.wordTable ?? [])" :key="i" class="border-t-2 border-slate-300 hover:bg-slate-50 first:border-t-0">
                   <td class="px-3 py-3 text-gray-700 align-top whitespace-normal break-words max-w-[12rem]">{{ row.wordTranslation ?? '—' }}</td>
-                  <td class="px-3 py-3 text-right font-medium align-top whitespace-normal break-words" style="direction: rtl">{{ row.word ?? '—' }}</td>
+                  <td
+                    class="px-3 py-3 text-right font-medium align-top whitespace-normal break-words"
+                    :class="{ 'cursor-pointer hover:bg-blue-100 hover:text-blue-700 rounded': row.word && row.word !== '—' }"
+                    style="direction: rtl"
+                    :role="row.word && row.word !== '—' ? 'button' : undefined"
+                    :tabindex="row.word && row.word !== '—' ? 0 : undefined"
+                    :title="row.word && row.word !== '—' ? 'Click to hear pronunciation' : undefined"
+                    @click="playWordTts(row.word)"
+                    @keydown.enter="playWordTts(row.word)"
+                    @keydown.space.prevent="playWordTts(row.word)"
+                  >{{ row.word ?? '—' }}</td>
                   <td class="px-3 py-3 text-gray-700 align-top whitespace-normal break-words">{{ row.hebrewAramaic ?? '—' }}</td>
                   <td class="px-3 py-3 text-gray-700 align-top whitespace-normal break-words min-w-[140px] pl-4">{{ row.wordRoot ?? '—' }}</td>
                   <td class="px-3 py-3 text-gray-700 align-top whitespace-normal break-words pl-4">{{ row.wordPartOfSpeech ?? '—' }}</td>
@@ -715,6 +725,43 @@ function handleVerseNumberClick (hebrewHtml: string) {
   const plainText = getPlainTextFromHtml(hebrewHtml)
   if (!plainText) return
   translateWithOpenAI(plainText, true)
+}
+
+async function playWordTts (word: string | undefined) {
+  if (import.meta.server || !word || word === '—') return
+  const config = useRuntimeConfig()
+  const token = config.public.apiAuthToken as string
+  if (!token) return
+  try {
+    const res = await fetch('/api/openai/tts', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ text: word }),
+    })
+    if (!res.ok) {
+      const errText = await res.text()
+      console.error('[TTS]', res.status, errText)
+      return
+    }
+    const blob = await res.blob()
+    if (blob.size === 0) {
+      console.error('[TTS] Empty audio response')
+      return
+    }
+    const url = URL.createObjectURL(blob)
+    const audio = new Audio(url)
+    audio.onended = () => URL.revokeObjectURL(url)
+    audio.onerror = (e) => {
+      console.error('[TTS] Playback error:', e)
+      URL.revokeObjectURL(url)
+    }
+    await audio.play()
+  } catch (err) {
+    console.error('[TTS]', err)
+  }
 }
 
 /** Extract text from Responses API output array (output_text items in message content) */

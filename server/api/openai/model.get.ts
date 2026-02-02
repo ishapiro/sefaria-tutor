@@ -94,8 +94,6 @@ export default defineEventHandler(async (event) => {
       return maxB - maxA
     })
 
-    console.log('[openai/model] Families (newest first):', sortedBases.map(([base]) => base))
-
     // Within each family: prefer instant, then mini, then turbo, then base; skip codex
     for (const [baseId, family] of sortedBases) {
       if (!baseId || family.length === 0) continue
@@ -110,16 +108,9 @@ export default defineEventHandler(async (event) => {
         })
 
       const best = eligible[0]
-      const scores = family.map(m => ({ id: m.id, score: modelPreferenceScore(m.id, baseId) }))
-      console.log(`[openai/model] Family "${baseId}": eligible=${eligible.map(m => m.id).join(', ') || 'none'}, scores=${JSON.stringify(scores)}`)
 
-      if (best) {
-        console.log('[openai/model] Selected:', best.id)
-        return { model: best.id }
-      }
+      if (best) return { model: best.id }
     }
-
-    console.log('[openai/model] No eligible model found, using fallback: gpt-4o')
     return { model: 'gpt-4o' }
   } catch (err: unknown) {
     const status = (err as { statusCode?: number })?.statusCode ?? 500
