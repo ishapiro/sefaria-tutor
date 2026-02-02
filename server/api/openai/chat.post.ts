@@ -22,6 +22,7 @@ Your JSON must include:
     - wordGender: "masculine", "feminine", or null.
     - wordTense: "past", "present", "future", or null.
     - wordBinyan: If verb, the binyan (e.g., "Pa'al", "Pi'el", "Hif'il"). Otherwise null.
+    - presentTenseHebrew: If the word is a verb, the present tense form in Hebrew (e.g. masculine singular). Otherwise null.
     - grammarNotes: An explanation including:
         - grammatical modifiers like prefixes/suffixes.
         - noun gender variants (masc/fem/plural).
@@ -30,10 +31,10 @@ Your JSON must include:
 Special Instructions:
 - Prefixes/suffixes (e.g., ה, ו, כ, ל): identify and explain them in the "grammarNotes" field.
 - Nouns: Provide masculine/feminine/plural forms.
-- Verbs: Include all key conjugations (past/present/future/infinitive).
+- Verbs: Include all key conjugations (past/present/future/infinitive). Always provide presentTenseHebrew for verbs (the present tense form in Hebrew, e.g. masculine singular).
 
 Here is an example of correct output:
-{"originalPhrase":"הילד אכל תפוח","translatedPhrase":"The boy ate an apple","wordTable":[{"word":"הילד","wordTranslation":"boy","hebrewAramaic":"Hebrew","wordRoot":"י־ל־ד","wordPartOfSpeech":"noun","wordGender":"masculine","wordTense":null,"wordBinyan":null,"grammarNotes":"The prefix 'ה' is the definite article ('the')."},{"word":"אכל","wordTranslation":"ate","hebrewAramaic":"Hebrew","wordRoot":"א־כ־ל","wordPartOfSpeech":"verb","wordGender":"masculine","wordTense":"past","wordBinyan":"Pa'al","grammarNotes":"Pa'al binyan, 3rd person masculine singular."},{"word":"תפוח","wordTranslation":"apple","hebrewAramaic":"Hebrew","wordRoot":"ת־פ־ח","wordPartOfSpeech":"noun","wordGender":"masculine","wordTense":null,"wordBinyan":null,"grammarNotes":"Masculine singular noun."}]}
+{"originalPhrase":"הילד אכל תפוח","translatedPhrase":"The boy ate an apple","wordTable":[{"word":"הילד","wordTranslation":"boy","hebrewAramaic":"Hebrew","wordRoot":"י־ל־ד","wordPartOfSpeech":"noun","wordGender":"masculine","wordTense":null,"wordBinyan":null,"presentTenseHebrew":null,"grammarNotes":"The prefix 'ה' is the definite article ('the')."},{"word":"אכל","wordTranslation":"ate","hebrewAramaic":"Hebrew","wordRoot":"א־כ־ל","wordPartOfSpeech":"verb","wordGender":"masculine","wordTense":"past","wordBinyan":"Pa'al","presentTenseHebrew":"אוכל","grammarNotes":"Pa'al binyan, 3rd person masculine singular."},{"word":"תפוח","wordTranslation":"apple","hebrewAramaic":"Hebrew","wordRoot":"ת־פ־ח","wordPartOfSpeech":"noun","wordGender":"masculine","wordTense":null,"wordBinyan":null,"presentTenseHebrew":null,"grammarNotes":"Masculine singular noun."}]}
 `
 
 export default defineEventHandler(async (event) => {

@@ -181,6 +181,7 @@
                   <th class="px-3 py-2.5 text-left font-semibold text-gray-700">Gender</th>
                   <th class="px-3 py-2.5 text-left font-semibold text-gray-700">Tense</th>
                   <th class="px-3 py-2.5 text-left font-semibold text-gray-700">Binyan</th>
+                  <th class="px-3 py-2.5 text-left font-semibold text-gray-700">Present (Hebrew)</th>
                   <th class="px-3 py-2.5 text-left font-semibold text-gray-700 min-w-[200px]">Grammar Notes</th>
                 </tr>
               </thead>
@@ -194,6 +195,7 @@
                   <td class="px-3 py-3 text-gray-700 align-top whitespace-normal break-words pl-4">{{ row.wordGender ?? '—' }}</td>
                   <td class="px-3 py-3 text-gray-700 align-top whitespace-normal break-words pl-4">{{ row.wordTense ?? '—' }}</td>
                   <td class="px-3 py-3 text-gray-700 align-top whitespace-normal break-words pl-4">{{ row.wordBinyan ?? '—' }}</td>
+                  <td class="px-3 py-3 text-right font-medium align-top whitespace-normal break-words pl-4" style="direction: rtl">{{ row.presentTenseHebrew ?? '—' }}</td>
                   <td class="px-3 py-3 text-gray-700 align-top whitespace-normal break-words min-w-[200px] pl-4">{{ row.grammarNotes ?? '—' }}</td>
                 </tr>
               </tbody>
@@ -273,6 +275,7 @@ const translationData = ref<{
     wordGender?: string | null
     wordTense?: string | null
     wordBinyan?: string | null
+    presentTenseHebrew?: string | null
     grammarNotes?: string
   }>
 } | null>(null)
@@ -665,6 +668,7 @@ async function translateWithOpenAI (text: string) {
       wordGender?: string | null
       wordTense?: string | null
       wordBinyan?: string | null
+      presentTenseHebrew?: string | null
       grammarNotes?: string
     }
     const parsed = JSON.parse(jsonStr) as { originalPhrase?: string; translatedPhrase?: string; wordTable?: WordRow[] }
