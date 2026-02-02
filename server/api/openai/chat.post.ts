@@ -69,7 +69,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const body = await readBody<{ prompt?: string; model?: string }>(event)
+  const body = await readBody<{ prompt?: string; model?: string; fullSentence?: boolean }>(event)
   if (!body?.prompt) {
     throw createError({
       statusCode: 400,
@@ -100,7 +100,9 @@ export default defineEventHandler(async (event) => {
         model: body.model || 'gpt-4o',
         instructions: SYSTEM_PROMPT,
         input: body.prompt,
-        max_output_tokens: 4095,
+        max_output_tokens: body.fullSentence ? 20000 : 4096,
+        reasoning: { effort: 'none' },
+        text: { verbosity: 'low' },
       },
     })
     return response

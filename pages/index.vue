@@ -120,7 +120,14 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-b border-gray-100 pb-4 last:border-0">
               <div><span class="text-gray-500 mr-2">{{ section.displayNumber }}</span><span v-html="section.en" /></div>
               <div class="text-right text-lg" style="direction: rtl" @mouseup="handleTextSelection">
-                <span class="text-gray-500 ml-2 text-sm">{{ section.displayNumber }}</span><span v-html="section.he" />
+                <span
+                  class="text-gray-500 ml-2 text-sm cursor-pointer hover:text-blue-600 hover:underline"
+                  role="button"
+                  tabindex="0"
+                  @click="handleVerseNumberClick(section.he)"
+                  @keydown.enter="handleVerseNumberClick(section.he)"
+                  @keydown.space.prevent="handleVerseNumberClick(section.he)"
+                >{{ section.displayNumber }}</span><span v-html="section.he" />
               </div>
             </div>
           </template>
@@ -636,7 +643,14 @@ function getCleanSelectionText (): string {
   return (temp.textContent ?? temp.innerText ?? raw).trim()
 }
 
-async function translateWithOpenAI (text: string) {
+function getPlainTextFromHtml (html: string): string {
+  if (!html) return ''
+  const temp = document.createElement('div')
+  temp.innerHTML = html
+  return (temp.textContent ?? temp.innerText ?? html).trim()
+}
+
+async function translateWithOpenAI (text: string, fullSentence = false) {
   const config = useRuntimeConfig()
   const token = config.public.apiAuthToken as string
   if (!token) {
@@ -644,6 +658,8 @@ async function translateWithOpenAI (text: string) {
     showErrorDialog.value = true
     return
   }
+  const plainText = import.meta.client ? getPlainTextFromHtml(text) : text.replace(/<[^>]+>/g, '')
+  if (!plainText) return
   showTranslationDialog.value = true
   translationLoading.value = true
   translationData.value = null
@@ -654,7 +670,7 @@ async function translateWithOpenAI (text: string) {
       output?: Array<{ type?: string; content?: Array<{ type?: string; text?: string }> }>
     }>('/api/openai/chat', {
       method: 'POST',
-      body: { prompt: `Translate this phrase to English: ${text}`, model: openaiModel.value },
+      body: { prompt: `Translate this phrase to English: ${plainText}`, model: openaiModel.value, fullSentence },
       headers: { Authorization: `Bearer ${token}` },
     })
     rawTranslationData.value = response
@@ -691,7 +707,14 @@ async function translateWithOpenAI (text: string) {
 function handleTextSelection () {
   const text = getCleanSelectionText()
   if (!text) return
-  translateWithOpenAI(text)
+  translateWithOpenAI(text, false)
+}
+
+function handleVerseNumberClick (hebrewHtml: string) {
+  if (import.meta.server) return
+  const plainText = getPlainTextFromHtml(hebrewHtml)
+  if (!plainText) return
+  translateWithOpenAI(plainText, true)
 }
 
 /** Extract text from Responses API output array (output_text items in message content) */

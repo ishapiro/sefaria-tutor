@@ -79,8 +79,6 @@ export default defineEventHandler(async (event) => {
     const generalPurpose = (list.data ?? [])
       .filter(m => isGeneralPurposeModel(m.id))
 
-    console.log('[openai/model] General purpose models:', generalPurpose.map(m => m.id))
-
     // Group by base model id (e.g. gpt-5.2); pick newest family by created
     const byBase = new Map<string, typeof generalPurpose>()
     for (const m of generalPurpose) {
