@@ -84,11 +84,79 @@
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto py-8"
         @click.self="showHelpDialog = false"
       >
-        <div class="bg-white rounded-lg shadow-xl p-6 max-w-lg mx-4 text-left">
-          <h2 class="text-xl font-bold mb-4">Cogitations Sefaria Tutor Help</h2>
-          <p class="mb-4">Choose a category (e.g. Tanakh), then select a book. Select Hebrew text in the reader to get word-by-word translation and grammar notes.</p>
-          <p class="text-gray-600 text-sm">Source texts: <a href="https://www.sefaria.org/" target="_blank" rel="noopener" class="text-blue-600 hover:underline">Sefaria</a>.</p>
-          <button type="button" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700" @click="showHelpDialog = false">Close</button>
+        <div class="bg-white rounded-lg shadow-xl p-6 max-w-2xl mx-4 text-left max-h-[90vh] overflow-y-auto">
+          <h2 class="text-xl font-bold mb-4">Cogitations Sefaria Tutor — Help</h2>
+
+          <section class="mb-5">
+            <h3 class="font-semibold text-gray-900 mb-2">Purpose</h3>
+            <p class="text-gray-700 text-sm leading-relaxed">
+              This application helps students understand classical Jewish texts word by word to build vocabulary and enhance access to these texts. It was developed by a Hebrew school graduate with limited Hebrew depth for personal study and is provided free of charge.
+            </p>
+          </section>
+
+          <section class="mb-5">
+            <h3 class="font-semibold text-gray-900 mb-2">Getting started</h3>
+            <p class="text-gray-700 text-sm leading-relaxed">
+              Choose a category (e.g. Tanakh, Talmud, Liturgy), then select a book. For books with multiple sections (e.g. Siddur, Kitzur Shulchan Arukh), pick a section from the list. Use the pagination to move between pages.
+            </p>
+          </section>
+
+          <section class="mb-5">
+            <h3 class="font-semibold text-gray-900 mb-2">Translation</h3>
+            <ul class="list-disc list-inside text-gray-700 text-sm space-y-1.5 ml-1">
+              <li><strong>Select text</strong> — Select Hebrew text to get a word-by-word translation with grammar notes.</li>
+              <li><strong>Click verse number</strong> — Click the verse number to the right of a sentence to translate the whole sentence.</li>
+            </ul>
+          </section>
+
+          <section class="mb-5">
+            <h3 class="font-semibold text-gray-900 mb-2">Read aloud (text-to-speech)</h3>
+            <ul class="list-disc list-inside text-gray-700 text-sm space-y-1.5 ml-1">
+              <li><strong>Full sentence</strong> — In the translation dialog, click the Hebrew phrase at the top to hear it spoken.</li>
+              <li><strong>Single word</strong> — Click any Hebrew word in the Word column of the translation table to hear its pronunciation.</li>
+            </ul>
+          </section>
+
+          <section class="mb-5">
+            <h3 class="font-semibold text-gray-900 mb-2">Translation table columns</h3>
+            <dl class="text-gray-700 text-sm space-y-2">
+              <div><dt class="font-medium text-gray-800">Translation</dt><dd>English translation of the word.</dd></div>
+              <div><dt class="font-medium text-gray-800">Word</dt><dd>Hebrew word (click to hear pronunciation).</dd></div>
+              <div><dt class="font-medium text-gray-800">Language</dt><dd>Hebrew or Aramaic.</dd></div>
+              <div><dt class="font-medium text-gray-800">Root</dt><dd>Lexical root (shoresh) of the word.</dd></div>
+              <div><dt class="font-medium text-gray-800">Part of Speech</dt><dd>Noun, verb, adjective, etc.</dd></div>
+              <div><dt class="font-medium text-gray-800">Gender</dt><dd>Masculine, feminine, or common.</dd></div>
+              <div><dt class="font-medium text-gray-800">Tense</dt><dd>Past, present, future, imperative, or infinitive.</dd></div>
+              <div><dt class="font-medium text-gray-800">Binyan</dt><dd>Verb conjugation pattern (e.g. Qal, Piel, Hiphil).</dd></div>
+              <div><dt class="font-medium text-gray-800">Present (Hebrew)</dt><dd>Present-tense form of verbs in Hebrew.</dd></div>
+              <div><dt class="font-medium text-gray-800">Grammar Notes</dt><dd>Extra grammatical or contextual notes.</dd></div>
+            </dl>
+          </section>
+
+          <section class="mb-5">
+            <h3 class="font-semibold text-gray-900 mb-2">Source</h3>
+            <p class="text-gray-700 text-sm mb-2">
+              Texts from <a href="https://www.sefaria.org/" target="_blank" rel="noopener" class="text-blue-600 hover:underline">Sefaria</a> (https://www.sefaria.org). Translation and analysis powered by OpenAI.
+            </p>
+            <p class="text-gray-700 text-sm">
+              This application would not exist without the work of Sefaria. Please consider <a href="https://donate.sefaria.org/" target="_blank" rel="noopener" class="text-blue-600 hover:underline">donating to Sefaria</a> to support their free access to Jewish texts.
+            </p>
+          </section>
+
+          <section class="mb-5 pt-4 border-t border-gray-200">
+            <h3 class="font-semibold text-gray-900 mb-2">About</h3>
+            <p class="text-gray-700 text-sm mb-2">
+              A product of <a href="https://cogitations.com" target="_blank" rel="noopener" class="text-blue-600 hover:underline">Cogitations</a>.
+            </p>
+            <p class="text-gray-700 text-sm mb-2">
+              Licensed under MIT. <a href="https://github.com/ishapiro/sefaria-tutor" target="_blank" rel="noopener" class="text-blue-600 hover:underline">GitHub repository</a>.
+            </p>
+            <p class="text-gray-700 text-sm">
+              Suggestions for improvements are welcome: <a href="mailto:ishapiro@cogitations.com" class="text-blue-600 hover:underline">ishapiro@cogitations.com</a>
+            </p>
+          </section>
+
+          <button type="button" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium" @click="showHelpDialog = false">Close</button>
         </div>
       </div>
     </div>
@@ -708,16 +776,64 @@ async function isComplexBook (book: CategoryNode): Promise<boolean> {
   }
 }
 
+/** When schema only has Introduction, discover numbered sections by probing the API. */
+async function discoverNumberedSectionsFromApi (
+  book: { title?: string },
+  existingSections: Array<{ ref: string }>,
+): Promise<Array<{ ref: string; title: string; heTitle?: string }>> {
+  if (existingSections.some(s => s.ref === '1')) return []
+  try {
+    const introRef = `${book.title}, Introduction`.replace(/\s+/g, '_')
+    const intro = await $fetch<{ next?: string; error?: string }>(
+      `/api/sefaria/texts/${encodeURIComponent(introRef)}`,
+      { method: 'GET' },
+    )
+    if (intro?.error || !intro?.next) return []
+    const nextMatch = intro.next.match(/\s(\d+)$/)
+    if (!nextMatch) return []
+    const maxSimanim = 60
+    return Array.from({ length: maxSimanim }, (_, i) => ({
+      ref: String(i + 1),
+      title: `Siman ${i + 1}`,
+      heTitle: `סימן ${i + 1}`,
+    }))
+  } catch {
+    return []
+  }
+}
+
+/** Recursively find first lengths array in schema (for numbered simanim/chapters). */
+function findSchemaLengths (obj: unknown): number[] | null {
+  if (!obj || typeof obj !== 'object') return null
+  const o = obj as Record<string, unknown>
+  if (Array.isArray(o.lengths) && o.lengths.length > 0 && typeof o.lengths[0] === 'number') {
+    return o.lengths as number[]
+  }
+  if (Array.isArray(o.nodes)) {
+    for (const n of o.nodes) {
+      const found = findSchemaLengths(n)
+      if (found) return found
+    }
+  }
+  return null
+}
+
 function processSchemaNodes (nodes: unknown[], parentPath = ''): Array<{ ref: string; title: string; heTitle?: string }> {
   if (!Array.isArray(nodes)) return []
   let sections: Array<{ ref: string; title: string; heTitle?: string }> = []
-  for (const node of nodes as Array<{ titles?: Array<{ lang: string; text: string }>; title?: string; heTitle?: string; key?: string; nodes?: unknown[] }>) {
+  for (const node of nodes as Array<{ titles?: Array<{ lang: string; text: string }>; title?: string; heTitle?: string; key?: string; nodes?: unknown[]; lengths?: number[] }>) {
     if (node.titles?.length) {
       const enTitle = node.titles.find(t => t.lang === 'en')?.text ?? node.title ?? ''
       const heTitle = node.titles.find(t => t.lang === 'he')?.text ?? node.heTitle
       const cleanKey = (node.key ?? node.title ?? '').toString().replace(/\s*\([^)]*\)/g, '').trim()
       const fullPath = parentPath ? `${parentPath}/${cleanKey}` : cleanKey
       sections.push({ ref: fullPath, title: enTitle, heTitle })
+    }
+    if (node.lengths?.[0] && node.lengths[0] > 0 && !node.nodes?.length) {
+      const totalChapters = node.lengths[0]
+      for (let n = 1; n <= totalChapters; n++) {
+        sections.push({ ref: String(n), title: `Siman ${n}`, heTitle: `סימן ${n}` })
+      }
     }
     if (node.nodes?.length) {
       const cleanKey = (node.key ?? node.title ?? '').toString().replace(/\s*\([^)]*\)/g, '').trim()
@@ -752,7 +868,23 @@ async function fetchComplexBookToc (book: CategoryNode) {
         return { ref: String(n), title: `Siman ${n}`, heTitle: `סימן ${n}` }
       })
     } else {
-      complexSections.value = processSchemaNodes(indexData.schema.nodes ?? [])
+      let sections = processSchemaNodes(indexData.schema.nodes ?? [])
+      const lengths = findSchemaLengths(indexData.schema)
+      if (sections.length <= 2 && lengths?.[0] && lengths[0] > 1) {
+        const numbered = Array.from({ length: lengths[0] }, (_, i) => ({
+          ref: String(i + 1),
+          title: `Siman ${i + 1}`,
+          heTitle: `סימן ${i + 1}`,
+        }))
+        const existingRefs = new Set(sections.map(s => s.ref))
+        const needsNumbered = numbered.some(s => !existingRefs.has(s.ref))
+        if (needsNumbered) sections = sections.concat(numbered)
+      }
+      if (sections.length <= 2) {
+        const extra = await discoverNumberedSectionsFromApi(book, sections)
+        if (extra.length) sections = sections.concat(extra)
+      }
+      complexSections.value = sections
     }
     allVerseData.value = []
     totalRecords.value = 0
