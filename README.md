@@ -24,11 +24,10 @@ Open http://localhost:3000 — browse categories, select a book, select Hebrew t
 ## Build & deploy
 
 ```bash
-npm run build
-npx wrangler deploy
+npm run deploy
 ```
 
-Or use the command Nitro prints after build (e.g. `npx wrangler dev .output/server/index.mjs --site .output/public` for local preview with `.dev.vars`).
+Or: `npm run build` then `npx wrangler deploy`. **Full steps** (first-time login, secrets, custom domain): see [docs/DEPLOY-CLOUDFLARE.md](docs/DEPLOY-CLOUDFLARE.md).
 
 ## Local testing
 

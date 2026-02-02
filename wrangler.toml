@@ -1,0 +1,10 @@
+# Deploy after: npm run build
+# Then: npx wrangler deploy
+# Uses [site] so Wrangler injects __STATIC_CONTENT_MANIFEST (required by Nitro cloudflare_module preset).
+name = "sefaria-tutor"
+main = ".output/server/index.mjs"
+compatibility_date = "2024-09-19"
+compatibility_flags = ["nodejs_compat"]
+
+[site]
+bucket = ".output/public"
