@@ -153,48 +153,48 @@
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto py-8"
       @click.self="showTranslationDialog = false"
     >
-      <div class="bg-white rounded-lg shadow-xl p-6 w-[90vw] max-h-[90vh] overflow-auto">
+      <div class="bg-white rounded-lg shadow-xl p-6 w-[90vw] max-h-[90vh] overflow-auto text-base">
         <div class="flex justify-between items-center mb-4">
-          <h2 class="text-xl font-bold">Translation</h2>
+          <h2 class="text-2xl font-bold">Translation</h2>
           <button type="button" class="text-gray-500 hover:text-gray-700 text-2xl leading-none" @click="showTranslationDialog = false">×</button>
         </div>
-        <div v-if="translationLoading" class="text-center py-8 text-gray-500">Loading translation…</div>
-        <div v-else-if="translationError" class="text-center py-8 text-red-600">{{ translationError }}</div>
+        <div v-if="translationLoading" class="text-center py-8 text-gray-500 text-lg">Loading translation…</div>
+        <div v-else-if="translationError" class="text-center py-8 text-red-600 text-lg">{{ translationError }}</div>
         <div v-else-if="translationData" class="space-y-6">
           <div class="bg-gray-50 p-4 rounded-lg space-y-2">
-            <div class="text-2xl text-right text-gray-900" style="direction: rtl">{{ translationData.originalPhrase }}</div>
-            <div class="text-xl text-gray-900">{{ translationData.translatedPhrase }}</div>
+            <div class="text-3xl text-right text-gray-900" style="direction: rtl">{{ translationData.originalPhrase }}</div>
+            <div class="text-2xl text-gray-900">{{ translationData.translatedPhrase }}</div>
           </div>
           <div class="flex justify-end mb-2">
-            <button type="button" class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 text-sm" @click="showRawData = true">View Raw Data</button>
+            <button type="button" class="px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100 text-base" @click="showRawData = true">View Raw Data</button>
           </div>
-          <h3 class="text-lg font-semibold text-gray-800">Word Analysis</h3>
-          <div class="overflow-x-auto border border-gray-200 rounded-lg">
-            <table class="w-full text-sm border-collapse">
+          <h3 class="text-xl font-semibold text-gray-800">Word Analysis</h3>
+          <div class="overflow-x-auto border border-slate-300 rounded-lg">
+            <table class="w-full text-base border-collapse">
               <thead class="bg-gray-100">
                 <tr>
-                  <th class="px-3 py-2 text-left font-semibold text-gray-700">Translation</th>
-                  <th class="px-3 py-2 text-left font-semibold text-gray-700">Word</th>
-                  <th class="px-3 py-2 text-left font-semibold text-gray-700">Language</th>
-                  <th class="px-3 py-2 text-left font-semibold text-gray-700 min-w-[140px]">Root</th>
-                  <th class="px-3 py-2 text-left font-semibold text-gray-700">Part of Speech</th>
-                  <th class="px-3 py-2 text-left font-semibold text-gray-700">Gender</th>
-                  <th class="px-3 py-2 text-left font-semibold text-gray-700">Tense</th>
-                  <th class="px-3 py-2 text-left font-semibold text-gray-700">Binyan</th>
-                  <th class="px-3 py-2 text-left font-semibold text-gray-700 min-w-[200px]">Grammar Notes</th>
+                  <th class="px-3 py-2.5 text-left font-semibold text-gray-700">Translation</th>
+                  <th class="px-3 py-2.5 text-left font-semibold text-gray-700">Word</th>
+                  <th class="px-3 py-2.5 text-left font-semibold text-gray-700">Language</th>
+                  <th class="px-3 py-2.5 text-left font-semibold text-gray-700 min-w-[140px]">Root</th>
+                  <th class="px-3 py-2.5 text-left font-semibold text-gray-700">Part of Speech</th>
+                  <th class="px-3 py-2.5 text-left font-semibold text-gray-700">Gender</th>
+                  <th class="px-3 py-2.5 text-left font-semibold text-gray-700">Tense</th>
+                  <th class="px-3 py-2.5 text-left font-semibold text-gray-700">Binyan</th>
+                  <th class="px-3 py-2.5 text-left font-semibold text-gray-700 min-w-[200px]">Grammar Notes</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(row, i) in (translationData.wordTable ?? [])" :key="i" class="border-t border-gray-100 hover:bg-gray-50">
-                  <td class="px-3 py-2 text-gray-600">{{ row.wordTranslation ?? '—' }}</td>
-                  <td class="px-3 py-2 text-right font-medium" style="direction: rtl">{{ row.word ?? '—' }}</td>
-                  <td class="px-3 py-2 text-gray-600">{{ row.hebrewAramaic ?? '—' }}</td>
-                  <td class="px-3 py-2 text-gray-600 min-w-[140px]">{{ row.wordRoot ?? '—' }}</td>
-                  <td class="px-3 py-2 text-gray-600">{{ row.wordPartOfSpeech ?? '—' }}</td>
-                  <td class="px-3 py-2 text-gray-600">{{ row.wordGender ?? '—' }}</td>
-                  <td class="px-3 py-2 text-gray-600">{{ row.wordTense ?? '—' }}</td>
-                  <td class="px-3 py-2 text-gray-600">{{ row.wordBinyan ?? '—' }}</td>
-                  <td class="px-3 py-2 text-gray-600 text-sm">{{ row.grammarNotes ?? '—' }}</td>
+                <tr v-for="(row, i) in (translationData.wordTable ?? [])" :key="i" class="border-t-2 border-slate-300 hover:bg-slate-50 first:border-t-0">
+                  <td class="px-3 py-3 text-gray-700 align-top whitespace-normal break-words max-w-[12rem]">{{ row.wordTranslation ?? '—' }}</td>
+                  <td class="px-3 py-3 text-right font-medium align-top whitespace-normal break-words" style="direction: rtl">{{ row.word ?? '—' }}</td>
+                  <td class="px-3 py-3 text-gray-700 align-top whitespace-normal break-words">{{ row.hebrewAramaic ?? '—' }}</td>
+                  <td class="px-3 py-3 text-gray-700 align-top whitespace-normal break-words min-w-[140px] pl-4">{{ row.wordRoot ?? '—' }}</td>
+                  <td class="px-3 py-3 text-gray-700 align-top whitespace-normal break-words pl-4">{{ row.wordPartOfSpeech ?? '—' }}</td>
+                  <td class="px-3 py-3 text-gray-700 align-top whitespace-normal break-words pl-4">{{ row.wordGender ?? '—' }}</td>
+                  <td class="px-3 py-3 text-gray-700 align-top whitespace-normal break-words pl-4">{{ row.wordTense ?? '—' }}</td>
+                  <td class="px-3 py-3 text-gray-700 align-top whitespace-normal break-words pl-4">{{ row.wordBinyan ?? '—' }}</td>
+                  <td class="px-3 py-3 text-gray-700 align-top whitespace-normal break-words min-w-[200px] pl-4">{{ row.grammarNotes ?? '—' }}</td>
                 </tr>
               </tbody>
             </table>
