@@ -1,5 +1,17 @@
 <template>
-  <div class="container mx-auto p-4">
+  <div class="container mx-auto p-4 relative">
+    <!-- OpenAI API loading spinner overlay -->
+    <div
+      v-if="openaiLoading"
+      class="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 pointer-events-auto"
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <div class="bg-white rounded-xl shadow-xl p-6 flex flex-col items-center gap-4">
+        <div class="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+        <span class="text-gray-700 font-medium">Calling OpenAI…</span>
+      </div>
+    </div>
     <h1 class="text-2xl font-bold mb-4">
       Safaria Word Explorer provided by Cogitations
       <span class="pl-2 text-base font-normal text-gray-600">(Using OpenAI Model: {{ openaiModel }})</span>
@@ -172,7 +184,16 @@
         <div v-else-if="translationError" class="text-center py-8 text-red-600 text-lg">{{ translationError }}</div>
         <div v-else-if="translationData" class="space-y-6">
           <div class="bg-gray-50 p-4 rounded-lg space-y-2">
-            <div class="text-3xl text-right text-gray-900" style="direction: rtl">{{ translationData.originalPhrase }}</div>
+            <div
+              class="text-3xl text-right text-gray-900 cursor-pointer hover:bg-blue-100 hover:text-blue-700 rounded px-2 py-1 -mx-2 -my-1 transition-colors"
+              style="direction: rtl"
+              role="button"
+              tabindex="0"
+              title="Click to hear full sentence"
+              @click="playWordTts(translationData.originalPhrase)"
+              @keydown.enter="playWordTts(translationData.originalPhrase)"
+              @keydown.space.prevent="playWordTts(translationData.originalPhrase)"
+            >{{ translationData.originalPhrase }}</div>
             <div class="text-2xl text-gray-900">{{ translationData.translatedPhrase }}</div>
           </div>
           <div class="flex justify-end mb-2">
@@ -306,6 +327,12 @@ const translationError = ref<string | null>(null)
 const showRawData = ref(false)
 const rawTranslationData = ref<unknown>(null)
 const openaiModel = ref('gpt-4o')
+const modelLoading = ref(false)
+const ttsLoading = ref(false)
+
+const openaiLoading = computed(() =>
+  translationLoading.value || modelLoading.value || ttsLoading.value
+)
 
 const currentPageText = computed(() => {
   const start = first.value
@@ -732,6 +759,7 @@ async function playWordTts (word: string | undefined) {
   const config = useRuntimeConfig()
   const token = config.public.apiAuthToken as string
   if (!token) return
+  ttsLoading.value = true
   try {
     const res = await fetch('/api/openai/tts', {
       method: 'POST',
@@ -761,6 +789,8 @@ async function playWordTts (word: string | undefined) {
     await audio.play()
   } catch (err) {
     console.error('[TTS]', err)
+  } finally {
+    ttsLoading.value = false
   }
 }
 
@@ -781,6 +811,7 @@ async function fetchLatestModel () {
   const config = useRuntimeConfig()
   const token = config.public.apiAuthToken as string
   if (!token) return
+  modelLoading.value = true
   try {
     const res = await $fetch<{ model?: string }>('/api/openai/model', {
       headers: { Authorization: `Bearer ${token}` },
@@ -788,6 +819,8 @@ async function fetchLatestModel () {
     if (res?.model) openaiModel.value = res.model
   } catch {
     // Keep default gpt-4o if model fetch fails
+  } finally {
+    modelLoading.value = false
   }
 }
 
