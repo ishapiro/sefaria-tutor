@@ -101,10 +101,7 @@
       </div>
       <div class="p-4">
         <div v-if="loading" class="text-center py-8 text-gray-500">Loading…</div>
-        <div v-else-if="currentPageText.length === 0" class="text-center py-8 text-gray-500">
-          This book is not available via the API, or you need to select a section. Try another book or section.
-        </div>
-        <!-- Complex book: section list (when no section content loaded yet) -->
+        <!-- Complex book: section list (when no section content loaded yet) – check before "not available" -->
         <div v-else-if="complexSections?.length && allVerseData.length === 0" class="space-y-4">
           <div class="flex items-center gap-2 mb-4">
             <button v-if="sectionStack.length > 0" type="button" class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm" @click="goBackSection">Back</button>
@@ -122,6 +119,16 @@
               </template>
             </li>
           </ul>
+        </div>
+        <div v-else-if="currentPageText.length === 0" class="text-center py-8 text-gray-500">
+          <p class="mb-4">This book is not available via the API, or you need to select a section. Try another book or section.</p>
+          <button
+            type="button"
+            class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100 text-gray-600"
+            @click="showBookLoadDebugDialog = true"
+          >
+            Show debug info
+          </button>
         </div>
         <div v-else class="space-y-4">
           <p class="text-xs text-gray-500 mb-1">
@@ -169,6 +176,23 @@
             </button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Book load debug dialog -->
+    <div
+      v-if="showBookLoadDebugDialog"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto py-8"
+      @click.self="showBookLoadDebugDialog = false"
+    >
+      <div class="bg-white rounded-lg shadow-xl p-6 w-[90vw] max-w-2xl max-h-[90vh] overflow-auto text-sm">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-bold">Book Load Debug Info</h2>
+          <button type="button" class="text-gray-500 hover:text-gray-700 text-2xl leading-none" @click="showBookLoadDebugDialog = false">×</button>
+        </div>
+        <p class="text-gray-600 text-xs mb-4">Context for debugging when a book fails to load.</p>
+        <pre class="bg-gray-100 p-4 rounded text-xs overflow-x-auto whitespace-pre-wrap font-mono">{{ JSON.stringify(bookLoadDebugInfo, null, 2) }}</pre>
+        <button type="button" class="mt-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300" @click="showBookLoadDebugDialog = false">Close</button>
       </div>
     </div>
 
@@ -311,6 +335,10 @@ const isComplexBookFlag = ref(false)
 const complexSections = ref<Array<{ ref: string; title: string; heTitle?: string }> | null>(null)
 const sectionStack = ref<unknown[]>([])
 const nextSectionRef = ref<string | null>(null)
+const showBookLoadDebugDialog = ref(false)
+const lastSefariaRefAttempted = ref<string | null>(null)
+const lastSefariaResponse = ref<unknown>(null)
+const lastSefariaError = ref<string | null>(null)
 const showTranslationDialog = ref(false)
 const translationLoading = ref(false)
 const translationData = ref<{
@@ -345,6 +373,38 @@ const apiLoading = computed(() => loading.value || openaiLoading.value)
 const apiLoadingMessage = computed(() =>
   loading.value ? 'Calling Sefaria…' : 'Calling OpenAI…'
 )
+
+const bookLoadDebugInfo = computed(() => {
+  const raw = lastSefariaResponse.value
+  let safeResponse: unknown = raw
+  if (raw && typeof raw === 'object' && !(raw instanceof Error)) {
+    const r = raw as Record<string, unknown>
+    safeResponse = {
+      error: r.error,
+      ref: r.ref,
+      next: r.next,
+      firstAvailableSectionRef: r.firstAvailableSectionRef,
+      textLength: Array.isArray(r.text) ? r.text.length : r.text ? 1 : 0,
+      heLength: Array.isArray(r.he) ? r.he.length : r.he ? 1 : 0,
+      verses: r.verses,
+      sectionRef: r.sectionRef,
+      sectionsCount: Array.isArray(r.sections) ? r.sections.length : 0,
+    }
+  }
+  return {
+    selectedBook: selectedBook.value ? { title: selectedBook.value.title, path: selectedBook.value.path, categories: selectedBook.value.categories } : null,
+    isComplexBook: isComplexBookFlag.value,
+    complexSectionsCount: complexSections.value?.length ?? 0,
+    complexSectionsSample: complexSections.value?.slice(0, 3).map(s => ({ ref: s.ref, title: s.title })) ?? [],
+    allVerseDataLength: allVerseData.value.length,
+    totalRecords: totalRecords.value,
+    sectionStackLength: sectionStack.value?.length ?? 0,
+    nextSectionRef: nextSectionRef.value,
+    lastSefariaRefAttempted: lastSefariaRefAttempted.value,
+    lastSefariaError: lastSefariaError.value,
+    lastSefariaResponseSummary: safeResponse,
+  }
+})
 
 const currentPageText = computed(() => {
   const start = first.value
@@ -555,6 +615,9 @@ async function fetchBookContent (refOverride?: string | null) {
       sefariaRef = `${bookTitle} ${chapter}`.replace(/\s+/g, '_')
     }
   }
+  lastSefariaRefAttempted.value = sefariaRef
+  lastSefariaResponse.value = null
+  lastSefariaError.value = null
   try {
     const response = await $fetch<{
       error?: string
@@ -569,6 +632,7 @@ async function fetchBookContent (refOverride?: string | null) {
       sections?: string[]
     }>(`/api/sefaria/texts/${encodeURIComponent(sefariaRef)}`)
     nextSectionRef.value = response.next ?? response.firstAvailableSectionRef ?? null
+    lastSefariaResponse.value = response
     if (response.error) {
       errorMessage.value = `API Error: ${response.error}`
       showErrorDialog.value = true
@@ -623,6 +687,8 @@ async function fetchBookContent (refOverride?: string | null) {
     first.value = 0
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Request failed'
+    lastSefariaError.value = msg
+    lastSefariaResponse.value = err
     errorMessage.value = msg
     showErrorDialog.value = true
     allVerseData.value = []
