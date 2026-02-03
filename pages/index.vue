@@ -13,7 +13,7 @@
       </div>
     </div>
     <h1 class="text-2xl font-bold mb-4">
-      Safaria Word Explorer provided by Cogitations
+      Sefaria Word Explorer provided by Cogitations
       <span class="pl-2 text-base font-normal text-gray-600">(Using OpenAI Model: {{ openaiModel }})</span>
     </h1>
 
