@@ -120,6 +120,7 @@
           <section class="mb-5">
             <h3 class="font-semibold text-gray-900 mb-2">Translation table columns</h3>
             <dl class="text-gray-700 text-sm space-y-2">
+              <div><dt class="font-medium text-gray-800">#</dt><dd>Number of times the word appears in the original text.</dd></div>
               <div><dt class="font-medium text-gray-800">Translation</dt><dd>English translation of the word.</dd></div>
               <div><dt class="font-medium text-gray-800">Word</dt><dd>Hebrew word (click to hear pronunciation).</dd></div>
               <div><dt class="font-medium text-gray-800">Language</dt><dd>Hebrew or Aramaic.</dd></div>
@@ -337,6 +338,12 @@
         <div v-if="translationLoading" class="text-center py-8 text-gray-500 text-lg">Loading translation…</div>
         <div v-else-if="translationError" class="text-center py-8 text-red-600 text-lg">{{ translationError }}</div>
         <div v-else-if="translationData" class="space-y-6">
+          <div
+            v-if="translationHasMultipleSentences"
+            class="px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg text-blue-800 text-sm"
+          >
+            <strong>Multiple sentences detected.</strong> For best results, select individual sentences instead of the whole section.
+          </div>
           <p class="text-xs text-gray-500 -mt-2 mb-1">
             Click the Hebrew phrase to hear it spoken. Click any word in the table to hear its pronunciation.
           </p>
@@ -356,11 +363,18 @@
           <div class="flex justify-end mb-2">
             <button type="button" class="px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100 text-base" @click="showRawData = true">View Raw Data</button>
           </div>
+          <div
+            v-if="translationWordTableIncomplete"
+            class="mb-3 px-4 py-2 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm"
+          >
+            <strong>Incomplete word table.</strong> The AI returned only {{ (translationData.wordTable ?? []).length }} entries for {{ (translationData.originalPhrase ?? '').split(/\s+/).filter(Boolean).length }} words. For long texts, try selecting a shorter passage.
+          </div>
           <h3 class="text-xl font-semibold text-gray-800">Word Analysis</h3>
           <div class="overflow-x-auto border border-slate-300 rounded-lg">
             <table class="w-full text-base border-collapse">
               <thead class="bg-gray-100">
                 <tr>
+                  <th class="px-3 py-2.5 text-left font-semibold text-gray-700">#</th>
                   <th class="px-3 py-2.5 text-left font-semibold text-gray-700">Translation</th>
                   <th class="px-3 py-2.5 text-left font-semibold text-gray-700">Word</th>
                   <th class="px-3 py-2.5 text-left font-semibold text-gray-700">Language</th>
@@ -375,6 +389,7 @@
               </thead>
               <tbody>
                 <tr v-for="(row, i) in (translationData.wordTable ?? [])" :key="i" class="border-t-2 border-slate-300 hover:bg-slate-50 first:border-t-0">
+                  <td class="px-3 py-3 text-gray-600 align-top text-center tabular-nums" :title="`Occurs ${countWordInPhrase(translationData?.originalPhrase ?? '', row.word ?? '')} time(s) in original text`">{{ countWordInPhrase(translationData?.originalPhrase ?? '', row.word ?? '') || '—' }}</td>
                   <td class="px-3 py-3 text-gray-700 align-top whitespace-normal break-words max-w-[12rem]">{{ row.wordTranslation ?? '—' }}</td>
                   <td
                     class="px-3 py-3 text-right font-medium align-top whitespace-normal break-words"
@@ -403,18 +418,49 @@
       </div>
     </div>
 
+    <!-- Multi-sentence confirmation (before sending to OpenAI) -->
+    <div
+      v-if="showMultiSentenceConfirmDialog"
+      class="fixed inset-0 z-[55] flex items-center justify-center bg-black/50"
+      @click.self="showMultiSentenceConfirmDialog = false"
+    >
+      <div class="bg-white rounded-lg shadow-xl p-6 max-w-md mx-4">
+        <h3 class="text-lg font-semibold text-gray-900 mb-3">Multiple sentences selected</h3>
+        <p class="text-gray-700 mb-4">
+          Your selection contains more than one sentence. Translating multiple sentences at once will be <strong>slow and unreliable</strong>. For best results, select individual sentences instead.
+        </p>
+        <p class="text-sm text-gray-600 mb-4">Do you want to continue anyway?</p>
+        <div class="flex gap-3 justify-end">
+          <button
+            type="button"
+            class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
+            @click="cancelMultiSentenceConfirm"
+          >Cancel</button>
+          <button
+            type="button"
+            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            @click="confirmMultiSentenceContinue"
+          >Continue</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Raw translation data dialog -->
     <div
       v-if="showRawData"
       class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 overflow-y-auto py-8"
       @click.self="showRawData = false"
     >
-      <div class="bg-white rounded-lg shadow-xl p-6 max-w-4xl w-[80vw] max-h-[80vh] overflow-auto">
-        <div class="flex justify-between items-center mb-4">
+      <div class="bg-white rounded-lg shadow-xl p-6 max-w-4xl w-[80vw] max-h-[80vh] overflow-auto space-y-4">
+        <div class="flex justify-between items-center">
           <h2 class="text-xl font-bold">Raw Translation Data</h2>
           <button type="button" class="text-gray-500 hover:text-gray-700 text-2xl leading-none" @click="showRawData = false">×</button>
         </div>
         <pre class="bg-gray-50 p-4 rounded-lg overflow-auto text-sm">{{ JSON.stringify(rawTranslationData, null, 2) }}</pre>
+        <div v-if="translationData" class="border-t border-gray-200 pt-4">
+          <h3 class="text-sm font-semibold text-gray-700 mb-2">Parsed JSON output</h3>
+          <pre class="bg-gray-50 p-4 rounded-lg overflow-auto text-sm">{{ JSON.stringify(translationData, null, 2) }}</pre>
+        </div>
       </div>
     </div>
   </div>
@@ -487,6 +533,9 @@ const translationData = ref<{
   }>
 } | null>(null)
 const translationError = ref<string | null>(null)
+const lastTranslatedInputText = ref<string>('')
+const showMultiSentenceConfirmDialog = ref(false)
+const pendingTranslation = ref<{ plainText: string; fullSentence: boolean } | null>(null)
 const showRawData = ref(false)
 const rawTranslationData = ref<unknown>(null)
 const openaiModel = ref('gpt-4o')
@@ -501,6 +550,26 @@ const apiLoading = computed(() => loading.value || openaiLoading.value)
 
 const apiLoadingMessage = computed(() =>
   loading.value ? 'Calling Sefaria…' : 'Calling OpenAI…'
+)
+
+/** True if the wordTable has notably fewer entries than words in the original phrase (model truncation). */
+const translationWordTableIncomplete = computed(() => {
+  const data = translationData.value
+  if (!data?.originalPhrase || !data?.wordTable?.length) return false
+  const tokens = data.originalPhrase.split(/\s+/).filter(Boolean)
+  const rows = data.wordTable.length
+  return tokens.length > rows + 5
+})
+
+/** Returns true if phrase has more than one sentence. Splits on . ? ! : ; newline, sof pasuk ׃, paseq ׀. */
+function hasMultipleSentences (phrase: string): boolean {
+  if (!phrase?.trim()) return false
+  const sentences = phrase.split(/[.?!:;\n\u05C3\u05C0\uFF1A]+/).map(s => s.trim()).filter(Boolean)
+  return sentences.length > 1
+}
+
+const translationHasMultipleSentences = computed(() =>
+  hasMultipleSentences(lastTranslatedInputText.value || translationData.value?.originalPhrase || '')
 )
 
 /** Extract flat string[] from Sefaria text/he which may be array, string, or nested object. */
@@ -1113,21 +1182,24 @@ function getPlainTextFromHtml (html: string): string {
   return (temp.textContent ?? temp.innerText ?? html).trim()
 }
 
-async function translateWithOpenAI (text: string, fullSentence = false) {
+/** Count how many times a word appears in the phrase (space-separated tokens). */
+function countWordInPhrase (phrase: string, word: string): number {
+  if (!phrase || !word) return 0
+  const plain = phrase.replace(/<[^>]+>/g, '').trim()
+  const tokens = plain.split(/\s+/).filter(Boolean)
+  return tokens.filter(t => t === word).length
+}
+
+async function doTranslateApiCall (plainText: string, fullSentence: boolean) {
   const config = useRuntimeConfig()
   const token = config.public.apiAuthToken as string
-  if (!token) {
-    errorMessage.value = 'API auth token not configured. Set NUXT_PUBLIC_API_AUTH_TOKEN in .env.'
-    showErrorDialog.value = true
-    return
-  }
-  const plainText = import.meta.client ? getPlainTextFromHtml(text) : text.replace(/<[^>]+>/g, '')
-  if (!plainText) return
+  if (!token) return
   showTranslationDialog.value = true
   translationLoading.value = true
   translationData.value = null
   translationError.value = null
   rawTranslationData.value = null
+  lastTranslatedInputText.value = plainText
   try {
     const response = await $fetch<{
       output?: Array<{ type?: string; content?: Array<{ type?: string; text?: string }> }>
@@ -1165,6 +1237,42 @@ async function translateWithOpenAI (text: string, fullSentence = false) {
   } finally {
     translationLoading.value = false
   }
+}
+
+function cancelMultiSentenceConfirm () {
+  showMultiSentenceConfirmDialog.value = false
+  pendingTranslation.value = null
+}
+
+function confirmMultiSentenceContinue () {
+  const pending = pendingTranslation.value
+  if (!pending) {
+    showMultiSentenceConfirmDialog.value = false
+    return
+  }
+  showMultiSentenceConfirmDialog.value = false
+  pendingTranslation.value = null
+  doTranslateApiCall(pending.plainText, pending.fullSentence)
+}
+
+async function translateWithOpenAI (text: string, fullSentence = false) {
+  const config = useRuntimeConfig()
+  const token = config.public.apiAuthToken as string
+  if (!token) {
+    errorMessage.value = 'API auth token not configured. Set NUXT_PUBLIC_API_AUTH_TOKEN in .env.'
+    showErrorDialog.value = true
+    return
+  }
+  const plainText = import.meta.client ? getPlainTextFromHtml(text) : text.replace(/<[^>]+>/g, '')
+  if (!plainText) return
+
+  if (hasMultipleSentences(plainText)) {
+    pendingTranslation.value = { plainText, fullSentence }
+    showMultiSentenceConfirmDialog.value = true
+    return
+  }
+
+  await doTranslateApiCall(plainText, fullSentence)
 }
 
 function handleTextSelection () {

@@ -13,7 +13,7 @@ When given a Hebrew or Aramaic phrase, follow these strict instructions:
 Your JSON must include:
 - originalPhrase: The original text.
 - translatedPhrase: The complete English translation.
-- wordTable: An array of objects describing each word in the phrase:
+- wordTable: An array of objects describing EACH AND EVERY word in the phrase, in order. CRITICAL: Do NOT truncate. The array must have one entry per word—for long texts, continue until every word is covered.
     - word: Original word.
     - wordTranslation: English translation.
     - hebrewAramaic: Either "Hebrew" or "Aramaic".
@@ -27,6 +27,8 @@ Your JSON must include:
         - grammatical modifiers like prefixes/suffixes.
         - noun gender variants (masc/fem/plural).
         - verb conjugations (past/present/future/infinitive).
+
+CRITICAL: The wordTable must contain exactly one entry for every word in originalPhrase. Never stop early; include all words even for long passages.
 
 Special Instructions:
 - Prefixes/suffixes (e.g., ה, ו, כ, ל): identify and explain them in the "grammarNotes" field.
