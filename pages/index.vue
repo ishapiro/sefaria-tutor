@@ -104,8 +104,7 @@
           <section class="mb-5">
             <h3 class="font-semibold text-gray-900 mb-2">Translation</h3>
             <ul class="list-disc list-inside text-gray-700 text-sm space-y-1.5 ml-1">
-              <li><strong>Select text</strong> — Select Hebrew text to get a word-by-word translation with grammar notes.</li>
-              <li><strong>Click verse number</strong> — Click the verse number to the right of a sentence to translate the whole sentence.</li>
+              <li><strong>Click phrase</strong> — Click on any Hebrew or English phrase to get a word-by-word translation with grammar notes. A phrase is any set of words up to any punctuation (comma, period, colon, etc.).</li>
             </ul>
           </section>
 
@@ -209,7 +208,7 @@
         <div v-else class="space-y-4">
           <div class="flex items-center justify-between mb-1">
             <p class="text-xs text-gray-500">
-              Select Hebrew text to translate, or click a verse number to translate the whole sentence.
+              Click on a phrase to translate it word by word.
             </p>
             <button
               type="button"
@@ -225,16 +224,23 @@
           </div>
           <template v-for="(section, index) in currentPageText" :key="'v-' + index">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-b border-gray-100 pb-4 last:border-0">
-              <div><span class="text-gray-500 mr-2">{{ section.displayNumber }}</span><span v-html="section.en" /></div>
-              <div class="text-right text-lg" style="direction: rtl" @mouseup="handleTextSelection">
+              <div class="select-none">
+                <span class="text-gray-500 mr-2 pointer-events-none cursor-default">{{ section.displayNumber }}</span>
                 <span
-                  class="text-gray-500 ml-2 text-sm cursor-pointer hover:text-blue-600 hover:underline"
-                  role="button"
-                  tabindex="0"
-                  @click="handleVerseNumberClick(section.he)"
-                  @keydown.enter="handleVerseNumberClick(section.he)"
-                  @keydown.space.prevent="handleVerseNumberClick(section.he)"
-                >{{ section.displayNumber }}</span><span v-html="section.he" />
+                  v-for="(phrase, pIdx) in splitIntoPhrases(section.en)"
+                  :key="pIdx"
+                  class="hover:bg-blue-50 cursor-pointer rounded px-0.5 transition-colors"
+                  @click="translateWithOpenAI(phrase, true)"
+                >{{ phrase }} </span>
+              </div>
+              <div class="text-right text-lg select-none" style="direction: rtl">
+                <span class="text-gray-500 ml-2 text-sm pointer-events-none cursor-default">{{ section.displayNumber }}</span>
+                <span
+                  v-for="(phrase, pIdx) in splitIntoPhrases(section.he)"
+                  :key="pIdx"
+                  class="hover:bg-blue-50 cursor-pointer rounded px-0.5 transition-colors"
+                  @click="translateWithOpenAI(phrase, true)"
+                >{{ phrase }} </span>
               </div>
             </div>
           </template>
@@ -278,8 +284,15 @@
         <p class="text-gray-600 text-xs mb-4">API response and parsed data for the currently displayed content.</p>
         <pre class="bg-gray-100 p-4 rounded text-xs overflow-x-auto whitespace-pre-wrap font-mono max-h-[70vh] overflow-y-auto">{{ JSON.stringify(contentDebugInfo, null, 2) }}</pre>
         <div class="mt-4 flex gap-2">
-          <button type="button" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300" @click="copyDebugToClipboard(JSON.stringify(contentDebugInfo, null, 2))">Copy to clipboard</button>
-          <button type="button" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300" @click="showContentDebugDialog = false">Close</button>
+          <button
+            type="button"
+            class="px-4 py-2 rounded transition-all duration-200"
+            :class="copiedStatus === 'debugContent' ? 'bg-green-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'"
+            @click="handleCopy(JSON.stringify(contentDebugInfo, null, 2), 'debugContent')"
+          >
+            {{ copiedStatus === 'debugContent' ? '✅ Copied!' : 'Copy to clipboard' }}
+          </button>
+          <button type="button" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-gray-800" @click="showContentDebugDialog = false">Close</button>
         </div>
       </div>
     </div>
@@ -298,8 +311,15 @@
         <p class="text-gray-600 text-xs mb-4">Refs that would be sent when clicking each section (first 10 leaf sections shown).</p>
         <pre class="bg-gray-100 p-4 rounded text-xs overflow-x-auto whitespace-pre-wrap font-mono">{{ JSON.stringify(sectionListDebugInfo, null, 2) }}</pre>
         <div class="mt-4 flex gap-2">
-          <button type="button" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300" @click="copyDebugToClipboard(JSON.stringify(sectionListDebugInfo, null, 2))">Copy to clipboard</button>
-          <button type="button" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300" @click="showSectionListDebugDialog = false">Close</button>
+          <button
+            type="button"
+            class="px-4 py-2 rounded transition-all duration-200"
+            :class="copiedStatus === 'debugSection' ? 'bg-green-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'"
+            @click="handleCopy(JSON.stringify(sectionListDebugInfo, null, 2), 'debugSection')"
+          >
+            {{ copiedStatus === 'debugSection' ? '✅ Copied!' : 'Copy to clipboard' }}
+          </button>
+          <button type="button" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-gray-800" @click="showSectionListDebugDialog = false">Close</button>
         </div>
       </div>
     </div>
@@ -318,8 +338,15 @@
         <p class="text-gray-600 text-xs mb-4">Context for debugging when a book fails to load.</p>
         <pre class="bg-gray-100 p-4 rounded text-xs overflow-x-auto whitespace-pre-wrap font-mono">{{ JSON.stringify(bookLoadDebugInfo, null, 2) }}</pre>
         <div class="mt-4 flex gap-2">
-          <button type="button" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300" @click="copyDebugToClipboard(JSON.stringify(bookLoadDebugInfo, null, 2))">Copy to clipboard</button>
-          <button type="button" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300" @click="showBookLoadDebugDialog = false">Close</button>
+          <button
+            type="button"
+            class="px-4 py-2 rounded transition-all duration-200"
+            :class="copiedStatus === 'debugBookLoad' ? 'bg-green-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'"
+            @click="handleCopy(JSON.stringify(bookLoadDebugInfo, null, 2), 'debugBookLoad')"
+          >
+            {{ copiedStatus === 'debugBookLoad' ? '✅ Copied!' : 'Copy to clipboard' }}
+          </button>
+          <button type="button" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-gray-800" @click="showBookLoadDebugDialog = false">Close</button>
         </div>
       </div>
     </div>
@@ -338,6 +365,26 @@
         <div v-if="translationLoading" class="text-center py-8 text-gray-500 text-lg">Loading translation…</div>
         <div v-else-if="translationError" class="text-center py-8 text-red-600 text-lg">{{ translationError }}</div>
         <div v-else-if="translationData" class="space-y-6">
+          <div class="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              class="px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-all duration-200 shadow-sm"
+              :class="copiedStatus === 'he' ? 'bg-green-600 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'"
+              @click="handleCopy(translationData.originalPhrase || '', 'he')"
+            >
+              <span>{{ copiedStatus === 'he' ? '✅' : '📋' }}</span>
+              {{ copiedStatus === 'he' ? 'Copied!' : 'Copy Hebrew' }}
+            </button>
+            <button
+              type="button"
+              class="px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-all duration-200 shadow-sm"
+              :class="copiedStatus === 'en' ? 'bg-green-600 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'"
+              @click="handleCopy(translationData.translatedPhrase || '', 'en')"
+            >
+              <span>{{ copiedStatus === 'en' ? '✅' : '📋' }}</span>
+              {{ copiedStatus === 'en' ? 'Copied!' : 'Copy English' }}
+            </button>
+          </div>
           <div
             v-if="translationHasMultipleSentences"
             class="px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg text-blue-800 text-sm"
@@ -541,6 +588,7 @@ const rawTranslationData = ref<unknown>(null)
 const openaiModel = ref('gpt-4o')
 const modelLoading = ref(false)
 const ttsLoading = ref(false)
+const copiedStatus = ref<string | null>(null)
 
 const openaiLoading = computed(() =>
   translationLoading.value || modelLoading.value || ttsLoading.value
@@ -596,7 +644,7 @@ function extractTextArray (val: unknown): string[] {
   return []
 }
 
-async function copyDebugToClipboard (text: string) {
+async function copyToClipboard (text: string) {
   try {
     await navigator.clipboard.writeText(text)
   } catch {
@@ -610,6 +658,16 @@ async function copyDebugToClipboard (text: string) {
     document.execCommand('copy')
     document.body.removeChild(ta)
   }
+}
+
+async function handleCopy (text: string, id: string) {
+  await copyToClipboard(text)
+  copiedStatus.value = id
+  setTimeout(() => {
+    if (copiedStatus.value === id) {
+      copiedStatus.value = null
+    }
+  }, 2000)
 }
 
 function getSectionDisplayTitle (section: { ref: string; title: string; heTitle?: string }): string {
@@ -1165,21 +1223,24 @@ function handleCloseBook () {
   }
 }
 
-function getCleanSelectionText (): string {
-  if (import.meta.server) return ''
-  const sel = window.getSelection()
-  const raw = sel?.toString().trim() ?? ''
-  if (!raw) return ''
-  const temp = document.createElement('div')
-  temp.innerHTML = raw
-  return (temp.textContent ?? temp.innerText ?? raw).trim()
-}
-
 function getPlainTextFromHtml (html: string): string {
   if (!html) return ''
   const temp = document.createElement('div')
   temp.innerHTML = html
   return (temp.textContent ?? temp.innerText ?? html).trim()
+}
+
+/** Split text into phrases by comma, period, or colon (English and Hebrew). */
+function splitIntoPhrases (text: string): string[] {
+  if (!text) return []
+  // Strip HTML for phrase splitting logic to avoid breaking tags
+  const plainText = getPlainTextFromHtml(text)
+  // Split by any punctuation. We keep the punctuation with the preceding phrase.
+  // Using a regex that captures the content up to and including the delimiter.
+  // We include common English and Hebrew punctuation as separators.
+  const regex = /[^,.׃:;!?\u05C3\u05C0]+[.,׃:;!?\u05C3\u05C0]*/g
+  const matches = plainText.match(regex)
+  return matches ? matches.map(m => m.trim()).filter(Boolean) : [plainText]
 }
 
 /** Count how many times a word appears in the phrase (space-separated tokens). */
@@ -1273,19 +1334,6 @@ async function translateWithOpenAI (text: string, fullSentence = false) {
   }
 
   await doTranslateApiCall(plainText, fullSentence)
-}
-
-function handleTextSelection () {
-  const text = getCleanSelectionText()
-  if (!text) return
-  translateWithOpenAI(text, false)
-}
-
-function handleVerseNumberClick (hebrewHtml: string) {
-  if (import.meta.server) return
-  const plainText = getPlainTextFromHtml(hebrewHtml)
-  if (!plainText) return
-  translateWithOpenAI(plainText, true)
 }
 
 async function playWordTts (word: string | undefined) {
