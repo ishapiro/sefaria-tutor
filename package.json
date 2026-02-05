@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "nuxt dev",
+    "dev": "echo 'Starting Wrangler dev mode... \nNOTE: We use Wrangler because the Cloudflare D1 translation cache requires a simulated Cloudflare environment. \nBuilding app...' && npm run build && npx wrangler dev",
+    "dev:ui": "nuxt dev",
     "build": "nuxt build",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",

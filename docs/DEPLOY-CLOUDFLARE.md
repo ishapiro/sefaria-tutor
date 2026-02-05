@@ -7,8 +7,28 @@ The app is configured for Cloudflare (Nitro preset `cloudflare_module`). Follow 
 - Node.js 18+
 - A [Cloudflare account](https://dash.cloudflare.com/sign-up)
 - Wrangler as a dev dependency (`npx wrangler` works after `npm install`)
+- A D1 Database named `sefaria-tutor-db` (see Step 2)
 
-## 2. Build and deploy
+## 2. Database and Schema
+
+Create the D1 database:
+
+```bash
+npx wrangler d1 create sefaria-tutor-db
+```
+
+Update your `wrangler.toml` with the `database_id` provided by the command above. Then apply the schema migrations:
+
+```bash
+# Apply to local (for testing)
+npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0001_initial_schema.sql
+# ... apply other migrations in order ...
+
+# Apply to production
+npx wrangler d1 execute sefaria-tutor-db --remote --file=migrations/0001_initial_schema.sql --yes
+```
+
+## 3. Build and deploy
 
 From the project root, build then deploy:
 

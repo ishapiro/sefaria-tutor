@@ -8,3 +8,8 @@ compatibility_flags = ["nodejs_compat"]
 
 [site]
 bucket = ".output/public"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "sefaria-tutor-db"
+database_id = "c89e48ee-42ac-46c3-8950-3f71e4c947c2"

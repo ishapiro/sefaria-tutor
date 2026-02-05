@@ -1,7 +1,14 @@
 import { createError, defineEventHandler, getHeader, readBody } from 'h3'
 import { useRuntimeConfig } from 'nitropack/runtime/internal/config'
 import { $fetch } from 'ofetch'
+import { normalizePhrase, computePhraseHash, computeHash, CURRENT_CACHE_VERSION, CACHE_TTL_SECONDS, isValidTranslationStructure } from '../../utils/cache'
+import { validateAuth } from '../../utils/auth'
 
+/**
+ * ATTENTION: If you modify the JSON structure (fields) in the SYSTEM_PROMPT below,
+ * you MUST increment CURRENT_CACHE_VERSION in server/utils/cache.ts to 
+ * invalidate the existing cache and prevent structural mismatches.
+ */
 const SYSTEM_PROMPT = `You are a Torah teacher—like a rabbi—who ONLY assists with translating Hebrew or Aramaic into English.
 
 When given a Hebrew or Aramaic phrase, follow these strict instructions:
@@ -40,28 +47,11 @@ Here is an example of correct output:
 `
 
 export default defineEventHandler(async (event) => {
+  validateAuth(event)
   const config = useRuntimeConfig(event)
   // Runtime config is populated from NUXT_* env vars; fallback to process.env for OPENAI_API_KEY / API_AUTH_TOKEN in .env
   const env = (globalThis as unknown as { process?: { env?: Record<string, string> } }).process?.env
-  const apiAuthToken = config.apiAuthToken || env?.API_AUTH_TOKEN || ''
   const openaiApiKey = config.openaiApiKey || env?.OPENAI_API_KEY || ''
-
-  const authHeader = getHeader(event, 'authorization')
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    throw createError({
-      statusCode: 401,
-      statusMessage: 'Unauthorized',
-      message: 'Missing or invalid Authorization header',
-    })
-  }
-  const token = authHeader.slice(7)
-  if (apiAuthToken && token !== apiAuthToken) {
-    throw createError({
-      statusCode: 401,
-      statusMessage: 'Unauthorized',
-      message: 'Invalid token',
-    })
-  }
 
   if (!openaiApiKey) {
     throw createError({
@@ -78,6 +68,53 @@ export default defineEventHandler(async (event) => {
       statusMessage: 'Bad Request',
       message: 'Missing prompt in body',
     })
+  }
+
+  const normalized = normalizePhrase(body.prompt)
+  const hash = await computePhraseHash(normalized)
+  const promptHash = await computeHash(SYSTEM_PROMPT)
+
+  // @ts-ignore
+  const db = event.context.cloudflare?.env?.DB
+
+  if (db) {
+    try {
+      const now = Math.floor(Date.now() / 1000)
+      const cached = await db.prepare('SELECT response, phrase, created_at, version, prompt_hash FROM translation_cache WHERE phrase_hash = ?')
+        .bind(hash)
+        .first<{ response: string; phrase: string; created_at: number; version: number; prompt_hash: string }>()
+
+      if (cached && 
+          cached.phrase === normalized && 
+          cached.version === CURRENT_CACHE_VERSION &&
+          (now - cached.created_at) < CACHE_TTL_SECONDS) {
+        
+        let parsed: any = null
+        try {
+          parsed = JSON.parse(cached.response)
+        } catch (e) {
+          parsed = null
+        }
+
+        if (parsed && isValidTranslationStructure(parsed)) {
+          // Cache Hit - Structurally compatible and within TTL
+          await db.prepare('UPDATE cache_stats SET hits = hits + 1, updated_at = ? WHERE id = 1')
+            .bind(now)
+            .run()
+          
+          return parsed
+        } else {
+          // Malformed Hit - Treat as miss and track it
+          await db.prepare('UPDATE cache_stats SET malformed_hits = malformed_hits + 1, updated_at = ? WHERE id = 1')
+            .bind(now)
+            .run()
+          // Proceed to fetch fresh from OpenAI
+        }
+      }
+    } catch (dbErr) {
+      console.error('Cache read error:', dbErr)
+      // Continue to OpenAI on cache error
+    }
   }
 
   try {
@@ -107,6 +144,23 @@ export default defineEventHandler(async (event) => {
         text: { verbosity: 'low' },
       },
     })
+
+    if (db) {
+      try {
+        const now = Math.floor(Date.now() / 1000)
+        // Cache Miss - Save to cache
+        await db.prepare('INSERT OR REPLACE INTO translation_cache (phrase_hash, phrase, response, created_at, version, prompt_hash) VALUES (?, ?, ?, ?, ?, ?)')
+          .bind(hash, normalized, JSON.stringify(response), now, CURRENT_CACHE_VERSION, promptHash)
+          .run()
+        
+        await db.prepare('UPDATE cache_stats SET misses = misses + 1, updated_at = ? WHERE id = 1')
+          .bind(now)
+          .run()
+      } catch (dbWriteErr) {
+        console.error('Cache write error:', dbWriteErr)
+      }
+    }
+
     return response
   } catch (err: unknown) {
     const status = (err as { statusCode?: number })?.statusCode ?? 500

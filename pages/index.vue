@@ -49,6 +49,12 @@
         >
           Help
         </button>
+        <NuxtLink
+          to="/dictionary"
+          class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 whitespace-nowrap inline-flex items-center"
+        >
+          Dictionary
+        </NuxtLink>
       </div>
       <CategoryAccordion
         :categories="filteredCategories"
@@ -1266,7 +1272,7 @@ async function doTranslateApiCall (plainText: string, fullSentence: boolean) {
       output?: Array<{ type?: string; content?: Array<{ type?: string; text?: string }> }>
     }>('/api/openai/chat', {
       method: 'POST',
-      body: { prompt: `Translate this phrase to English: ${plainText}`, model: openaiModel.value, fullSentence },
+      body: { prompt: plainText, model: openaiModel.value, fullSentence },
       headers: { Authorization: `Bearer ${token}` },
     })
     rawTranslationData.value = response

@@ -39,52 +39,27 @@ For detailed deployment steps (secrets, custom domain, troubleshooting), see [do
 
 ## Quick start
 
+To start the development environment with full support for the **translation cache** and Cloudflare D1:
+
 ```bash
 cp .env.example .env
 # Edit .env: set API_AUTH_TOKEN, OPENAI_API_KEY, NUXT_PUBLIC_API_AUTH_TOKEN
+# Create .dev.vars for Wrangler local secrets (see below)
 npm install
 npm run dev
 ```
 
-Open http://localhost:3000 — browse categories, select a book, select Hebrew text for translation, or click verse numbers for full-sentence translation.
+The `npm run dev` command will automatically build the app and start Wrangler to simulate the Cloudflare environment. The app will be available at http://localhost:8787.
 
-## Environment
+## Rapid UI development
 
-| Variable | Where | Purpose |
-|----------|-------|---------|
-| `API_AUTH_TOKEN` | Server | Validates Bearer token on OpenAI API routes |
-| `OPENAI_API_KEY` | Server | Used to call OpenAI (chat, model, TTS) |
-| `NUXT_PUBLIC_API_AUTH_TOKEN` | Client | Bearer token sent to `/api/openai/*`; use same value as `API_AUTH_TOKEN` |
-
-- **Dev:** Copy `.env.example` to `.env` and set all three.
-- **Wrangler preview:** Use `.dev.vars` with the same keys (do not commit).
-- **Production:** Set secrets via `wrangler secret put` and `NUXT_PUBLIC_API_AUTH_TOKEN` in the Cloudflare dashboard (see [DEPLOY-CLOUDFLARE.md](docs/DEPLOY-CLOUDFLARE.md)).
-
-## Build & deploy
+If you only need to work on the UI and do not need the translation cache:
 
 ```bash
-npm run deploy
+npm run dev:ui
 ```
 
-Or stepwise:
-
-```bash
-npm run build
-npx wrangler deploy
-```
-
-Wrangler uploads the Worker and static assets. On success, the app is live at your Workers URL (e.g. `https://sefaria-tutor.<account>.workers.dev` or your custom domain).
-
-## Local preview (production-like)
-
-To run the built app locally with Wrangler:
-
-```bash
-npm run build
-npx wrangler dev
-```
-
-Use `.dev.vars` for secrets. The app will be at http://localhost:8787.
+This starts the standard Nuxt dev server at http://localhost:3000. Translations will still work but will **not** be cached.
 
 ## Source & license
 

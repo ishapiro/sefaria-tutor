@@ -159,3 +159,15 @@ This ensures that only requests whose normalized phrase exactly matches the stor
 | Index | Primary key on `phrase_hash` (and on `cache_stats.id`); rely on D1/SQLite’s automatic PK index; no extra index for initial scope. |
 
 This plan keeps the phrase-level cache simple, safe under hash collisions, observable (viewer + hit rate), and ready for implementation without prescribing specific code.
+
+---
+
+## 11. Local Development and Testing
+
+Because the cache relies on Cloudflare D1, it cannot be tested using the standard `npm run dev` (Nuxt/Nitro dev server), as that environment does not provide D1 bindings.
+
+**Testing workflow:**
+1. **Run development mode:** `npm run dev`. This script is now configured to automatically build the app and start `wrangler dev`.
+2. **Configure secrets:** Ensure `.dev.vars` exists with your keys.
+3. **Initialize local D1:** (First time only) Run migrations with the `--local` flag.
+4. **Verify:** Open the app at the Wrangler URL (usually `http://localhost:8787`).
