@@ -2,7 +2,14 @@
 export default defineNuxtConfig({
   compatibilityDate: '2024-09-19',
   devtools: { enabled: true },
-  modules: ['@nuxtjs/tailwindcss'],
+  modules: [
+    '@nuxtjs/tailwindcss',
+    '@nuxthub/core',
+    'nuxt-auth-utils'
+  ],
+  hub: {
+    database: true,
+  },
   nitro: {
     preset: 'cloudflare_module',
     cloudflare: {
