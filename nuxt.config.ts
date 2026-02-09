@@ -13,7 +13,7 @@ export default defineNuxtConfig({
   nitro: {
     preset: 'cloudflare_module',
     cloudflare: {
-      deployConfig: true,
+      deployConfig: false, // We use wrangler.toml directly, so no need for Nitro to generate wrangler.json
       nodeCompat: true,
     },
   },

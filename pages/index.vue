@@ -12,10 +12,13 @@
         <span class="text-gray-700 font-medium">{{ apiLoadingMessage }}</span>
       </div>
     </div>
-    <h1 class="text-2xl font-bold mb-4">
-      Sefaria Word Explorer provided by Cogitations
+    <h1 class="text-xl font-bold mb-2">
+      Word Explorer
       <span class="pl-2 text-base font-normal text-gray-600">(Using OpenAI Model: {{ openaiModel }})</span>
     </h1>
+    <p class="text-sm text-gray-600 mb-4">
+      (All source text provided by the <a href="https://www.sefaria.org/" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline">Sefaria</a> Open Source Torah API)
+    </p>
 
     <!-- Loading index -->
     <div v-if="loading && (!categories || categories.length === 0)" class="flex justify-center items-center py-12">
@@ -251,7 +254,7 @@
         <div v-else class="space-y-4">
           <div class="flex items-center justify-between mb-1">
             <p class="text-xs text-gray-500">
-              Click on a phrase to translate it word by word.
+              Click on any text to analyze it word by word with grammar explanations. Phrases are delimited by punctuation—clicking before a comma, period, or other punctuation will analyze from the start of the phrase up to that punctuation mark.
             </p>
             <button
               type="button"
@@ -643,14 +646,18 @@ const ttsLoading = ref(false)
 const copiedStatus = ref<string | null>(null)
 
 const openaiLoading = computed(() =>
-  translationLoading.value || modelLoading.value || ttsLoading.value
+  translationLoading.value || ttsLoading.value
+  // Note: modelLoading is excluded - model retrieval is a background operation that shouldn't show loading overlay
 )
 
 const apiLoading = computed(() => loading.value || openaiLoading.value)
 
-const apiLoadingMessage = computed(() =>
-  loading.value ? 'Calling Sefaria…' : 'Calling OpenAI…'
-)
+const apiLoadingMessage = computed(() => {
+  if (loading.value) return 'Calling Sefaria…'
+  if (ttsLoading.value) return 'Generating audio pronunciation…'
+  if (translationLoading.value) return 'Analyzing phrase with OpenAI. Processing takes approximately 3 seconds per word—please be patient.'
+  return 'Loading…'
+})
 
 /** True if the wordTable has notably fewer entries than words in the original phrase (model truncation). */
 const translationWordTableIncomplete = computed(() => {

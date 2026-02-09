@@ -5,7 +5,7 @@ const { loggedIn, user, logout } = useAuth()
 <template>
   <div class="min-h-screen bg-gray-50 select-none">
     <header class="bg-white shadow-sm border-b px-4 py-3 flex justify-between items-center">
-      <NuxtLink to="/" class="text-xl font-bold text-indigo-600">Sefaria Tutor</NuxtLink>
+      <NuxtLink to="/" class="text-2xl font-bold text-blue-600">Sefaria Tutor provide by Cogitations</NuxtLink>
       <div class="flex items-center gap-4">
         <template v-if="loggedIn">
           <span class="text-gray-600 text-sm">Hello, {{ user?.name || user?.email }}</span>

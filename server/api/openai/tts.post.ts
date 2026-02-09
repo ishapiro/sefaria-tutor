@@ -43,6 +43,16 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  // Replace יהוה (Tetragrammaton) with אדוני (Adonai) for correct pronunciation
+  // This is transparent to the user - display text remains unchanged
+  // Match Tetragrammaton with any Hebrew diacritics (niqqud) - Unicode range \u0591-\u05C7
+  // Pattern: י (yod) + optional diacritics + ה (he) + optional diacritics + ו (vav) + optional diacritics + ה (he) + optional diacritics
+  let textForTts = text.replace(/י[\u0591-\u05C7]*ה[\u0591-\u05C7]*ו[\u0591-\u05C7]*ה[\u0591-\u05C7]*/g, 'אדוני')
+  
+  // Replace אדוני with English transliteration "Adonai" for proper TTS pronunciation
+  // This ensures the TTS pronounces it correctly as "Adonai" rather than phonetically reading the Hebrew
+  textForTts = textForTts.replace(/אדוני/g, 'Adonai')
+
   try {
     const audio = await $fetch<ArrayBuffer>('https://api.openai.com/v1/audio/speech', {
       method: 'POST',
@@ -53,7 +63,7 @@ export default defineEventHandler(async (event) => {
       body: {
         model: 'gpt-4o-mini-tts',
         voice: 'alloy',
-        input: text,
+        input: textForTts,
         instructions: 'Pronounce this word in Hebrew. Speak clearly and naturally.',
       },
       responseType: 'arrayBuffer',
