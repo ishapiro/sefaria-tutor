@@ -9,7 +9,14 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const db = hubDatabase()
+  // @ts-ignore
+  const db = event.context.cloudflare?.env?.DB
+  if (!db) {
+    throw createError({
+      statusCode: 500,
+      message: 'Database connection not available'
+    })
+  }
   const currentTime = Math.floor(Date.now() / 1000)
 
   // Find user with this token and ensure it's not expired

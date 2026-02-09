@@ -53,10 +53,11 @@
           Help
         </button>
         <NuxtLink
-          to="/dictionary"
+          v-if="isAdmin"
+          to="/admin"
           class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 whitespace-nowrap inline-flex items-center"
         >
-          Dictionary
+          Admin
         </NuxtLink>
       </div>
       <CategoryAccordion
@@ -640,7 +641,22 @@ const showMultiSentenceConfirmDialog = ref(false)
 const pendingTranslation = ref<{ plainText: string; fullSentence: boolean } | null>(null)
 const showRawData = ref(false)
 const rawTranslationData = ref<unknown>(null)
+const { isAdmin, fetch: fetchSession, user, loggedIn } = useAuth()
 const openaiModel = ref('gpt-4o')
+
+// Debug logging for admin status
+watch([user, isAdmin, loggedIn], ([userVal, adminVal, loggedInVal]) => {
+  console.log('[Auth Debug]', {
+    loggedIn: loggedInVal,
+    user: userVal ? {
+      id: userVal.id,
+      email: userVal.email,
+      role: userVal.role,
+      isVerified: userVal.isVerified
+    } : null,
+    isAdmin: adminVal
+  })
+}, { immediate: true })
 const modelLoading = ref(false)
 const ttsLoading = ref(false)
 const copiedStatus = ref<string | null>(null)
@@ -1727,6 +1743,15 @@ async function fetchLatestModel () {
 }
 
 onMounted(async () => {
+  // Fetch user session to ensure isAdmin is properly computed
+  console.log('[Auth Debug] Fetching session...')
+  try {
+    await fetchSession()
+    console.log('[Auth Debug] Session fetched. User:', user.value, 'isAdmin:', isAdmin.value)
+  } catch (err) {
+    console.error('[Auth Debug] Error fetching session:', err)
+  }
+  
   // Load lz-string compression library if available
   if (import.meta.client && typeof window !== 'undefined') {
     try {

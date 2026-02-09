@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const { loginWithGoogle, loggedIn } = useAuth()
 const router = useRouter()
+const route = useRoute()
 
 // If already logged in, redirect to home
 watchEffect(() => {
@@ -15,6 +16,36 @@ const isRegistering = ref(false)
 const message = ref('')
 const error = ref('')
 const isLoading = ref(false)
+const authCapabilities = ref<{ googleEnabled: boolean; emailEnabled: boolean } | null>(null)
+const capabilitiesError = ref('')
+
+onMounted(async () => {
+  try {
+    authCapabilities.value = await $fetch('/api/auth/capabilities')
+  } catch {
+    // If this fails, default to showing everything (worst case: user clicks and sees a server error)
+    capabilitiesError.value = 'Could not determine available login methods.'
+    authCapabilities.value = { googleEnabled: true, emailEnabled: true }
+  }
+})
+
+const googleLoginError = computed(() => {
+  if (route.query.error !== 'google_failed') return ''
+  const reason = String(route.query.reason ?? '')
+  if (reason === 'config') {
+    return 'Google login is not configured on this deployment. Please use email/password or contact the administrator.'
+  }
+  if (reason === 'redirect_uri') {
+    return 'Google login failed due to a redirect/callback URL mismatch. Please contact the administrator.'
+  }
+  if (reason === 'db') {
+    return 'Google login failed due to a database configuration issue. Please try again later or contact the administrator.'
+  }
+  return 'Google login failed. Please try again, or use email/password.'
+})
+
+const googleEnabled = computed(() => authCapabilities.value?.googleEnabled !== false)
+const emailEnabled = computed(() => authCapabilities.value?.emailEnabled !== false)
 
 const handleAuth = async () => {
   error.value = ''
@@ -22,6 +53,10 @@ const handleAuth = async () => {
   isLoading.value = true
   
   try {
+    if (!emailEnabled.value) {
+      error.value = 'Email/password login is not available on this server.'
+      return
+    }
     if (isRegistering.value) {
       const response = await $fetch('/api/auth/register', {
         method: 'POST',
@@ -63,11 +98,19 @@ const handleAuth = async () => {
         {{ message }}
       </div>
       
+      <div v-if="capabilitiesError" class="bg-amber-50 text-amber-800 p-3 rounded-md text-sm">
+        {{ capabilitiesError }}
+      </div>
+
+      <div v-if="googleLoginError" class="bg-red-50 text-red-700 p-3 rounded-md text-sm">
+        {{ googleLoginError }}
+      </div>
+
       <div v-if="error" class="bg-red-50 text-red-700 p-3 rounded-md text-sm">
         {{ error }}
       </div>
 
-      <form class="mt-8 space-y-6" @submit.prevent="handleAuth">
+      <form v-if="emailEnabled" class="mt-8 space-y-6" @submit.prevent="handleAuth">
         <div class="rounded-md shadow-sm -space-y-px">
           <div>
             <label for="email-address" class="sr-only">Email address</label>
@@ -90,6 +133,9 @@ const handleAuth = async () => {
           </button>
         </div>
       </form>
+      <div v-else class="mt-6 text-sm text-gray-600">
+        Email/password login is not enabled on this server.
+      </div>
 
       <div class="mt-6">
         <div class="relative">
@@ -102,11 +148,14 @@ const handleAuth = async () => {
         </div>
 
         <div class="mt-6">
-          <button @click="loginWithGoogle"
+          <button v-if="googleEnabled" @click="loginWithGoogle"
             class="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
             <img class="h-5 w-5 mr-2" src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google logo">
             Google
           </button>
+          <div v-else class="text-sm text-gray-600 text-center">
+            Google login is not enabled on this server.
+          </div>
         </div>
       </div>
     </div>

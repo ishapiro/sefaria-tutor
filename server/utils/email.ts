@@ -1,13 +1,15 @@
 export async function sendVerificationEmail(email: string, token: string) {
   const config = useRuntimeConfig()
-  const resendApiKey = config.resendApiKey || process.env.NUXT_RESEND_API_KEY
+  const env = (globalThis as unknown as { process?: { env?: Record<string, string> } }).process?.env
+  const resendApiKey = (config as any).resendApiKey || env?.NUXT_RESEND_API_KEY
   
   if (!resendApiKey) {
     console.error('RESEND_API_KEY is not set. Cannot send verification email.')
     return
   }
 
-  const verificationUrl = `${process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/verify?token=${token}`
+  const siteUrl = ((config as any).public?.siteUrl as string) || env?.NUXT_PUBLIC_SITE_URL || 'http://localhost:8787'
+  const verificationUrl = `${siteUrl.replace(/\/$/, '')}/api/auth/verify?token=${encodeURIComponent(token)}`
 
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',

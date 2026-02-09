@@ -20,9 +20,11 @@ export default defineNuxtConfig({
   runtimeConfig: {
     apiAuthToken: '',
     openaiApiKey: '',
+    resendApiKey: '',
     public: {
       appName: 'Sefaria Tutor',
       apiAuthToken: '', // Client sends this to /api/openai/chat (set NUXT_PUBLIC_API_AUTH_TOKEN in .env)
+      siteUrl: '',
     },
   },
 })

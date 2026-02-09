@@ -9,7 +9,14 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const db = hubDatabase()
+  // @ts-ignore
+  const db = event.context.cloudflare?.env?.DB
+  if (!db) {
+    throw createError({
+      statusCode: 500,
+      message: 'Database connection not available'
+    })
+  }
   
   // Find user by email
   const user = await db.prepare('SELECT * FROM users WHERE email = ?')

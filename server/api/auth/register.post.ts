@@ -12,7 +12,14 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const db = hubDatabase()
+  // @ts-ignore
+  const db = event.context.cloudflare?.env?.DB
+  if (!db) {
+    throw createError({
+      statusCode: 500,
+      message: 'Database connection not available'
+    })
+  }
   
   // Check if user already exists
   const existingUser = await db.prepare('SELECT id FROM users WHERE email = ?')

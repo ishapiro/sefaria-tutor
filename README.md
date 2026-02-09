@@ -107,6 +107,71 @@ npm run dev:ui
 
 This starts the standard Nuxt dev server at http://localhost:3000. Translations will still work but will **not** be cached.
 
+## Local Testing
+
+### Prerequisites
+
+Before testing locally, you need to:
+
+1. **Set up environment variables** in `.dev.vars`:
+   ```
+   API_AUTH_TOKEN=your-auth-token
+   OPENAI_API_KEY=your-openai-api-key
+   NUXT_PUBLIC_API_AUTH_TOKEN=your-auth-token
+   NUXT_SESSION_PASSWORD=your-session-password
+   ```
+   Optional (for Google OAuth):
+   ```
+   NUXT_OAUTH_GOOGLE_CLIENT_ID=your-google-client-id
+   NUXT_OAUTH_GOOGLE_CLIENT_SECRET=your-google-client-secret
+   ```
+
+2. **Initialize the local D1 database** by running migrations:
+   ```bash
+   # Run all migrations in order
+   npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0001_initial_schema.sql
+   npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0002_add_cache_version.sql
+   npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0003_add_prompt_hash.sql
+   npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0004_add_malformed_stats.sql
+   npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0005_auth_schema.sql
+   ```
+
+   **Note:** The local D1 database is stored in `.wrangler/state/v3/d1/`. If you encounter duplicate column errors, you can reset the local database by deleting this directory and re-running the migrations.
+
+3. **Start the development server**:
+   ```bash
+   npm run dev
+   ```
+
+   The app will be available at http://localhost:8787.
+
+### Troubleshooting
+
+- **Database errors:** Make sure all migrations have been run. If you see duplicate column errors, reset the local database and re-run migrations.
+- **Missing environment variables:** Ensure `.dev.vars` contains all required keys (see Prerequisites above).
+- **Google OAuth errors:** If you're not using Google OAuth, the missing credentials error can be safely ignored—it won't affect other functionality.
+
+## Deploying to Cloudflare
+
+To publish the app to Cloudflare Workers, run:
+
+```bash
+npm run deploy
+```
+
+This script does two things:
+
+- **Builds the app**: runs `nuxt build`, which generates the Worker bundle and static assets in `.output/`.
+- **Deploys the Worker**: runs `npx wrangler deploy`, using `wrangler.toml` (entry: `.output/server/index.mjs`, static assets: `.output/public`).
+
+Before deploying, make sure the Worker has the required **secrets/variables** set in Cloudflare (see `docs/DEPLOY-CLOUDFLARE.md`):
+
+- `API_AUTH_TOKEN`
+- `OPENAI_API_KEY`
+- `NUXT_PUBLIC_API_AUTH_TOKEN` (should match `API_AUTH_TOKEN`)
+- `NUXT_OAUTH_GOOGLE_CLIENT_ID` (required for Google login)
+- `NUXT_OAUTH_GOOGLE_CLIENT_SECRET` (required for Google login)
+
 ## Source & license
 
 - **Texts:** [Sefaria](https://www.sefaria.org/) — this application would not exist without Sefaria’s work. Please consider [donating to Sefaria](https://donate.sefaria.org/) to support their free access to Jewish texts.
