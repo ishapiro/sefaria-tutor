@@ -423,49 +423,55 @@
             <strong>Incomplete word table.</strong> The AI returned only {{ (translationData.wordTable ?? []).length }} entries for {{ (translationData.originalPhrase ?? '').split(/\s+/).filter(Boolean).length }} words. For long texts, try selecting a shorter passage.
           </div>
           <h3 class="text-xl font-semibold text-gray-800">Word Analysis</h3>
-          <div class="overflow-x-auto border border-slate-300 rounded-lg">
-            <table class="w-full text-base border-collapse">
-              <thead class="bg-gray-100">
-                <tr>
-                  <th class="px-3 py-2.5 text-left font-semibold text-gray-700">#</th>
-                  <th class="px-3 py-2.5 text-left font-semibold text-gray-700">Translation</th>
-                  <th class="px-3 py-2.5 text-left font-semibold text-gray-700">Word</th>
-                  <th class="px-3 py-2.5 text-left font-semibold text-gray-700">Language</th>
-                  <th class="px-3 py-2.5 text-left font-semibold text-gray-700 min-w-[140px]">Root</th>
-                  <th class="px-3 py-2.5 text-left font-semibold text-gray-700">Part of Speech</th>
-                  <th class="px-3 py-2.5 text-left font-semibold text-gray-700">Gender</th>
-                  <th class="px-3 py-2.5 text-left font-semibold text-gray-700">Tense</th>
-                  <th class="px-3 py-2.5 text-left font-semibold text-gray-700">Binyan</th>
-                  <th class="px-3 py-2.5 text-left font-semibold text-gray-700">Present (Hebrew)</th>
-                  <th class="px-3 py-2.5 text-left font-semibold text-gray-700 min-w-[200px]">Grammar Notes</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(row, i) in (translationData.wordTable ?? [])" :key="i" class="border-t-2 border-slate-300 hover:bg-slate-50 first:border-t-0">
-                  <td class="px-3 py-3 text-gray-600 align-top text-center tabular-nums" :title="`Occurs ${countWordInPhrase(translationData?.originalPhrase ?? '', row.word ?? '')} time(s) in original text`">{{ countWordInPhrase(translationData?.originalPhrase ?? '', row.word ?? '') || '—' }}</td>
-                  <td class="px-3 py-3 text-gray-700 align-top whitespace-normal break-words max-w-[12rem]">{{ row.wordTranslation ?? '—' }}</td>
-                  <td
-                    class="px-3 py-3 text-right font-medium align-top whitespace-normal break-words"
-                    :class="{ 'cursor-pointer hover:bg-blue-100 hover:text-blue-700 rounded': row.word && row.word !== '—' }"
-                    style="direction: rtl"
-                    :role="row.word && row.word !== '—' ? 'button' : undefined"
-                    :tabindex="row.word && row.word !== '—' ? 0 : undefined"
-                    :title="row.word && row.word !== '—' ? 'Click to hear pronunciation' : undefined"
-                    @click="playWordTts(row.word)"
-                    @keydown.enter="playWordTts(row.word)"
-                    @keydown.space.prevent="playWordTts(row.word)"
-                  >{{ row.word ?? '—' }}</td>
-                  <td class="px-3 py-3 text-gray-700 align-top whitespace-normal break-words">{{ row.hebrewAramaic ?? '—' }}</td>
-                  <td class="px-3 py-3 text-gray-700 align-top whitespace-normal break-words min-w-[140px] pl-4">{{ row.wordRoot ?? '—' }}</td>
-                  <td class="px-3 py-3 text-gray-700 align-top whitespace-normal break-words pl-4">{{ row.wordPartOfSpeech ?? '—' }}</td>
-                  <td class="px-3 py-3 text-gray-700 align-top whitespace-normal break-words pl-4">{{ row.wordGender ?? '—' }}</td>
-                  <td class="px-3 py-3 text-gray-700 align-top whitespace-normal break-words pl-4">{{ row.wordTense ?? '—' }}</td>
-                  <td class="px-3 py-3 text-gray-700 align-top whitespace-normal break-words pl-4">{{ row.wordBinyan ?? '—' }}</td>
-                  <td class="px-3 py-3 text-right font-medium align-top whitespace-normal break-words pl-4" style="direction: rtl">{{ row.presentTenseHebrew ?? '—' }}</td>
-                  <td class="px-3 py-3 text-gray-700 align-top whitespace-normal break-words min-w-[200px] pl-4">{{ row.grammarNotes ?? '—' }}</td>
-                </tr>
-              </tbody>
-            </table>
+          <div class="space-y-3">
+            <div
+              v-for="(row, i) in (translationData.wordTable ?? [])"
+              :key="i"
+              class="border border-slate-200 rounded-lg p-4 bg-white shadow-sm hover:border-blue-200 transition-colors"
+            >
+              <!-- Line 1: Word, Translation, Root -->
+              <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                <div
+                  class="text-2xl font-bold text-blue-700 cursor-pointer hover:bg-blue-50 rounded px-1 -mx-1 transition-colors"
+                  style="direction: rtl"
+                  title="Click to hear pronunciation"
+                  @click="playWordTts(row.word)"
+                >
+                  {{ row.word ?? '—' }}
+                </div>
+                <div class="text-xl font-semibold text-gray-900">
+                  {{ row.wordTranslation ?? '—' }}
+                </div>
+                <div v-if="row.wordRoot && row.wordRoot !== '—'" class="text-lg text-gray-600">
+                  <span class="text-xs text-gray-400 uppercase font-bold mr-1">Root:</span>
+                  {{ row.wordRoot }}
+                </div>
+                <div class="flex-grow"></div>
+                <div
+                  v-if="countWordInPhrase(translationData?.originalPhrase ?? '', row.word ?? '') > 1"
+                  class="text-xs font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full tabular-nums"
+                >
+                  {{ countWordInPhrase(translationData?.originalPhrase ?? '', row.word ?? '') }} occurrences
+                </div>
+              </div>
+
+              <!-- Line 2: Part of Speech, Gender, Tense, Binyan -->
+              <div class="ml-4 mt-1.5 flex flex-wrap gap-x-3 text-sm text-gray-500 font-medium">
+                <span v-if="row.wordPartOfSpeech && row.wordPartOfSpeech !== '—'">{{ row.wordPartOfSpeech }}</span>
+                <span v-if="row.wordGender && row.wordGender !== '—'">{{ row.wordGender }}</span>
+                <span v-if="row.wordTense && row.wordTense !== '—'">{{ row.wordTense }}</span>
+                <span v-if="row.wordBinyan && row.wordBinyan !== '—'">{{ row.wordBinyan }}</span>
+                <span v-if="row.hebrewAramaic && row.hebrewAramaic !== '—'" class="italic text-gray-400">({{ row.hebrewAramaic }})</span>
+              </div>
+
+              <!-- Line 3: Grammar Notes -->
+              <div
+                v-if="row.grammarNotes && row.grammarNotes !== '—'"
+                class="mt-2 text-gray-700 text-sm border-t border-gray-50 pt-2 italic leading-relaxed"
+              >
+                {{ row.grammarNotes }}
+              </div>
+            </div>
           </div>
         </div>
       </div>
