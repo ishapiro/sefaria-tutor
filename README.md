@@ -1,4 +1,4 @@
-# Safaria Word Explorer (Sefaria Tutor)
+# Sefaria Word Explorer (Sefaria Tutor)
 
 A web app for reading Jewish texts from [Sefaria](https://www.sefaria.org/) with AI-powered translation and text-to-speech. A product of [Cogitations](https://cogitations.com).
 
@@ -15,6 +15,8 @@ Suggestions for improvements are welcome: [ishapiro@cogitations.com](mailto:isha
 | **Frontend** | Nuxt 3, Vue 3, Tailwind CSS |
 | **Server** | Nitro (Node-compatible) |
 | **Deployment** | Cloudflare Workers + Workers Sites |
+| **Translation Cache** | Cloudflare D1 (server-side) |
+| **Index Cache** | Browser localStorage (client-side, compressed) |
 
 ### API Routes
 
@@ -28,6 +30,50 @@ Server routes run on Nitro and are proxied in production on Cloudflare Workers:
 | `POST /api/openai/tts` | Text-to-speech via OpenAI Audio API |
 
 The client sends a Bearer token (`NUXT_PUBLIC_API_AUTH_TOKEN`) for OpenAI routes; the server validates it against `API_AUTH_TOKEN` and forwards requests with `OPENAI_API_KEY`.
+
+## Caching
+
+The application uses two levels of caching to improve performance and reduce API costs:
+
+### 1. Translation Cache (Server-Side - Cloudflare D1)
+
+Translation results are cached in a Cloudflare D1 database to avoid redundant OpenAI API calls:
+
+- **Storage:** Cloudflare D1 database (server-side)
+- **Cache Key:** SHA-256 hash of normalized phrase text
+- **TTL:** 90 days (configurable)
+- **Benefits:** 
+  - Faster response times for previously translated phrases
+  - Reduced OpenAI API costs
+  - Global cache shared across all users
+- **Cache Viewer:** Available at `/dictionary` route for inspecting cached translations
+- **Statistics:** Cache hit/miss rates tracked in `cache_stats` table
+
+The cache stores the full OpenAI response including:
+- `originalPhrase`: Original Hebrew/Aramaic text
+- `translatedPhrase`: Complete English translation
+- `wordTable`: Word-by-word analysis with grammar details
+
+See [docs/TRANSLATION-CACHE-D1-DESIGN.md](docs/TRANSLATION-CACHE-D1-DESIGN.md) for detailed design documentation.
+
+### 2. Sefaria Index Cache (Client-Side - Browser localStorage)
+
+The Sefaria category/book index is cached in the browser's localStorage to speed up initial page loads:
+
+- **Storage:** Browser localStorage (client-side)
+- **Data:** Minimized Sefaria index structure (only essential fields)
+- **Compression:** Uses `lz-string` library when available (typically 60-80% size reduction)
+- **Fallback:** Works without compression if library not installed
+- **Benefits:**
+  - Instant category loading on return visits
+  - Reduced API calls to Sefaria
+  - Works offline for cached data
+- **Size Optimization:**
+  - Data is minimized to only include fields needed for display/navigation
+  - Compression further reduces size (e.g., 2.5 MB → 0.8 MB)
+  - Handles Safari's stricter localStorage quota (5MB vs Chrome's 10MB)
+
+**Note:** If caching fails (e.g., localStorage quota exceeded), the app will still function but will fetch the index from the API each time, resulting in slightly slower initial loads.
 
 ### Cloudflare Deployment
 

@@ -79,9 +79,46 @@
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
         @click.self="showErrorDialog = false"
       >
-        <div class="bg-white rounded-lg shadow-xl p-6 max-w-sm mx-4 text-center">
-          <p class="font-semibold text-gray-800 mb-2">{{ errorMessage }}</p>
-          <button type="button" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700" @click="showErrorDialog = false">OK</button>
+        <div class="bg-white rounded-lg shadow-xl p-6 max-w-md mx-4 text-center">
+          <p class="font-semibold text-gray-800 mb-4">{{ errorMessage }}</p>
+          <div class="flex gap-2 justify-center">
+            <button
+              v-if="errorDetails"
+              type="button"
+              class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-700"
+              @click="showErrorDebugDialog = true"
+            >
+              Debug Info
+            </button>
+            <button type="button" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700" @click="showErrorDialog = false">OK</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Error debug dialog -->
+      <div
+        v-if="showErrorDebugDialog"
+        class="fixed inset-0 z-[55] flex items-center justify-center bg-black/50 overflow-y-auto py-8"
+        @click.self="showErrorDebugDialog = false"
+      >
+        <div class="bg-white rounded-lg shadow-xl p-6 w-[90vw] max-w-3xl max-h-[90vh] overflow-auto text-sm">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-bold">Error Debug Information</h2>
+            <button type="button" class="text-gray-500 hover:text-gray-700 text-2xl leading-none" @click="showErrorDebugDialog = false">×</button>
+          </div>
+          <p class="text-gray-600 text-xs mb-4">This information can help diagnose browser-specific issues.</p>
+          <pre class="bg-gray-100 p-4 rounded text-xs overflow-x-auto whitespace-pre-wrap font-mono max-h-[70vh] overflow-y-auto">{{ JSON.stringify(errorDetails, null, 2) }}</pre>
+          <div class="mt-4 flex gap-2">
+            <button
+              type="button"
+              class="px-4 py-2 rounded transition-all duration-200"
+              :class="copiedStatus === 'errorDebug' ? 'bg-green-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'"
+              @click="handleCopy(JSON.stringify(errorDetails, null, 2), 'errorDebug')"
+            >
+              {{ copiedStatus === 'errorDebug' ? '✅ Copied!' : 'Copy to clipboard' }}
+            </button>
+            <button type="button" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-gray-800" @click="showErrorDebugDialog = false">Close</button>
+          </div>
         </div>
       </div>
       <!-- Help dialog -->
@@ -201,7 +238,7 @@
             </li>
           </ul>
         </div>
-        <div v-else-if="currentPageText.length === 0" class="text-center py-8 text-gray-500">
+        <div v-else-if="bookLoadAttempted && !loading && currentPageText.length === 0 && !complexSections" class="text-center py-8 text-gray-500">
           <p class="mb-4">This book is not available via the API, or you need to select a section. Try another book or section.</p>
           <button
             type="button"
@@ -562,9 +599,12 @@ const currentChapter = ref<string | number | null>(null)
 const showCategoryDialog = ref(false)
 const showErrorDialog = ref(false)
 const errorMessage = ref('')
+const errorDetails = ref<Record<string, unknown> | null>(null)
+const showErrorDebugDialog = ref(false)
 const showHelpDialog = ref(false)
 const isComplexBookFlag = ref(false)
 const complexSections = ref<Array<{ ref: string; title: string; heTitle?: string }> | null>(null)
+const bookLoadAttempted = ref(false)
 const sectionStack = ref<unknown[]>([])
 const nextSectionRef = ref<string | null>(null)
 const showBookLoadDebugDialog = ref(false)
@@ -824,6 +864,63 @@ const filteredCategories = computed(() => {
   return filter(categories.value)
 })
 
+/** Strip down a node to only the fields we actually need for display and navigation.
+ * This significantly reduces localStorage size by removing unused metadata from Sefaria API.
+ */
+function minimizeNode (node: Record<string, unknown>): Record<string, unknown> {
+  const minimized: Record<string, unknown> = {}
+  
+  // Always include these if present (these are the only fields we actually use)
+  if (node.category !== undefined) minimized.category = node.category
+  if (node.heCategory !== undefined) minimized.heCategory = node.heCategory
+  if (node.title !== undefined) minimized.title = node.title
+  if (node.heTitle !== undefined) minimized.heTitle = node.heTitle
+  if (node.categories !== undefined) minimized.categories = node.categories
+  if (node.enShortDesc !== undefined) minimized.enShortDesc = node.enShortDesc
+  
+  // For categories, include contents for lazy loading (but minimize those recursively too)
+  if (node.contents && Array.isArray(node.contents)) {
+    minimized.contents = (node.contents as Record<string, unknown>[]).map(child => minimizeNode(child))
+  }
+  
+  return minimized
+}
+
+/** Compress data using lz-string if available, otherwise return as-is */
+function compressData (data: string): { compressed: string; method: 'lz-string' | 'none' } {
+  if (import.meta.client && typeof window !== 'undefined') {
+    // Try to use lz-string if available
+    try {
+      // @ts-expect-error - lz-string may not be installed yet
+      const LZString = window.LZString
+      if (LZString && typeof LZString.compress === 'function') {
+        const compressed = LZString.compress(data)
+        return { compressed, method: 'lz-string' }
+      }
+    } catch {
+      // lz-string not available, fall through to uncompressed
+    }
+  }
+  return { compressed: data, method: 'none' }
+}
+
+/** Decompress data using lz-string if it was compressed, otherwise return as-is */
+function decompressData (data: string, method: 'lz-string' | 'none' = 'none'): string {
+  if (method === 'lz-string' && import.meta.client && typeof window !== 'undefined') {
+    try {
+      // @ts-expect-error - lz-string may not be installed yet
+      const LZString = window.LZString
+      if (LZString && typeof LZString.decompress === 'function') {
+        return LZString.decompress(data) || data
+      }
+    } catch {
+      // If decompression fails, return original data
+      console.warn('[Categories] Failed to decompress, using original data')
+    }
+  }
+  return data
+}
+
 function processNode (node: Record<string, unknown>, parentPath: string): CategoryNode {
   const isCategory = !!(node.contents || node.category)
   return {
@@ -837,28 +934,85 @@ function processNode (node: Record<string, unknown>, parentPath: string): Catego
 
 async function fetchAndCacheFullIndex () {
   if (import.meta.client) {
-    const cached = localStorage.getItem('sefariaIndex')
-    const cachedTs = localStorage.getItem('sefariaIndexTimestamp')
-    if (cached && cachedTs) {
-      try {
-        fullIndex.value = JSON.parse(cached)
-        categories.value = (fullIndex.value as CategoryNode[]).map(cat => ({
-          ...cat,
-          type: 'category',
-          path: String(cat.category || cat.title),
-          loaded: false,
-          children: []
-        }))
-        return
-      } catch {
-        // ignore
+    try {
+      const cached = localStorage.getItem('sefariaIndex')
+      const cachedTs = localStorage.getItem('sefariaIndexTimestamp')
+      const cachedMethod = localStorage.getItem('sefariaIndexMethod') as 'lz-string' | 'none' | null
+      if (cached && cachedTs) {
+        try {
+          // Decompress if needed
+          const decompressed = decompressData(cached, cachedMethod || 'none')
+          const cachedData = JSON.parse(decompressed)
+          // Restore from minimized cache - we need to reconstruct the structure
+          fullIndex.value = cachedData
+          categories.value = (cachedData as CategoryNode[]).map(cat => ({
+            ...cat,
+            type: 'category',
+            path: String(cat.category || cat.title),
+            loaded: false,
+            children: []
+          }))
+          const method = cachedMethod || 'none'
+          const cachedSize = new Blob([cached]).size
+          const decompressedSize = new Blob([decompressed]).size
+          const ratio = method !== 'none' ? ((1 - cachedSize / decompressedSize) * 100).toFixed(1) : '0'
+          console.log(`[Categories] Loaded from cache (${method}, ${(cachedSize / 1024).toFixed(1)} KB → ${(decompressedSize / 1024).toFixed(1)} KB, ${ratio}% compression)`)
+          return
+        } catch (err) {
+          console.warn('[Categories] Failed to parse cached index:', err)
+          // Clear corrupted cache
+          try {
+            localStorage.removeItem('sefariaIndex')
+            localStorage.removeItem('sefariaIndexTimestamp')
+          } catch {
+            // ignore cleanup errors
+          }
+          // Continue to fetch from API
+        }
       }
+    } catch (storageErr) {
+      // localStorage might be disabled or inaccessible
+      console.warn('[Categories] Cannot access localStorage:', storageErr)
+      // Continue to fetch from API
     }
   }
   loading.value = true
+  
+  // Log browser information for debugging
+  if (import.meta.client) {
+    const userAgent = navigator.userAgent
+    const isSafari = /^((?!chrome|android).)*safari/i.test(userAgent)
+    const isChrome = /chrome/i.test(userAgent) && !/edg/i.test(userAgent)
+    console.log('[Categories] Browser info:', {
+      userAgent,
+      isSafari,
+      isChrome,
+      platform: navigator.platform,
+      cookieEnabled: navigator.cookieEnabled,
+      onLine: navigator.onLine,
+      localStorageAvailable: typeof Storage !== 'undefined',
+    })
+  }
+  
   try {
+    console.log('[Categories] Fetching index from API...')
+    const startTime = Date.now()
     const data = await $fetch<unknown[]>('/api/sefaria/index')
-    fullIndex.value = data
+    const duration = Date.now() - startTime
+    console.log(`[Categories] Successfully loaded ${Array.isArray(data) ? data.length : 'unknown'} categories in ${duration}ms`)
+    
+    // Minimize the data before storing to reduce size
+    const minimizedData = (data as Record<string, unknown>[]).map(node => minimizeNode(node))
+    
+    // Log size comparison
+    if (import.meta.client) {
+      const fullSize = new Blob([JSON.stringify(data)]).size
+      const minimizedSize = new Blob([JSON.stringify(minimizedData)]).size
+      const reduction = ((1 - minimizedSize / fullSize) * 100).toFixed(1)
+      console.log(`[Categories] Size reduction: ${(fullSize / (1024 * 1024)).toFixed(2)} MB → ${(minimizedSize / (1024 * 1024)).toFixed(2)} MB (${reduction}% smaller)`)
+    }
+    
+    fullIndex.value = data // Keep full data in memory for processing
     categories.value = (data as CategoryNode[]).map(cat => ({
       ...cat,
       type: 'category',
@@ -866,13 +1020,156 @@ async function fetchAndCacheFullIndex () {
       loaded: false,
       children: []
     }))
+    
+    // Cache to localStorage with compression and quota handling - use minimized data
     if (import.meta.client) {
-      localStorage.setItem('sefariaIndex', JSON.stringify(data))
-      localStorage.setItem('sefariaIndexTimestamp', new Date().toISOString())
+      try {
+        const jsonData = JSON.stringify(minimizedData)
+        const uncompressedSize = new Blob([jsonData]).size
+        
+        // Try to compress the data
+        const { compressed, method } = compressData(jsonData)
+        const compressedSize = new Blob([compressed]).size
+        const compressionRatio = method !== 'none' ? ((1 - compressedSize / uncompressedSize) * 100).toFixed(1) : '0'
+        
+        const dataSizeMB = (compressedSize / (1024 * 1024)).toFixed(2)
+        const uncompressedMB = (uncompressedSize / (1024 * 1024)).toFixed(2)
+        
+        if (method !== 'none') {
+          console.log(`[Categories] Compression: ${uncompressedMB} MB → ${dataSizeMB} MB (${compressionRatio}% reduction)`)
+        } else {
+          console.log(`[Categories] Cached data size: ${dataSizeMB} MB (uncompressed - install lz-string for compression)`)
+        }
+        
+        // Check if data is too large (Safari typically has ~5MB limit, Chrome ~10MB)
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
+        const maxSize = isSafari ? 4 * 1024 * 1024 : 9 * 1024 * 1024 // Leave some headroom
+        
+        if (compressedSize > maxSize) {
+          console.warn(`[Categories] Data too large (${dataSizeMB} MB) for localStorage. Skipping cache.`)
+          // Try to clear old cache and retry
+          try {
+            localStorage.removeItem('sefariaIndex')
+            localStorage.removeItem('sefariaIndexTimestamp')
+            localStorage.removeItem('sefariaIndexMethod')
+            // Clear other potentially large items
+            const keysToCheck = ['sefariaIndex', 'sefariaIndexTimestamp', 'sefariaIndexMethod']
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i)
+              if (key && !keysToCheck.includes(key)) {
+                // Keep other items, just log
+                console.log(`[Categories] Other localStorage key: ${key}`)
+              }
+            }
+            // Try again after clearing
+            if (compressedSize <= maxSize * 1.2) { // Allow slightly larger if we cleared space
+              localStorage.setItem('sefariaIndex', compressed)
+              localStorage.setItem('sefariaIndexTimestamp', new Date().toISOString())
+              localStorage.setItem('sefariaIndexMethod', method)
+              console.log(`[Categories] Cached to localStorage after cleanup (${method})`)
+            }
+          } catch (retryErr) {
+            console.warn('[Categories] Retry after cleanup also failed:', retryErr)
+          }
+        } else {
+          localStorage.setItem('sefariaIndex', compressed)
+          localStorage.setItem('sefariaIndexTimestamp', new Date().toISOString())
+          localStorage.setItem('sefariaIndexMethod', method)
+          console.log(`[Categories] Cached to localStorage (${method})`)
+        }
+      } catch (storageErr: unknown) {
+        const err = storageErr as { name?: string; message?: string; code?: number }
+        const isQuotaError = err.name === 'QuotaExceededError' || 
+                            err.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+                            err.code === 22
+        
+        if (isQuotaError) {
+          console.warn('[Categories] localStorage quota exceeded. Attempting to free space...')
+          try {
+            // Clear old cache
+            localStorage.removeItem('sefariaIndex')
+            localStorage.removeItem('sefariaIndexTimestamp')
+            localStorage.removeItem('sefariaIndexMethod')
+            
+            // Try to estimate and clear other items if needed
+            let totalSize = 0
+            const items: Array<{ key: string; size: number }> = []
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i)
+              if (key) {
+                const value = localStorage.getItem(key) || ''
+                const size = new Blob([value]).size
+                totalSize += size
+                items.push({ key, size })
+              }
+            }
+            console.log(`[Categories] Current localStorage usage: ${(totalSize / (1024 * 1024)).toFixed(2)} MB across ${items.length} items`)
+            
+            // Try one more time with compression
+            const jsonData = JSON.stringify(minimizedData)
+            const { compressed, method } = compressData(jsonData)
+            localStorage.setItem('sefariaIndex', compressed)
+            localStorage.setItem('sefariaIndexTimestamp', new Date().toISOString())
+            localStorage.setItem('sefariaIndexMethod', method)
+            console.log(`[Categories] Successfully cached after quota cleanup (${method})`)
+          } catch (cleanupErr) {
+            console.error('[Categories] Failed to cache even after cleanup. Categories will load from API each time.', cleanupErr)
+            // This is not a fatal error - the app can work without cache
+          }
+        } else {
+          console.error('[Categories] Failed to cache to localStorage (non-quota error):', storageErr)
+        }
+      }
     }
-  } catch {
-    errorMessage.value = 'Failed to load categories.'
-    showErrorDialog.value = true
+  } catch (err: unknown) {
+    // Enhanced error logging
+    const errorDetails: Record<string, unknown> = {
+      timestamp: new Date().toISOString(),
+      error: err instanceof Error ? err.message : String(err),
+      errorType: err instanceof Error ? err.constructor.name : typeof err,
+    }
+    
+    if (import.meta.client) {
+      errorDetails.browser = {
+        userAgent: navigator.userAgent,
+        platform: navigator.platform,
+        cookieEnabled: navigator.cookieEnabled,
+        onLine: navigator.onLine,
+        localStorageAvailable: typeof Storage !== 'undefined',
+      }
+      
+      // Check if it's a fetch error
+      if (err && typeof err === 'object') {
+        const fetchErr = err as { statusCode?: number; status?: number; statusText?: string; data?: unknown; response?: unknown }
+        errorDetails.statusCode = fetchErr.statusCode ?? fetchErr.status
+        errorDetails.statusText = fetchErr.statusText
+        errorDetails.responseData = fetchErr.data
+        errorDetails.response = fetchErr.response
+      }
+      
+      if (err instanceof Error) {
+        errorDetails.stack = err.stack
+      }
+    }
+    
+    console.error('[Categories] Failed to load categories:', errorDetails)
+    
+    // Only show error if we don't have any categories loaded
+    if (!categories.value || categories.value.length === 0) {
+      // Store error details for debugging
+      if (import.meta.client) {
+        const debugInfo = JSON.stringify(errorDetails, null, 2)
+        console.error('[Categories] Full error details:', debugInfo)
+        // Store in a ref for potential display in UI
+        ;(window as { categoryLoadError?: string }).categoryLoadError = debugInfo
+      }
+      
+      errorMessage.value = 'Sefaria Index Caching Issue: Unable to cache the category index. The program will still work but may be slightly slower.'
+      errorDetails.value = errorDetails
+      showErrorDialog.value = true
+    } else {
+      console.warn('[Categories] Error occurred but categories were already loaded. Not showing error dialog.')
+    }
   } finally {
     loading.value = false
   }
@@ -1200,6 +1497,7 @@ async function onBookSelect (event: { data: CategoryNode }) {
   complexSections.value = null
   sectionStack.value = []
   nextSectionRef.value = null
+  bookLoadAttempted.value = false // Reset flag before starting load
   const isComplex = await isComplexBook(data)
   isComplexBookFlag.value = isComplex
   if (isComplex) {
@@ -1207,6 +1505,7 @@ async function onBookSelect (event: { data: CategoryNode }) {
   } else {
     await fetchBookContent()
   }
+  bookLoadAttempted.value = true // Mark that we've attempted to load
 }
 
 function handleCloseBook () {
@@ -1224,6 +1523,7 @@ function handleCloseBook () {
       sectionStack.value = []
       isComplexBookFlag.value = false
       selectedBook.value = null
+      bookLoadAttempted.value = false
     }
   } else {
     selectedBook.value = null
@@ -1232,6 +1532,7 @@ function handleCloseBook () {
     first.value = 0
     currentChapter.value = null
     complexSections.value = null
+    bookLoadAttempted.value = false
   }
 }
 
@@ -1418,8 +1719,30 @@ async function fetchLatestModel () {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  // Load lz-string compression library if available
+  if (import.meta.client && typeof window !== 'undefined') {
+    try {
+      // Try to dynamically import lz-string
+      const LZString = await import('lz-string').then(m => m.default || m)
+      // @ts-expect-error - adding to window for global access
+      window.LZString = LZString
+      console.log('[Categories] Compression library loaded (lz-string)')
+    } catch (err) {
+      // lz-string not installed or failed to load - compression will be disabled
+      console.log('[Categories] Compression library not available. Install lz-string for better cache compression: npm install lz-string')
+    }
+  }
+  
   fetchAndCacheFullIndex()
   fetchLatestModel()
+  
+  // Expose debug helper to window for console access
+  if (import.meta.client) {
+    ;(window as { getCategoryLoadError?: () => string | undefined }).getCategoryLoadError = () => {
+      return (window as { categoryLoadError?: string }).categoryLoadError
+    }
+    console.log('[Categories] Debug helper available: window.getCategoryLoadError()')
+  }
 })
 </script>
