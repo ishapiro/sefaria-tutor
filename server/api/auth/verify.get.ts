@@ -19,8 +19,8 @@ export default defineEventHandler(async (event) => {
   }
   const currentTime = Math.floor(Date.now() / 1000)
 
-  // Find user with this token and ensure it's not expired
-  const user = await db.prepare('SELECT * FROM users WHERE verification_token = ? AND token_expires_at > ?')
+  // Find user with this token and ensure it's not expired (exclude deleted users)
+  const user = await db.prepare('SELECT * FROM users WHERE verification_token = ? AND token_expires_at > ? AND deleted_at IS NULL')
     .bind(token, currentTime)
     .first<any>()
 

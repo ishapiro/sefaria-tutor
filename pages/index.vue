@@ -407,7 +407,13 @@
       <div class="bg-white rounded-lg shadow-xl p-6 w-[90vw] max-h-[90vh] overflow-auto text-base">
         <div class="flex justify-between items-center mb-4">
           <h2 class="text-2xl font-bold">Translation</h2>
-          <button type="button" class="text-gray-500 hover:text-gray-700 text-2xl leading-none" @click="showTranslationDialog = false">×</button>
+          <button
+            type="button"
+            class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-gray-800"
+            @click="showTranslationDialog = false"
+          >
+            Close
+          </button>
         </div>
         <div v-if="translationLoading" class="text-center py-8 text-gray-500 text-lg">Loading translation…</div>
         <div v-else-if="translationError" class="text-center py-8 text-red-600 text-lg">{{ translationError }}</div>
@@ -513,6 +519,17 @@
                 {{ row.grammarNotes }}
               </div>
             </div>
+          </div>
+
+          <!-- Bottom close button -->
+          <div class="mt-6 flex justify-end">
+            <button
+              type="button"
+              class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-gray-800"
+              @click="showTranslationDialog = false"
+            >
+              Close
+            </button>
           </div>
         </div>
       </div>

@@ -125,6 +125,11 @@ Before testing locally, you need to:
    NUXT_OAUTH_GOOGLE_CLIENT_ID=your-google-client-id
    NUXT_OAUTH_GOOGLE_CLIENT_SECRET=your-google-client-secret
    ```
+   Optional (for CAPTCHA on registration):
+   ```
+   TURNSTILE_SECRET_KEY=your-turnstile-secret-key
+   NUXT_PUBLIC_TURNSTILE_SITE_KEY=your-turnstile-site-key
+   ```
 
 2. **Initialize the local D1 database** by running migrations:
    ```bash
@@ -134,6 +139,7 @@ Before testing locally, you need to:
    npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0003_add_prompt_hash.sql
    npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0004_add_malformed_stats.sql
    npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0005_auth_schema.sql
+   npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0006_add_user_soft_delete.sql
    ```
 
    **Note:** The local D1 database is stored in `.wrangler/state/v3/d1/`. If you encounter duplicate column errors, you can reset the local database by deleting this directory and re-running the migrations.
@@ -171,6 +177,10 @@ Before deploying, make sure the Worker has the required **secrets/variables** se
 - `NUXT_PUBLIC_API_AUTH_TOKEN` (should match `API_AUTH_TOKEN`)
 - `NUXT_OAUTH_GOOGLE_CLIENT_ID` (required for Google login)
 - `NUXT_OAUTH_GOOGLE_CLIENT_SECRET` (required for Google login)
+- `TURNSTILE_SECRET_KEY` (required for CAPTCHA verification on registration)
+- `NUXT_PUBLIC_TURNSTILE_SITE_KEY` (required for CAPTCHA widget on registration page)
+
+**Note:** To get Turnstile keys, visit [Cloudflare Dashboard → Turnstile](https://dash.cloudflare.com/?to=/:account/turnstile) and create a new site. Use the Site Key as `NUXT_PUBLIC_TURNSTILE_SITE_KEY` and the Secret Key as `TURNSTILE_SECRET_KEY`.
 
 ## Source & license
 

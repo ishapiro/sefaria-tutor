@@ -33,10 +33,21 @@
           </div>
           <div v-else>
             <!-- User List -->
-            <div class="mb-4">
-              <label for="user-select" class="block text-sm font-medium text-gray-700 mb-2">
-                Select User to Edit:
-              </label>
+            <div class="mb-4 space-y-3">
+              <div class="flex items-center gap-3">
+                <label for="user-select" class="block text-sm font-medium text-gray-700">
+                  Select User to Edit:
+                </label>
+                <label class="flex items-center gap-2 text-sm">
+                  <input
+                    v-model="showDeleted"
+                    type="checkbox"
+                    class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    @change="loadUsers"
+                  />
+                  <span>Show deleted users</span>
+                </label>
+              </div>
               <select
                 id="user-select"
                 v-model="selectedUserId"
@@ -46,13 +57,17 @@
                 <option value="">-- Select a user --</option>
                 <option v-for="user in users" :key="user.id" :value="user.id">
                   {{ user.name || user.email }} ({{ user.email }}) - {{ user.role }}
+                  <span v-if="user.deleted_at">[DELETED]</span>
                 </option>
               </select>
             </div>
 
             <!-- User Edit Form -->
             <div v-if="selectedUser" class="bg-gray-50 rounded-lg p-4 space-y-4">
-              <h3 class="text-lg font-semibold text-gray-800">Edit User: {{ selectedUser.email }}</h3>
+              <h3 class="text-lg font-semibold text-gray-800">
+                Edit User: {{ selectedUser.email }}
+                <span v-if="selectedUser.deleted_at" class="text-red-600 text-sm font-normal">(Deleted)</span>
+              </h3>
               
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
@@ -96,14 +111,46 @@
                 </label>
               </div>
 
-              <div class="flex gap-3">
+              <div v-if="selectedUser.deleted_at" class="bg-red-50 border border-red-200 rounded-lg p-3 text-red-700">
+                <p class="font-semibold">⚠️ This user is deleted</p>
+                <p class="text-sm">Deleted on: {{ new Date(selectedUser.deleted_at * 1000).toLocaleString() }}</p>
+              </div>
+
+              <div class="flex gap-3 flex-wrap">
                 <button
                   type="button"
                   @click="saveUser"
-                  :disabled="savingUser"
+                  :disabled="savingUser || selectedUser.deleted_at"
                   class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
                 >
                   {{ savingUser ? 'Saving...' : 'Save Changes' }}
+                </button>
+                <button
+                  v-if="!selectedUser.deleted_at"
+                  type="button"
+                  @click="deleteUser"
+                  :disabled="deletingUser"
+                  class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+                >
+                  {{ deletingUser ? 'Deleting...' : 'Delete User' }}
+                </button>
+                <button
+                  v-if="selectedUser.deleted_at"
+                  type="button"
+                  @click="restoreUser"
+                  :disabled="restoringUser"
+                  class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                >
+                  {{ restoringUser ? 'Restoring...' : 'Restore User' }}
+                </button>
+                <button
+                  v-if="selectedUser.deleted_at"
+                  type="button"
+                  @click="purgeUser"
+                  :disabled="purgingUser"
+                  class="px-4 py-2 bg-red-800 text-white rounded-lg hover:bg-red-900 disabled:opacity-50 transition-colors"
+                >
+                  {{ purgingUser ? 'Purging...' : 'Purge Permanently' }}
                 </button>
                 <button
                   type="button"
@@ -151,16 +198,18 @@ watchEffect(() => {
 })
 
 const showUserManagement = ref(false)
-const users = ref<Array<{ id: string; email: string; name: string | null; role: string }>>([])
+const users = ref<Array<{ id: string; email: string; name: string | null; role: string; deleted_at: number | null }>>([])
 const usersLoading = ref(false)
 const usersError = ref('')
 const selectedUserId = ref('')
+const showDeleted = ref(false)
 const selectedUser = ref<{
   id: string
   email: string
   name: string | null
   role: string
   is_verified: boolean
+  deleted_at: number | null
 } | null>(null)
 const editingUser = ref<{
   name: string | null
@@ -169,6 +218,9 @@ const editingUser = ref<{
   is_verified: boolean
 } | null>(null)
 const savingUser = ref(false)
+const deletingUser = ref(false)
+const restoringUser = ref(false)
+const purgingUser = ref(false)
 const saveMessage = ref('')
 const saveMessageType = ref<'success' | 'error'>('success')
 
@@ -176,7 +228,8 @@ const loadUsers = async () => {
   usersLoading.value = true
   usersError.value = ''
   try {
-    users.value = await $fetch('/api/admin/users')
+    const url = showDeleted.value ? '/api/admin/users?includeDeleted=true' : '/api/admin/users'
+    users.value = await $fetch(url)
   } catch (err: any) {
     usersError.value = err.data?.message || 'Failed to load users'
   } finally {
@@ -229,6 +282,95 @@ const saveUser = async () => {
     saveMessageType.value = 'error'
   } finally {
     savingUser.value = false
+  }
+}
+
+const deleteUser = async () => {
+  if (!selectedUser.value) return
+  
+  if (!confirm(`Are you sure you want to delete user "${selectedUser.value.email}"? This is a soft delete and can be reversed.`)) {
+    return
+  }
+
+  deletingUser.value = true
+  saveMessage.value = ''
+  
+  try {
+    await $fetch(`/api/admin/users/${selectedUser.value.id}`, {
+      method: 'DELETE'
+    })
+    
+    saveMessage.value = 'User deleted successfully'
+    saveMessageType.value = 'success'
+    
+    // Reload users list and selected user
+    await loadUsers()
+    await loadUserDetails()
+  } catch (err: any) {
+    saveMessage.value = err.data?.message || 'Failed to delete user'
+    saveMessageType.value = 'error'
+  } finally {
+    deletingUser.value = false
+  }
+}
+
+const restoreUser = async () => {
+  if (!selectedUser.value) return
+  
+  restoringUser.value = true
+  saveMessage.value = ''
+  
+  try {
+    await $fetch(`/api/admin/users/${selectedUser.value.id}/restore`, {
+      method: 'POST'
+    })
+    
+    saveMessage.value = 'User restored successfully'
+    saveMessageType.value = 'success'
+    
+    // Reload users list and selected user
+    await loadUsers()
+    await loadUserDetails()
+  } catch (err: any) {
+    saveMessage.value = err.data?.message || 'Failed to restore user'
+    saveMessageType.value = 'error'
+  } finally {
+    restoringUser.value = false
+  }
+}
+
+const purgeUser = async () => {
+  if (!selectedUser.value) return
+  
+  if (!confirm(`⚠️ WARNING: This will PERMANENTLY delete user "${selectedUser.value.email}" from the database. This action cannot be undone!\n\nAre you absolutely sure?`)) {
+    return
+  }
+
+  if (!confirm(`Final confirmation: Permanently delete "${selectedUser.value.email}"?`)) {
+    return
+  }
+
+  purgingUser.value = true
+  saveMessage.value = ''
+  
+  try {
+    await $fetch(`/api/admin/users/${selectedUser.value.id}/purge`, {
+      method: 'DELETE'
+    })
+    
+    saveMessage.value = 'User purged permanently'
+    saveMessageType.value = 'success'
+    
+    // Clear selection and reload users list
+    selectedUserId.value = ''
+    selectedUser.value = null
+    editingUser.value = null
+    await loadUsers()
+  } catch (err: any) {
+    saveMessage.value = err.data?.message || 'Failed to purge user'
+    saveMessageType.value = 'error'
+  } finally {
+    purgingUser.value = false
   }
 }
 

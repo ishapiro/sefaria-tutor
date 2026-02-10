@@ -1,3 +1,5 @@
+import { verifyPasswordWorkers } from '../../utils/password'
+
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
   const { email, password } = body
@@ -18,8 +20,8 @@ export default defineEventHandler(async (event) => {
     })
   }
   
-  // Find user by email
-  const user = await db.prepare('SELECT * FROM users WHERE email = ?')
+  // Find user by email (exclude deleted users)
+  const user = await db.prepare('SELECT * FROM users WHERE email = ? AND deleted_at IS NULL')
     .bind(email)
     .first<any>()
 
@@ -31,7 +33,7 @@ export default defineEventHandler(async (event) => {
   }
 
   // Verify password
-  const isValid = await verifyPassword(user.password_hash, password)
+  const isValid = await verifyPasswordWorkers(user.password_hash, password)
   if (!isValid) {
     throw createError({
       statusCode: 401,

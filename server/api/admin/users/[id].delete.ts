@@ -24,9 +24,10 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const user = await db.prepare('SELECT id, email, name, role, is_verified, deleted_at FROM users WHERE id = ?')
+    // Check if user exists and is not already deleted
+    const user = await db.prepare('SELECT id, deleted_at FROM users WHERE id = ?')
       .bind(userId)
-      .first<{ id: string; email: string; name: string | null; role: string; is_verified: boolean; deleted_at: number | null }>()
+      .first<{ id: string; deleted_at: number | null }>()
 
     if (!user) {
       throw createError({
@@ -35,14 +36,31 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    return user
+    if (user.deleted_at) {
+      throw createError({
+        statusCode: 400,
+        message: 'User is already deleted'
+      })
+    }
+
+    // Soft delete: set deleted_at timestamp
+    const deletedAt = Math.floor(Date.now() / 1000)
+    await db.prepare('UPDATE users SET deleted_at = ? WHERE id = ?')
+      .bind(deletedAt, userId)
+      .run()
+
+    return {
+      message: 'User deleted successfully',
+      deleted_at: deletedAt
+    }
   } catch (err: any) {
     if (err.statusCode) {
       throw err
     }
     throw createError({
       statusCode: 500,
-      message: err.message || 'Failed to fetch user'
+      message: err.message || 'Failed to delete user'
     })
   }
 })
+

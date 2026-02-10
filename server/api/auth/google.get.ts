@@ -10,8 +10,8 @@ export default defineOAuthGoogleEventHandler({
         throw new Error('Database not available. Make sure D1 database is configured and migrations are run.')
       }
       
-      // Check if user exists in D1
-      let existingUser = await db.prepare('SELECT * FROM users WHERE id = ? OR email = ?')
+      // Check if user exists in D1 (exclude deleted users for login, but allow checking for restoration)
+      let existingUser = await db.prepare('SELECT * FROM users WHERE (id = ? OR email = ?) AND deleted_at IS NULL')
         .bind(googleUser.sub, googleUser.email)
         .first<any>()
 
@@ -34,8 +34,8 @@ export default defineOAuthGoogleEventHandler({
         }
       }
 
-      // Always fetch the latest user data from database to ensure we have the correct role
-      const user = await db.prepare('SELECT * FROM users WHERE id = ?')
+      // Always fetch the latest user data from database to ensure we have the correct role (exclude deleted)
+      const user = await db.prepare('SELECT * FROM users WHERE id = ? AND deleted_at IS NULL')
         .bind(googleUser.sub)
         .first<any>()
 

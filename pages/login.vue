@@ -12,12 +12,19 @@ watchEffect(() => {
 
 const email = ref('')
 const password = ref('')
+const passwordConfirm = ref('')
+const name = ref('')
 const isRegistering = ref(false)
 const message = ref('')
 const error = ref('')
+const showSuccessDialog = ref(false)
+const errorDebug = ref<any | null>(null)
+const showErrorDebug = ref(false)
 const isLoading = ref(false)
 const authCapabilities = ref<{ googleEnabled: boolean; emailEnabled: boolean } | null>(null)
 const capabilitiesError = ref('')
+const turnstileToken = ref('')
+const turnstileWidgetId = ref<string | null>(null)
 
 onMounted(async () => {
   try {
@@ -27,7 +34,81 @@ onMounted(async () => {
     capabilitiesError.value = 'Could not determine available login methods.'
     authCapabilities.value = { googleEnabled: true, emailEnabled: true }
   }
+  
+  // Load Cloudflare Turnstile script if required
+  if (isRegistering.value && turnstileRequired.value && import.meta.client) {
+    loadTurnstile()
+  }
 })
+
+watch(isRegistering, (newVal) => {
+  if (newVal && import.meta.client) {
+    // Reset form when switching to registration
+    password.value = ''
+    passwordConfirm.value = ''
+    name.value = ''
+    turnstileToken.value = ''
+    if (turnstileRequired.value) {
+      nextTick(() => {
+        loadTurnstile()
+      })
+    }
+  } else {
+    // Clean up Turnstile when switching away
+    if (turnstileWidgetId.value && (window as any).turnstile) {
+      try {
+        (window as any).turnstile.remove(turnstileWidgetId.value)
+      } catch {}
+      turnstileWidgetId.value = null
+    }
+  }
+})
+
+const loadTurnstile = () => {
+  if ((window as any).turnstile) {
+    renderTurnstile()
+    return
+  }
+  
+  const script = document.createElement('script')
+  script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js'
+  script.async = true
+  script.defer = true
+  script.onload = () => {
+    renderTurnstile()
+  }
+  document.head.appendChild(script)
+}
+
+const renderTurnstile = () => {
+  const config = useRuntimeConfig()
+  const siteKey = config.public.turnstileSiteKey || ''
+  
+  if (!siteKey || !(window as any).turnstile) return
+  
+  // Remove existing widget if any
+  const container = document.getElementById('turnstile-widget')
+  if (container && turnstileWidgetId.value) {
+    try {
+      (window as any).turnstile.remove(turnstileWidgetId.value)
+    } catch {}
+  }
+  
+  if (container) {
+    turnstileWidgetId.value = (window as any).turnstile.render(container, {
+      sitekey: siteKey,
+      callback: (token: string) => {
+        turnstileToken.value = token
+      },
+      'error-callback': () => {
+        turnstileToken.value = ''
+      },
+      'expired-callback': () => {
+        turnstileToken.value = ''
+      }
+    })
+  }
+}
 
 const googleLoginError = computed(() => {
   if (route.query.error !== 'google_failed') return ''
@@ -47,9 +128,78 @@ const googleLoginError = computed(() => {
 const googleEnabled = computed(() => authCapabilities.value?.googleEnabled !== false)
 const emailEnabled = computed(() => authCapabilities.value?.emailEnabled !== false)
 
+// Email validation
+const emailError = computed(() => {
+  if (!isRegistering.value || !email.value) return ''
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(email.value)) {
+    return 'Please enter a valid email address'
+  }
+  return ''
+})
+
+// Password complexity checker
+const passwordStrength = computed(() => {
+  if (!password.value) return { score: 0, label: '', color: '' }
+  
+  let score = 0
+  const checks = {
+    length: password.value.length >= 8,
+    lowercase: /[a-z]/.test(password.value),
+    uppercase: /[A-Z]/.test(password.value),
+    number: /[0-9]/.test(password.value),
+    special: /[^a-zA-Z0-9]/.test(password.value),
+    long: password.value.length >= 12
+  }
+  
+  if (checks.length) score++
+  if (checks.lowercase) score++
+  if (checks.uppercase) score++
+  if (checks.number) score++
+  if (checks.special) score++
+  if (checks.long) score++
+  
+  if (score <= 2) return { score, label: 'Weak', color: 'red' }
+  if (score <= 4) return { score, label: 'Fair', color: 'yellow' }
+  if (score <= 5) return { score, label: 'Good', color: 'blue' }
+  return { score, label: 'Strong', color: 'green' }
+})
+
+const passwordMatch = computed(() => {
+  if (!isRegistering.value) return true
+  if (!password.value || !passwordConfirm.value) return true
+  return password.value === passwordConfirm.value
+})
+
+const turnstileRequired = computed(() => {
+  if (!isRegistering.value) return false
+  const config = useRuntimeConfig()
+  return Boolean(config.public.turnstileSiteKey)
+})
+
+const canSubmit = computed(() => {
+  if (!isRegistering.value) {
+    return email.value && password.value && !emailError.value
+  }
+  const baseChecks = email.value && 
+                     password.value && 
+                     passwordConfirm.value &&
+                     passwordMatch.value &&
+                     !emailError.value &&
+                     passwordStrength.value.score >= 3
+  
+  // Turnstile is only required if site key is configured
+  if (turnstileRequired.value) {
+    return baseChecks && turnstileToken.value
+  }
+  return baseChecks
+})
+
 const handleAuth = async () => {
   error.value = ''
   message.value = ''
+  errorDebug.value = null
+  showErrorDebug.value = false
   isLoading.value = true
   
   try {
@@ -58,11 +208,33 @@ const handleAuth = async () => {
       return
     }
     if (isRegistering.value) {
+      if (!canSubmit.value) {
+        error.value = 'Please complete all required fields correctly'
+        return
+      }
+      
       const response = await $fetch('/api/auth/register', {
         method: 'POST',
-        body: { email: email.value, password: password.value }
+        body: { 
+          email: email.value, 
+          password: password.value,
+          name: name.value || email.value.split('@')[0],
+          turnstileToken: turnstileToken.value
+        }
       })
       message.value = response.message
+      showSuccessDialog.value = true
+      // Reset form on success
+      email.value = ''
+      password.value = ''
+      passwordConfirm.value = ''
+      name.value = ''
+      turnstileToken.value = ''
+      if (turnstileWidgetId.value && (window as any).turnstile) {
+        try {
+          (window as any).turnstile.reset(turnstileWidgetId.value)
+        } catch {}
+      }
     } else {
       await $fetch('/api/auth/login', {
         method: 'POST',
@@ -73,6 +245,7 @@ const handleAuth = async () => {
     }
   } catch (err: any) {
     error.value = err.data?.message || 'An error occurred'
+    errorDebug.value = err.data?.data?.debug || null
   } finally {
     isLoading.value = false
   }
@@ -94,7 +267,7 @@ const handleAuth = async () => {
         </p>
       </div>
 
-      <div v-if="message" class="bg-green-50 text-green-700 p-3 rounded-md text-sm">
+      <div v-if="message && !showSuccessDialog" class="bg-green-50 text-green-700 p-3 rounded-md text-sm">
         {{ message }}
       </div>
       
@@ -107,28 +280,143 @@ const handleAuth = async () => {
       </div>
 
       <div v-if="error" class="bg-red-50 text-red-700 p-3 rounded-md text-sm">
-        {{ error }}
+        <div>{{ error }}</div>
+        <div v-if="errorDebug" class="mt-2 text-xs text-red-800">
+          <button
+            type="button"
+            class="underline hover:text-red-900"
+            @click="showErrorDebug = !showErrorDebug"
+          >
+            {{ showErrorDebug ? 'Hide technical details' : 'Show technical details for support' }}
+          </button>
+          <div
+            v-if="showErrorDebug"
+            class="mt-2 bg-red-50 border border-dashed border-red-300 rounded p-2 font-mono whitespace-pre-wrap break-all text-[11px] text-red-900"
+          >
+            <p><strong>Provider:</strong> {{ errorDebug.provider || 'email-service' }}</p>
+            <p v-if="errorDebug.statusCode"><strong>Status:</strong> {{ errorDebug.statusCode }}</p>
+            <p v-if="errorDebug.name"><strong>Type:</strong> {{ errorDebug.name }}</p>
+            <p v-if="errorDebug.message"><strong>Details:</strong> {{ errorDebug.message }}</p>
+          </div>
+        </div>
       </div>
 
       <form v-if="emailEnabled" class="mt-8 space-y-6" @submit.prevent="handleAuth">
-        <div class="rounded-md shadow-sm -space-y-px">
+        <div class="space-y-4">
+          <!-- Email field -->
           <div>
-            <label for="email-address" class="sr-only">Email address</label>
-            <input v-model="email" id="email-address" name="email" type="email" autocomplete="email" required
-              class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-              placeholder="Email address">
+            <label for="email-address" class="block text-sm font-medium text-gray-700 mb-1">
+              Email address
+            </label>
+            <input 
+              v-model="email" 
+              id="email-address" 
+              name="email" 
+              type="email" 
+              autocomplete="email" 
+              required
+              :class="[
+                'appearance-none relative block w-full px-3 py-2 border rounded-md placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm',
+                emailError ? 'border-red-300' : 'border-gray-300'
+              ]"
+              placeholder="your.email@example.com"
+            >
+            <p v-if="emailError" class="mt-1 text-sm text-red-600">{{ emailError }}</p>
           </div>
+
+          <!-- Name field (registration only) -->
+          <div v-if="isRegistering">
+            <label for="name" class="block text-sm font-medium text-gray-700 mb-1">
+              Name (optional)
+            </label>
+            <input 
+              v-model="name" 
+              id="name" 
+              name="name" 
+              type="text" 
+              autocomplete="name"
+              class="appearance-none relative block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              placeholder="Your name"
+            >
+          </div>
+
+          <!-- Password field -->
           <div>
-            <label for="password" class="sr-only">Password</label>
-            <input v-model="password" id="password" name="password" type="password" autocomplete="current-password" required
-              class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-              placeholder="Password">
+            <label for="password" class="block text-sm font-medium text-gray-700 mb-1">
+              Password
+            </label>
+            <input 
+              v-model="password" 
+              id="password" 
+              name="password" 
+              type="password" 
+              :autocomplete="isRegistering ? 'new-password' : 'current-password'" 
+              required
+              class="appearance-none relative block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              :placeholder="isRegistering ? 'Create a password' : 'Password'"
+            >
+            <!-- Password strength indicator (registration only) -->
+            <div v-if="isRegistering && password" class="mt-2">
+              <div class="flex items-center gap-2 mb-1">
+                <div class="flex-1 bg-gray-200 rounded-full h-2">
+                  <div 
+                    class="h-2 rounded-full transition-all"
+                    :class="{
+                      'bg-red-500': passwordStrength.color === 'red',
+                      'bg-yellow-500': passwordStrength.color === 'yellow',
+                      'bg-blue-500': passwordStrength.color === 'blue',
+                      'bg-green-500': passwordStrength.color === 'green'
+                    }"
+                    :style="{ width: `${(passwordStrength.score / 6) * 100}%` }"
+                  ></div>
+                </div>
+                <span class="text-xs font-medium" :class="{
+                  'text-red-600': passwordStrength.color === 'red',
+                  'text-yellow-600': passwordStrength.color === 'yellow',
+                  'text-blue-600': passwordStrength.color === 'blue',
+                  'text-green-600': passwordStrength.color === 'green'
+                }">
+                  {{ passwordStrength.label }}
+                </span>
+              </div>
+              <p v-if="passwordStrength.score < 3" class="text-xs text-red-600">
+                Password must be at least 8 characters with uppercase, lowercase, and numbers
+              </p>
+            </div>
           </div>
+
+          <!-- Password confirmation (registration only) -->
+          <div v-if="isRegistering">
+            <label for="password-confirm" class="block text-sm font-medium text-gray-700 mb-1">
+              Confirm Password
+            </label>
+            <input 
+              v-model="passwordConfirm" 
+              id="password-confirm" 
+              name="password-confirm" 
+              type="password" 
+              autocomplete="new-password" 
+              required
+              :class="[
+                'appearance-none relative block w-full px-3 py-2 border rounded-md placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm',
+                passwordConfirm && !passwordMatch ? 'border-red-300' : 'border-gray-300'
+              ]"
+              placeholder="Re-enter your password"
+            >
+            <p v-if="passwordConfirm && !passwordMatch" class="mt-1 text-sm text-red-600">
+              Passwords do not match
+            </p>
+          </div>
+
+          <!-- Cloudflare Turnstile CAPTCHA (registration only, if configured) -->
+          <div v-if="isRegistering && turnstileRequired" id="turnstile-widget" class="flex justify-center"></div>
         </div>
 
         <div>
-          <button type="submit" :disabled="isLoading"
-            class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50">
+          <button 
+            type="submit" 
+            :disabled="isLoading || (isRegistering && !canSubmit)"
+            class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed">
             {{ isLoading ? 'Processing...' : (isRegistering ? 'Register' : 'Sign in') }}
           </button>
         </div>
@@ -156,6 +444,31 @@ const handleAuth = async () => {
           <div v-else class="text-sm text-gray-600 text-center">
             Google login is not enabled on this server.
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Registration success dialog -->
+    <div
+      v-if="showSuccessDialog"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+    >
+      <div class="bg-white rounded-xl shadow-2xl border border-green-100 max-w-md w-full p-6 space-y-4">
+        <h3 class="text-lg font-semibold text-gray-900">Registration successful</h3>
+        <p class="text-sm text-gray-700">
+          {{ message || 'Your account has been created. Please check your email for verification instructions.' }}
+        </p>
+        <p class="text-xs text-gray-500">
+          After verifying your email, you can sign in and start using advanceed Sefaria Tutor features.
+        </p>
+        <div class="mt-4 flex justify-end">
+          <button
+            type="button"
+            class="px-4 py-2 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            @click="$router.push('/')"
+          >
+            OK
+          </button>
         </div>
       </div>
     </div>
