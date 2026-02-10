@@ -1,14 +1,13 @@
-import { createError } from 'h3'
+import type { H3Event } from 'h3'
+import { createError, getHeader } from 'h3'
 import { useRuntimeConfig } from '#imports'
 
-export async function sendVerificationEmail(email: string, token: string) {
+export async function sendVerificationEmail(event: H3Event, email: string, token: string) {
   const config = useRuntimeConfig()
   const env = (globalThis as unknown as { process?: { env?: Record<string, string> } }).process?.env
   // Prefer runtimeConfig, then env vars (both Cloudflare-style and Nuxt-style)
   const resendApiKey =
-    (config as any).resendApiKey ||
-    env?.NUXT_RESEND_API_KEY ||
-    env?.RESEND_API_KEY
+    (config as any).resendApiKey || env?.NUXT_RESEND_API_KEY || env?.RESEND_API_KEY
   
   if (!resendApiKey) {
     console.error('RESEND_API_KEY / NUXT_RESEND_API_KEY is not set. Cannot send verification email.')
@@ -24,7 +23,26 @@ export async function sendVerificationEmail(email: string, token: string) {
     })
   }
 
-  const siteUrl = ((config as any).public?.siteUrl as string) || env?.NUXT_PUBLIC_SITE_URL || 'http://localhost:8787'
+  // Prefer explicit config/env, but fall back to the current request host so emails from production
+  // use the live domain instead of localhost.
+  let siteUrl =
+    ((config as any).public?.siteUrl as string | undefined) ||
+    env?.NUXT_PUBLIC_SITE_URL
+
+  if (!siteUrl) {
+    const host =
+      getHeader(event, 'x-forwarded-host') ||
+      getHeader(event, 'host') ||
+      'localhost:8787'
+
+    const protoHeader = getHeader(event, 'x-forwarded-proto')
+    const proto =
+      protoHeader ||
+      (host.startsWith('localhost') || host.startsWith('127.0.0.1') ? 'http' : 'https')
+
+    siteUrl = `${proto}://${host}`
+  }
+
   const verificationUrl = `${siteUrl.replace(/\/$/, '')}/api/auth/verify?token=${encodeURIComponent(token)}`
 
   const response = await fetch('https://api.resend.com/emails', {

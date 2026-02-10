@@ -25,6 +25,7 @@ const authCapabilities = ref<{ googleEnabled: boolean; emailEnabled: boolean } |
 const capabilitiesError = ref('')
 const turnstileToken = ref('')
 const turnstileWidgetId = ref<string | null>(null)
+const emailTaken = ref(false)
 
 onMounted(async () => {
   try {
@@ -135,6 +136,9 @@ const emailError = computed(() => {
   if (!emailRegex.test(email.value)) {
     return 'Please enter a valid email address'
   }
+  if (emailTaken.value) {
+    return 'An account with this email already exists. Please sign in or use a different email address.'
+  }
   return ''
 })
 
@@ -186,7 +190,8 @@ const canSubmit = computed(() => {
                      passwordConfirm.value &&
                      passwordMatch.value &&
                      !emailError.value &&
-                     passwordStrength.value.score >= 3
+                     passwordStrength.value.score >= 3 &&
+                     !emailTaken.value
   
   // Turnstile is only required if site key is configured
   if (turnstileRequired.value) {
@@ -246,8 +251,44 @@ const handleAuth = async () => {
   } catch (err: any) {
     error.value = err.data?.message || 'An error occurred'
     errorDebug.value = err.data?.data?.debug || null
+    // Reset Turnstile widget on registration errors so user can get a fresh token
+    if (isRegistering.value && turnstileWidgetId.value && (window as any).turnstile) {
+      try {
+        (window as any).turnstile.reset(turnstileWidgetId.value)
+        turnstileToken.value = ''
+      } catch {}
+    }
   } finally {
     isLoading.value = false
+  }
+}
+
+const onEmailBlur = async () => {
+  if (!isRegistering.value || !email.value) {
+    emailTaken.value = false
+    return
+  }
+
+  // Do not check if basic format is invalid
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(email.value)) {
+    emailTaken.value = false
+    return
+  }
+
+  try {
+    const result = await $fetch<{ exists: boolean }>(`/api/auth/email-exists?email=${encodeURIComponent(email.value)}`)
+    emailTaken.value = result.exists
+
+    if (result.exists && turnstileWidgetId.value && (window as any).turnstile) {
+      try {
+        (window as any).turnstile.reset(turnstileWidgetId.value)
+        turnstileToken.value = ''
+      } catch {}
+    }
+  } catch {
+    // On failure, don't block the user; just clear the flag.
+    emailTaken.value = false
   }
 }
 </script>
@@ -320,6 +361,7 @@ const handleAuth = async () => {
                 emailError ? 'border-red-300' : 'border-gray-300'
               ]"
               placeholder="your.email@example.com"
+              @blur="onEmailBlur"
             >
             <p v-if="emailError" class="mt-1 text-sm text-red-600">{{ emailError }}</p>
           </div>

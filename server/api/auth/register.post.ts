@@ -92,7 +92,7 @@ export default defineEventHandler(async (event) => {
     .run()
 
   // Send verification email
-  await sendVerificationEmail(email, verificationToken)
+  await sendVerificationEmail(event, email, verificationToken)
 
   return {
     message: 'Registration successful. Please check your email for verification instructions.'
