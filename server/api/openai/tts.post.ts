@@ -116,9 +116,11 @@ export default defineEventHandler(async (event) => {
       },
       body: {
         model: 'gpt-4o-mini-tts',
-        voice: 'alloy',
+        // Use a deeper, more masculine voice for all pronunciations
+        voice: 'onyx',
         input: textForTts,
-        instructions: 'Pronounce this word in Hebrew. Speak clearly and naturally.',
+        instructions:
+          'Read the entire text in Hebrew as natural, fluent speech in a male-sounding voice. Do not skip, shorten, or summarize any words—pronounce every word in order. Use a slightly faster than normal conversational pace while remaining clear.',
       },
       responseType: 'arrayBuffer',
     })

@@ -11,12 +11,19 @@ const displayName = computed(() => {
   <div class="min-h-screen bg-gray-50 select-none">
     <header class="bg-white shadow-sm border-b px-4 py-3 flex justify-between items-center">
       <div class="flex items-center gap-3">
-        <img
-          src="/cogitations%20logo%20only.svg"
-          alt="Cogitations logo"
-          class="h-10 w-auto md:h-12"
-          loading="lazy"
-        />
+        <a
+          href="https://cogitations.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center"
+        >
+          <img
+            src="/cogitations-logo-only.svg"
+            alt="Cogitations logo"
+            class="h-10 w-auto md:h-12"
+            loading="lazy"
+          />
+        </a>
         <NuxtLink
           to="/"
           class="text-2xl font-semibold tracking-tight whitespace-nowrap text-[#003c71]"
