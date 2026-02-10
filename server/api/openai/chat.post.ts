@@ -1,8 +1,8 @@
 import { createError, defineEventHandler, getHeader, readBody } from 'h3'
 import { useRuntimeConfig } from 'nitropack/runtime/internal/config'
 import { $fetch } from 'ofetch'
-import { normalizePhrase, computePhraseHash, computeHash, CURRENT_CACHE_VERSION, CACHE_TTL_SECONDS, isValidTranslationStructure } from '../../utils/cache'
-import { validateAuth } from '../../utils/auth'
+import { normalizePhrase, computePhraseHash, computeHash, CURRENT_CACHE_VERSION, CACHE_TTL_SECONDS, isValidTranslationStructure } from '~/server/utils/cache'
+import { validateAuth } from '~/server/utils/auth'
 
 /**
  * ATTENTION: If you modify the JSON structure (fields) in the SYSTEM_PROMPT below,

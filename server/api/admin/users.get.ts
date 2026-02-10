@@ -1,5 +1,5 @@
 import { defineEventHandler, createError, getQuery } from 'h3'
-import { requireUserRole } from '../../utils/auth'
+import { requireUserRole } from '~/server/utils/auth'
 
 export default defineEventHandler(async (event) => {
   // Require admin role

@@ -14,6 +14,10 @@ binding = "DB"
 database_name = "sefaria-tutor-db"
 database_id = "c89e48ee-42ac-46c3-8950-3f71e4c947c2"
 
+[[r2_buckets]]
+binding = "PRONUNCIATION_CACHE"
+bucket_name = "sefaria-tutor-pronunciations"
+
 [vars]
 NUXT_PUBLIC_TURNSTILE_SITE_KEY = "0x4AAAAAACZzAyzFuLdSmQhT"
 

@@ -1,5 +1,5 @@
 import { defineEventHandler, createError, getQuery } from 'h3'
-import { validateAuth } from '../../utils/auth'
+import { validateAuth } from '~/server/utils/auth'
 
 export default defineEventHandler(async (event) => {
   validateAuth(event)
