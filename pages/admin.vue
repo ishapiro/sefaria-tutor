@@ -34,6 +34,26 @@
           <div v-else>
             <!-- User List -->
             <div class="mb-4 space-y-3">
+              <!-- Search above dropdown, left-aligned -->
+              <div class="w-full sm:w-72">
+                <label for="user-search" class="block text-sm font-medium text-gray-700 mb-1">
+                  Search users
+                </label>
+                <div class="relative">
+                  <input
+                    id="user-search"
+                    v-model="userSearch"
+                    type="text"
+                    class="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Search by email or name..."
+                    @input="handleUserSearchChange"
+                  />
+                  <span class="pointer-events-none absolute inset-y-0 left-2 flex items-center text-gray-400">
+                    🔍
+                  </span>
+                </div>
+              </div>
+
               <div class="flex flex-wrap items-center gap-3 justify-between">
                 <div class="flex items-center gap-3">
                   <label for="user-select" class="block text-sm font-medium text-gray-700">
@@ -48,22 +68,6 @@
                     />
                     <span>Show deleted users</span>
                   </label>
-                </div>
-                <div class="w-full sm:w-64">
-                  <label for="user-search" class="sr-only">Search users</label>
-                  <div class="relative">
-                    <input
-                      id="user-search"
-                      v-model="userSearch"
-                      type="text"
-                      class="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Search by email or name..."
-                      @input="handleUserSearchChange"
-                    />
-                    <span class="pointer-events-none absolute inset-y-0 left-2 flex items-center text-gray-400">
-                      🔍
-                    </span>
-                  </div>
                 </div>
               </div>
 
