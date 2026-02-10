@@ -21,9 +21,9 @@ export default defineEventHandler(async (event) => {
   }
   
   // Find user by email (exclude deleted users)
-  const user = await db.prepare('SELECT * FROM users WHERE email = ? AND deleted_at IS NULL')
+  const user = (await db.prepare('SELECT * FROM users WHERE email = ? AND deleted_at IS NULL')
     .bind(email)
-    .first<any>()
+    .first()) as any
 
   if (!user || !user.password_hash) {
     throw createError({

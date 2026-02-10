@@ -11,9 +11,9 @@ export default defineOAuthGoogleEventHandler({
       }
       
       // Check if user exists in D1 (exclude deleted users for login, but allow checking for restoration)
-      let existingUser = await db.prepare('SELECT * FROM users WHERE (id = ? OR email = ?) AND deleted_at IS NULL')
+      let existingUser = (await db.prepare('SELECT * FROM users WHERE (id = ? OR email = ?) AND deleted_at IS NULL')
         .bind(googleUser.sub, googleUser.email)
-        .first<any>()
+        .first()) as any
 
       if (!existingUser) {
         // Create new user record
@@ -35,9 +35,9 @@ export default defineOAuthGoogleEventHandler({
       }
 
       // Always fetch the latest user data from database to ensure we have the correct role (exclude deleted)
-      const user = await db.prepare('SELECT * FROM users WHERE id = ? AND deleted_at IS NULL')
+      const user = (await db.prepare('SELECT * FROM users WHERE id = ? AND deleted_at IS NULL')
         .bind(googleUser.sub)
-        .first<any>()
+        .first()) as any
 
       if (!user) {
         throw new Error('Failed to retrieve user after login')

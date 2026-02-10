@@ -18,9 +18,9 @@ export default defineEventHandler(async (event) => {
 
   try {
     // Get all entries
-    const entries = await db
+    const entries = (await db
       .prepare('SELECT r2_key FROM pronunciation_cache')
-      .all<{ r2_key: string }>()
+      .all()) as { results: { r2_key: string }[] }
 
     let deletedCount = 0
     let errors = 0

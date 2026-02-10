@@ -25,9 +25,9 @@ export default defineEventHandler(async (event) => {
 
   try {
     // Check if user exists and is not already deleted
-    const user = await db.prepare('SELECT id, deleted_at FROM users WHERE id = ?')
+    const user = (await db.prepare('SELECT id, deleted_at FROM users WHERE id = ?')
       .bind(userId)
-      .first<{ id: string; deleted_at: number | null }>()
+      .first()) as { id: string; deleted_at: number | null } | null
 
     if (!user) {
       throw createError({

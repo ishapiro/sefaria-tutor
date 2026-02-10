@@ -80,9 +80,15 @@ export default defineEventHandler(async (event) => {
   if (db) {
     try {
       const now = Math.floor(Date.now() / 1000)
-      const cached = await db.prepare('SELECT response, phrase, created_at, version, prompt_hash FROM translation_cache WHERE phrase_hash = ?')
+      const cached = (await db.prepare('SELECT response, phrase, created_at, version, prompt_hash FROM translation_cache WHERE phrase_hash = ?')
         .bind(hash)
-        .first<{ response: string; phrase: string; created_at: number; version: number; prompt_hash: string }>()
+        .first()) as {
+        response: string
+        phrase: string
+        created_at: number
+        version: number
+        prompt_hash: string
+      } | null
 
       if (cached && 
           cached.phrase === normalized && 

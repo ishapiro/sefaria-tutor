@@ -24,9 +24,16 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const user = await db.prepare('SELECT id, email, name, role, is_verified, deleted_at FROM users WHERE id = ?')
+    const user = (await db.prepare('SELECT id, email, name, role, is_verified, deleted_at FROM users WHERE id = ?')
       .bind(userId)
-      .first<{ id: string; email: string; name: string | null; role: string; is_verified: boolean; deleted_at: number | null }>()
+      .first()) as {
+      id: string
+      email: string
+      name: string | null
+      role: string
+      is_verified: boolean
+      deleted_at: number | null
+    } | null
 
     if (!user) {
       throw createError({

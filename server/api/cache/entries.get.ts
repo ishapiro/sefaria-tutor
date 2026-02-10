@@ -64,7 +64,7 @@ export default defineEventHandler(async (event) => {
 
     const countSql = 'SELECT COUNT(*) as count FROM translation_cache' + (search ? ' WHERE phrase LIKE ? OR phrase_hash LIKE ?' : '')
     const countParams = search ? [`%${search}%`, `%${search}%`] : []
-    const countResult = await db.prepare(countSql).bind(...countParams).first<{ count: number }>()
+    const countResult = (await db.prepare(countSql).bind(...countParams).first()) as { count: number } | null
 
     return {
       entries,

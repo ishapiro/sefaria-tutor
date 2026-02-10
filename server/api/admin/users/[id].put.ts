@@ -71,9 +71,15 @@ export default defineEventHandler(async (event) => {
     await db.prepare(query).bind(...values).run()
 
     // Fetch and return updated user
-    const updatedUser = await db.prepare('SELECT id, email, name, role, is_verified FROM users WHERE id = ?')
+    const updatedUser = (await db.prepare('SELECT id, email, name, role, is_verified FROM users WHERE id = ?')
       .bind(userId)
-      .first<{ id: string; email: string; name: string | null; role: string; is_verified: boolean }>()
+      .first()) as {
+      id: string
+      email: string
+      name: string | null
+      role: string
+      is_verified: boolean
+    } | null
 
     return updatedUser
   } catch (err: any) {

@@ -49,10 +49,10 @@ export default defineEventHandler(async (event) => {
     const whereSql = conditions.length ? ` WHERE ${conditions.join(' AND ')}` : ''
 
     // Total count for pagination
-    const countRow = await db
+    const countRow = (await db
       .prepare(`SELECT COUNT(*) as total FROM users${whereSql}`)
       .bind(...params)
-      .first<{ total: number }>()
+      .first()) as { total: number } | null
 
     const total = countRow?.total ?? 0
 
@@ -62,17 +62,19 @@ export default defineEventHandler(async (event) => {
       whereSql +
       ' ORDER BY deleted_at IS NULL DESC, email LIMIT ? OFFSET ?'
 
-    const users = await db
+    const users = (await db
       .prepare(sql)
       .bind(...params, limit, offset)
-      .all<{
-        id: string
-        email: string
-        name: string | null
-        role: string
-        is_verified: boolean
-        deleted_at: number | null
-      }>()
+      .all()) as {
+        results: {
+          id: string
+          email: string
+          name: string | null
+          role: string
+          is_verified: boolean
+          deleted_at: number | null
+        }[]
+      }
 
     return {
       users: users.results || [],

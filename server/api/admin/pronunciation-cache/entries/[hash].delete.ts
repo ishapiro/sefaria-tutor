@@ -27,10 +27,10 @@ export default defineEventHandler(async (event) => {
 
   try {
     // Get entry to find file size
-    const entry = await db
+    const entry = (await db
       .prepare('SELECT * FROM pronunciation_cache WHERE text_hash = ?')
       .bind(textHash)
-      .first<{ r2_key: string; file_size_bytes: number }>()
+      .first()) as { r2_key: string; file_size_bytes: number } | null
 
     if (!entry) {
       throw createError({
@@ -47,9 +47,9 @@ export default defineEventHandler(async (event) => {
 
     // Update stats
     const now = Math.floor(Date.now() / 1000)
-    const stats = await db
+    const stats = (await db
       .prepare('SELECT total_size_bytes, total_files FROM pronunciation_cache_stats WHERE id = 1')
-      .first<{ total_size_bytes: number; total_files: number }>()
+      .first()) as { total_size_bytes: number; total_files: number } | null
 
     if (stats) {
       const newTotalSize = Math.max(0, stats.total_size_bytes - entry.file_size_bytes)

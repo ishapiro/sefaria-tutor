@@ -1,6 +1,6 @@
-import { defineEventHandler, createError, getQuery } from 'h3'
+import { defineEventHandler, createError, getQuery, H3Event } from 'h3'
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event: H3Event) => {
   const query = getQuery(event)
   const email = String(query.email || '').trim()
 
@@ -29,7 +29,9 @@ export default defineEventHandler(async (event) => {
   const row = await db
     .prepare('SELECT id FROM users WHERE email = ? AND deleted_at IS NULL')
     .bind(email)
-    .first<{ id: string } | null>()
+    // D1 type definitions may not be available in all environments; treat result as unknown and cast
+    .first()
+    .then((res: unknown) => res as { id: string } | null)
 
   return { exists: Boolean(row) }
 })

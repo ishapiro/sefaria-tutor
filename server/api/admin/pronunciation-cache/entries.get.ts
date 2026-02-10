@@ -32,13 +32,13 @@ export default defineEventHandler(async (event) => {
     sql += ' ORDER BY last_accessed_at DESC LIMIT ? OFFSET ?'
     params.push(limit, offset)
 
-    const { results } = await db.prepare(sql).bind(...params).all<PronunciationCacheEntry>()
+    const { results } = (await db.prepare(sql).bind(...params).all()) as { results: PronunciationCacheEntry[] }
 
     const countSql = search
       ? 'SELECT COUNT(*) as count FROM pronunciation_cache WHERE normalized_text LIKE ? OR text_hash LIKE ?'
       : 'SELECT COUNT(*) as count FROM pronunciation_cache'
     const countParams = search ? [`%${search}%`, `%${search}%`] : []
-    const countResult = await db.prepare(countSql).bind(...countParams).first<{ count: number }>()
+    const countResult = (await db.prepare(countSql).bind(...countParams).first()) as { count: number } | null
 
     return {
       entries: results || [],

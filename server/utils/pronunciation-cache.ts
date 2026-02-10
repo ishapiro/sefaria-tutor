@@ -85,9 +85,9 @@ export async function getEntriesToPurge(
   const entries: PronunciationCacheEntry[] = []
   let totalBytesToFree = 0
 
-  const result = await db
+  const result = (await db
     .prepare('SELECT * FROM pronunciation_cache ORDER BY last_accessed_at ASC')
-    .all<PronunciationCacheEntry>()
+    .all()) as { results: PronunciationCacheEntry[] }
 
   for (const entry of result.results || []) {
     entries.push(entry)
@@ -108,9 +108,9 @@ export async function purgeCache(
   r2Bucket: R2Bucket,
   maxSizeBytes: number
 ): Promise<{ deletedCount: number; freedBytes: number }> {
-  const stats = await db
+  const stats = (await db
     .prepare('SELECT total_size_bytes FROM pronunciation_cache_stats WHERE id = 1')
-    .first<{ total_size_bytes: number }>()
+    .first()) as { total_size_bytes: number } | null
 
   if (!stats) {
     return { deletedCount: 0, freedBytes: 0 }
@@ -145,10 +145,10 @@ export async function purgeCache(
   // Update stats
   const now = Math.floor(Date.now() / 1000)
   const newTotalSize = Math.max(0, stats.total_size_bytes - freedBytes)
-  const newTotalFiles = await db
+  const countRow = (await db
     .prepare('SELECT COUNT(*) as count FROM pronunciation_cache')
-    .first<{ count: number }>()
-    .then(r => (r?.count as number) || 0)
+    .first()) as { count: number } | null
+  const newTotalFiles = countRow?.count || 0
 
   await db
     .prepare(
@@ -206,9 +206,9 @@ export async function addToCache(
   const now = Math.floor(Date.now() / 1000)
 
   // Check if we need to purge before adding
-  const stats = await db
+  const stats = (await db
     .prepare('SELECT total_size_bytes FROM pronunciation_cache_stats WHERE id = 1')
-    .first<{ total_size_bytes: number }>()
+    .first()) as { total_size_bytes: number } | null
 
   const currentSize = (stats?.total_size_bytes || 0) + fileSize
 
@@ -234,9 +234,9 @@ export async function addToCache(
     .run()
 
   // Update stats
-  const newStats = await db
+  const newStats = (await db
     .prepare('SELECT total_size_bytes, total_files FROM pronunciation_cache_stats WHERE id = 1')
-    .first<{ total_size_bytes: number; total_files: number }>()
+    .first()) as { total_size_bytes: number; total_files: number } | null
 
   const newTotalSize = (newStats?.total_size_bytes || 0) + fileSize
   const newTotalFiles = (newStats?.total_files || 0) + 1
@@ -256,10 +256,10 @@ export async function getCacheEntry(
   db: D1Database,
   textHash: string
 ): Promise<PronunciationCacheEntry | null> {
-  const entry = await db
+  const entry = (await db
     .prepare('SELECT * FROM pronunciation_cache WHERE text_hash = ?')
     .bind(textHash)
-    .first<PronunciationCacheEntry>()
+    .first()) as PronunciationCacheEntry | null
 
   return entry || null
 }
@@ -268,9 +268,9 @@ export async function getCacheEntry(
  * Get cache stats
  */
 export async function getCacheStats(db: D1Database): Promise<PronunciationCacheStats | null> {
-  const stats = await db
+  const stats = (await db
     .prepare('SELECT * FROM pronunciation_cache_stats WHERE id = 1')
-    .first<PronunciationCacheStats>()
+    .first()) as PronunciationCacheStats | null
 
   return stats || null
 }

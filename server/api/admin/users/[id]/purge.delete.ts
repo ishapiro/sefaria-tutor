@@ -25,9 +25,9 @@ export default defineEventHandler(async (event) => {
 
   try {
     // Check if user exists
-    const user = await db.prepare('SELECT id FROM users WHERE id = ?')
+    const user = (await db.prepare('SELECT id FROM users WHERE id = ?')
       .bind(userId)
-      .first<{ id: string }>()
+      .first()) as { id: string } | null
 
     if (!user) {
       throw createError({
