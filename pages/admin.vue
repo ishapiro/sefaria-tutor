@@ -34,24 +34,48 @@
           <div v-else>
             <!-- User List -->
             <div class="mb-4 space-y-3">
-              <div class="flex items-center gap-3">
-                <label for="user-select" class="block text-sm font-medium text-gray-700">
-                  Select User to Edit:
-                </label>
-                <label class="flex items-center gap-2 text-sm">
-                  <input
-                    v-model="showDeleted"
-                    type="checkbox"
-                    class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    @change="loadUsers"
-                  />
-                  <span>Show deleted users</span>
-                </label>
+              <div class="flex flex-wrap items-center gap-3 justify-between">
+                <div class="flex items-center gap-3">
+                  <label for="user-select" class="block text-sm font-medium text-gray-700">
+                    Select User to Edit:
+                  </label>
+                  <label class="flex items-center gap-2 text-sm">
+                    <input
+                      v-model="showDeleted"
+                      type="checkbox"
+                      class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      @change="() => { userOffset = 0; loadUsers() }"
+                    />
+                    <span>Show deleted users</span>
+                  </label>
+                </div>
+                <div class="w-full sm:w-64">
+                  <label for="user-search" class="sr-only">Search users</label>
+                  <div class="relative">
+                    <input
+                      id="user-search"
+                      v-model="userSearch"
+                      type="text"
+                      class="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Search by email or name..."
+                      @input="handleUserSearchChange"
+                    />
+                    <span class="pointer-events-none absolute inset-y-0 left-2 flex items-center text-gray-400">
+                      🔍
+                    </span>
+                  </div>
+                </div>
               </div>
+
+              <p class="text-xs text-gray-500 mt-1">
+                The list below shows only the users that match your current search and page. Use the search box to
+                narrow results, and the Previous/Next buttons to move through additional pages of users.
+              </p>
+
               <select
                 id="user-select"
                 v-model="selectedUserId"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                class="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 @change="loadUserDetails"
               >
                 <option value="">-- Select a user --</option>
@@ -60,6 +84,34 @@
                   <span v-if="user.deleted_at">[DELETED]</span>
                 </option>
               </select>
+
+              <div class="flex items-center justify-between text-xs text-gray-500 mt-1">
+                <div>
+                  <span v-if="userTotal">
+                    Showing <span class="font-medium">{{ usersFrom }}</span>–<span class="font-medium">{{ usersTo }}</span>
+                    of <span class="font-medium">{{ userTotal }}</span> users
+                  </span>
+                  <span v-else>No users found</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button
+                    type="button"
+                    class="px-2 py-1 border border-gray-300 rounded disabled:opacity-40 disabled:cursor-not-allowed text-xs"
+                    :disabled="!hasPrevUsersPage"
+                    @click="goToPrevUsersPage"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    class="px-2 py-1 border border-gray-300 rounded disabled:opacity-40 disabled:cursor-not-allowed text-xs"
+                    :disabled="!hasNextUsersPage"
+                    @click="goToNextUsersPage"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
             </div>
 
             <!-- User Edit Form -->
@@ -198,11 +250,17 @@ watchEffect(() => {
 })
 
 const showUserManagement = ref(false)
-const users = ref<Array<{ id: string; email: string; name: string | null; role: string; deleted_at: number | null }>>([])
+const users = ref<Array<{ id: string; email: string; name: string | null; role: string; deleted_at: number | null }>>(
+  []
+)
 const usersLoading = ref(false)
 const usersError = ref('')
 const selectedUserId = ref('')
 const showDeleted = ref(false)
+const userSearch = ref('')
+const userLimit = ref(50)
+const userOffset = ref(0)
+const userTotal = ref(0)
 const selectedUser = ref<{
   id: string
   email: string
@@ -224,12 +282,35 @@ const purgingUser = ref(false)
 const saveMessage = ref('')
 const saveMessageType = ref<'success' | 'error'>('success')
 
+const buildUsersQueryString = () => {
+  const params = new URLSearchParams()
+  if (showDeleted.value) {
+    params.set('includeDeleted', 'true')
+  }
+  if (userSearch.value.trim()) {
+    params.set('q', userSearch.value.trim())
+  }
+  params.set('limit', String(userLimit.value))
+  params.set('offset', String(userOffset.value))
+  const qs = params.toString()
+  return qs ? `?${qs}` : ''
+}
+
 const loadUsers = async () => {
   usersLoading.value = true
   usersError.value = ''
   try {
-    const url = showDeleted.value ? '/api/admin/users?includeDeleted=true' : '/api/admin/users'
-    users.value = await $fetch(url)
+    const response = await $fetch<{
+      users: Array<{ id: string; email: string; name: string | null; role: string; is_verified: boolean; deleted_at: number | null }>
+      total: number
+      limit: number
+      offset: number
+    }>(`/api/admin/users${buildUsersQueryString()}`)
+
+    users.value = response.users
+    userTotal.value = response.total
+    userLimit.value = response.limit
+    userOffset.value = response.offset
   } catch (err: any) {
     usersError.value = err.data?.message || 'Failed to load users'
   } finally {
@@ -379,6 +460,43 @@ const cancelEdit = () => {
   selectedUser.value = null
   editingUser.value = null
   saveMessage.value = ''
+}
+
+const usersFrom = computed(() => {
+  if (!userTotal.value) return 0
+  return userOffset.value + 1
+})
+
+const usersTo = computed(() => {
+  if (!userTotal.value) return 0
+  return Math.min(userOffset.value + users.value.length, userTotal.value)
+})
+
+const hasPrevUsersPage = computed(() => userOffset.value > 0)
+const hasNextUsersPage = computed(() => userOffset.value + users.value.length < userTotal.value)
+
+const goToPrevUsersPage = async () => {
+  if (!hasPrevUsersPage.value) return
+  userOffset.value = Math.max(0, userOffset.value - userLimit.value)
+  await loadUsers()
+}
+
+const goToNextUsersPage = async () => {
+  if (!hasNextUsersPage.value) return
+  userOffset.value = userOffset.value + userLimit.value
+  await loadUsers()
+}
+
+let userSearchTimeout: ReturnType<typeof setTimeout> | null = null
+
+const handleUserSearchChange = () => {
+  if (userSearchTimeout) {
+    clearTimeout(userSearchTimeout)
+  }
+  userSearchTimeout = setTimeout(() => {
+    userOffset.value = 0
+    loadUsers()
+  }, 300)
 }
 
 watch(showUserManagement, (newVal) => {
