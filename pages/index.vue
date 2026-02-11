@@ -484,7 +484,8 @@
             <strong>Multiple sentences detected.</strong> For best results, select individual sentences instead of the whole section.
           </div>
           <p class="text-xs text-gray-500 -mt-2 mb-1">
-            Click the Hebrew phrase to hear it spoken. Click any word in the table to hear its pronunciation.
+            Click the Hebrew phrase to listen to the whole phrase, or click any word in the table to hear its individual pronunciation.
+            Note: The text-to-speech feature uses OpenAI and may sometimes contain mistakes or repeat words.
           </p>
           <div class="bg-gray-50 p-4 rounded-lg space-y-2">
             <div
