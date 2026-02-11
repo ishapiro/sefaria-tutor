@@ -128,86 +128,93 @@
       <!-- Help dialog -->
       <div
         v-if="showHelpDialog"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto py-8"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 overflow-y-auto py-8 backdrop-blur-sm"
         @click.self="showHelpDialog = false"
       >
-        <div class="bg-white rounded-lg shadow-xl p-6 max-w-2xl mx-4 text-left max-h-[90vh] overflow-y-auto">
-          <h2 class="text-xl font-bold mb-4">Cogitations Sefaria Tutor — Help</h2>
+        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+          <!-- Header -->
+          <div class="px-8 pt-8 pb-4">
+            <h2 class="text-2xl font-bold text-gray-900 tracking-tight">How to Use Sefaria Tutor</h2>
+            <p class="text-gray-500 text-sm mt-1">Learn classical Jewish texts word by word</p>
+          </div>
 
-          <section class="mb-5">
-            <h3 class="font-semibold text-gray-900 mb-2">Purpose</h3>
-            <p class="text-gray-700 text-sm leading-relaxed">
-              This application helps students understand classical Jewish texts word by word to build vocabulary and enhance access to these texts. It was developed by a Hebrew school graduate with limited Hebrew depth for personal study and is provided free of charge.
-            </p>
-          </section>
+          <!-- Content -->
+          <div class="px-8 pb-8 overflow-y-auto flex-1 space-y-6">
+            <section class="rounded-xl bg-slate-50 p-5">
+              <h3 class="font-semibold text-slate-900 mb-2 text-base">What This App Does</h3>
+              <p class="text-slate-600 text-sm leading-relaxed">
+                Sefaria Tutor helps you build vocabulary and deepen your understanding of classical Jewish texts by exploring them word by word. Created by a learner for learners—free to use.
+              </p>
+            </section>
 
-          <section class="mb-5">
-            <h3 class="font-semibold text-gray-900 mb-2">Getting started</h3>
-            <p class="text-gray-700 text-sm leading-relaxed">
-              Choose a category (e.g. Tanakh, Talmud, Liturgy), then select a book. For books with multiple sections (e.g. Siddur, Kitzur Shulchan Arukh), pick a section from the list. Use the pagination to move between pages.
-            </p>
-          </section>
+            <section>
+              <h3 class="font-semibold text-slate-900 mb-3 text-base">Getting Started</h3>
+              <ol class="space-y-2 text-slate-600 text-sm">
+                <li class="flex gap-3"><span class="font-semibold text-slate-400 shrink-0">1.</span> Choose a category (Tanakh, Talmud, Liturgy, etc.).</li>
+                <li class="flex gap-3"><span class="font-semibold text-slate-400 shrink-0">2.</span> Select a book.</li>
+                <li class="flex gap-3"><span class="font-semibold text-slate-400 shrink-0">3.</span> For multi-section books (e.g., Siddur, Kitzur Shulchan Arukh), pick a section from the list.</li>
+                <li class="flex gap-3"><span class="font-semibold text-slate-400 shrink-0">4.</span> Use pagination to move between pages.</li>
+              </ol>
+            </section>
 
-          <section class="mb-5">
-            <h3 class="font-semibold text-gray-900 mb-2">Word-by-word translation (OpenAI)</h3>
-            <ul class="list-disc list-inside text-gray-700 text-sm space-y-1.5 ml-1">
-              <li><strong>Click phrase</strong> — Click on any Hebrew or English phrase to get a word-by-word translation with grammar notes from OpenAI. A phrase is any set of words up to any punctuation (comma, period, colon, etc.).</li>
-            </ul>
-          </section>
+            <section class="rounded-xl bg-blue-50/60 p-5">
+              <h3 class="font-semibold text-slate-900 mb-2 text-base">Word-by-Word Translation</h3>
+              <p class="text-slate-600 text-sm leading-relaxed mb-3">
+                Click any Hebrew or Aramaic phrase—a segment up to the next punctuation mark—to see a word-by-word breakdown with grammar notes, powered by OpenAI.
+              </p>
+            </section>
 
-          <section class="mb-5">
-            <h3 class="font-semibold text-gray-900 mb-2">Read aloud (text-to-speech)</h3>
-            <ul class="list-disc list-inside text-gray-700 text-sm space-y-1.5 ml-1">
-              <li><strong>Full sentence</strong> — In the word-by-word translation dialog, click the Hebrew phrase at the top to hear it spoken.</li>
-              <li><strong>Single word</strong> — Click any Hebrew word in the Word column of the translation table to hear its pronunciation.</li>
-            </ul>
-          </section>
+            <section>
+              <h3 class="font-semibold text-slate-900 mb-3 text-base">Listen & Learn (Text-to-Speech)</h3>
+              <ul class="space-y-2 text-slate-600 text-sm">
+                <li class="flex gap-2"><span class="font-medium text-slate-700">Phrase:</span> In the translation popup, click the Hebrew phrase at the top to hear it spoken aloud.</li>
+                <li class="flex gap-2"><span class="font-medium text-slate-700">Word:</span> Click any Hebrew word in a word-analysis card to hear its pronunciation.</li>
+              </ul>
+            </section>
 
-          <section class="mb-5">
-            <h3 class="font-semibold text-gray-900 mb-2">Word-by-word translation table columns</h3>
-            <dl class="text-gray-700 text-sm space-y-2">
-              <div><dt class="font-medium text-gray-800">#</dt><dd>Number of times the word appears in the original text.</dd></div>
-              <div><dt class="font-medium text-gray-800">Translation</dt><dd>English translation of the word.</dd></div>
-              <div><dt class="font-medium text-gray-800">Word</dt><dd>Hebrew word (click to hear pronunciation).</dd></div>
-              <div><dt class="font-medium text-gray-800">Language</dt><dd>Hebrew or Aramaic.</dd></div>
-              <div><dt class="font-medium text-gray-800">Root</dt><dd>Lexical root (shoresh) of the word.</dd></div>
-              <div><dt class="font-medium text-gray-800">Part of Speech</dt><dd>Noun, verb, adjective, etc.</dd></div>
-              <div><dt class="font-medium text-gray-800">Gender</dt><dd>Masculine, feminine, or common.</dd></div>
-              <div><dt class="font-medium text-gray-800">Tense</dt><dd>Past, present, future, imperative, or infinitive.</dd></div>
-              <div><dt class="font-medium text-gray-800">Binyan</dt><dd>Verb conjugation pattern (e.g. Qal, Piel, Hiphil).</dd></div>
-              <div><dt class="font-medium text-gray-800">Present (Hebrew)</dt><dd>Present-tense form of verbs in Hebrew.</dd></div>
-              <div><dt class="font-medium text-gray-800">Grammar Notes</dt><dd>Extra grammatical or contextual notes.</dd></div>
-            </dl>
-          </section>
+            <section>
+              <h3 class="font-semibold text-slate-900 mb-3 text-base">Word Analysis Cards</h3>
+              <p class="text-slate-600 text-sm mb-3">Each word appears in its own card. Here’s what each field means:</p>
+              <div class="grid gap-2 text-sm sm:grid-cols-2">
+                <div class="flex gap-2 rounded-lg bg-slate-50 px-3 py-2"><span class="font-medium text-slate-700 shrink-0">Word</span><span class="text-slate-600">Hebrew form (click to hear pronunciation)</span></div>
+                <div class="flex gap-2 rounded-lg bg-slate-50 px-3 py-2"><span class="font-medium text-slate-700 shrink-0">Translation</span><span class="text-slate-600">English meaning</span></div>
+                <div class="flex gap-2 rounded-lg bg-slate-50 px-3 py-2"><span class="font-medium text-slate-700 shrink-0">Root</span><span class="text-slate-600">Lexical root (shoresh)</span></div>
+                <div class="flex gap-2 rounded-lg bg-slate-50 px-3 py-2"><span class="font-medium text-slate-700 shrink-0">Occurrences</span><span class="text-slate-600">Shown when the word appears more than once in the phrase</span></div>
+                <div class="flex gap-2 rounded-lg bg-slate-50 px-3 py-2"><span class="font-medium text-slate-700 shrink-0">Part of Speech</span><span class="text-slate-600">Noun, verb, adjective, etc.</span></div>
+                <div class="flex gap-2 rounded-lg bg-slate-50 px-3 py-2"><span class="font-medium text-slate-700 shrink-0">Gender</span><span class="text-slate-600">Masculine, feminine, or common</span></div>
+                <div class="flex gap-2 rounded-lg bg-slate-50 px-3 py-2"><span class="font-medium text-slate-700 shrink-0">Tense</span><span class="text-slate-600">Past, present, future, etc.</span></div>
+                <div class="flex gap-2 rounded-lg bg-slate-50 px-3 py-2"><span class="font-medium text-slate-700 shrink-0">Binyan</span><span class="text-slate-600">Verb pattern (Qal, Piel, Hiphil…)</span></div>
+                <div class="flex gap-2 rounded-lg bg-slate-50 px-3 py-2"><span class="font-medium text-slate-700 shrink-0">Language</span><span class="text-slate-600">Hebrew or Aramaic</span></div>
+                <div class="flex gap-2 rounded-lg bg-slate-50 px-3 py-2 sm:col-span-2"><span class="font-medium text-slate-700 shrink-0">Grammar Notes</span><span class="text-slate-600">Additional context or explanation</span></div>
+              </div>
+            </section>
 
-          <section class="mb-5">
-            <h3 class="font-semibold text-gray-900 mb-2">About this project</h3>
-            <p class="text-gray-700 text-sm mb-2">
-              This application is developed independently by <a href="https://cogitations.com" target="_blank" rel="noopener" class="text-blue-600 hover:underline">Cogitations</a>. It is <strong>not</strong> affiliated with, endorsed by, or operated by Sefaria.org.
-            </p>
-            <p class="text-gray-700 text-sm mb-2">
-              <strong>Texts:</strong> We obtain Hebrew and English source texts via the <a href="https://developers.sefaria.org/" target="_blank" rel="noopener" class="text-blue-600 hover:underline">Sefaria API</a>. Sefaria provides the texts; we display them.
-            </p>
-            <p class="text-gray-700 text-sm mb-2">
-              <strong>Translations:</strong> Word-by-word analysis and translations are generated using <a href="https://openai.com/" target="_blank" rel="noopener" class="text-blue-600 hover:underline">OpenAI</a>'s GPT models. The word-by-word translations shown here are not provided by Sefaria.org.
-              Text-to-speech functionality is also powered by OpenAI and may occasionally be incorrect. 
-            </p>
-            <p class="text-gray-700 text-sm">
-              This application would not exist without Sefaria. Please consider <a href="https://donate.sefaria.org/" target="_blank" rel="noopener" class="text-blue-600 hover:underline">donating to Sefaria</a> to support their free access to Jewish texts.
-            </p>
-          </section>
+            <section class="rounded-xl border border-slate-200 bg-slate-50/50 p-5">
+              <h3 class="font-semibold text-slate-900 mb-3 text-base">About This Project</h3>
+              <p class="text-slate-600 text-sm leading-relaxed mb-3">
+                Independently developed by <a href="https://cogitations.com" target="_blank" rel="noopener" class="text-blue-600 hover:text-blue-700 hover:underline font-medium">Cogitations</a>. Not affiliated with, endorsed by, or operated by Sefaria.org.
+              </p>
+              <ul class="space-y-2 text-slate-600 text-sm">
+                <li><strong class="text-slate-700">Texts:</strong> Hebrew and English sources come from the <a href="https://developers.sefaria.org/" target="_blank" rel="noopener" class="text-blue-600 hover:underline">Sefaria API</a>. We display them; Sefaria provides them.</li>
+                <li><strong class="text-slate-700">Translations:</strong> Word-by-word analysis uses <a href="https://openai.com/" target="_blank" rel="noopener" class="text-blue-600 hover:underline">OpenAI</a>’s GPT models—not Sefaria. Text-to-speech is also from OpenAI and may occasionally be inaccurate.</li>
+              </ul>
+              <p class="text-slate-600 text-sm mt-3 leading-relaxed">
+                This app wouldn’t exist without Sefaria. Please consider <a href="https://donate.sefaria.org/" target="_blank" rel="noopener" class="text-blue-600 hover:underline font-medium">donating to Sefaria</a> to support free access to Jewish texts.
+              </p>
+            </section>
 
-          <section class="mb-5 pt-4 border-t border-gray-200">
-            <h3 class="font-semibold text-gray-900 mb-2">License</h3>
-            <p class="text-gray-700 text-sm mb-2">
-              This project is open source under the <strong>GNU GPL v3.0</strong> (same license as Sefaria). <a href="https://github.com/ishapiro/sefaria-tutor" target="_blank" rel="noopener" class="text-blue-600 hover:underline">GitHub repository</a>.
-            </p>
-            <p class="text-gray-700 text-sm">
-              Suggestions for improvements are welcome: <a href="mailto:ishapiro@cogitations.com" class="text-blue-600 hover:underline">ishapiro@cogitations.com</a>
-            </p>
-          </section>
+            <section class="pt-4 border-t border-slate-200">
+              <h3 class="font-semibold text-slate-900 mb-2 text-base">License & Feedback</h3>
+              <p class="text-slate-600 text-sm leading-relaxed">
+                Open source under <strong>GNU GPL v3.0</strong>. <a href="https://github.com/ishapiro/sefaria-tutor" target="_blank" rel="noopener" class="text-blue-600 hover:underline">View on GitHub</a>. Suggestions welcome: <a href="mailto:ishapiro@cogitations.com" class="text-blue-600 hover:underline">ishapiro@cogitations.com</a>
+              </p>
+            </section>
+          </div>
 
-          <button type="button" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium" @click="showHelpDialog = false">Close</button>
+          <!-- Footer -->
+          <div class="px-8 py-4 bg-slate-50 border-t border-slate-100 rounded-b-2xl">
+            <button type="button" class="w-full sm:w-auto px-6 py-2.5 bg-slate-900 text-white rounded-xl hover:bg-slate-800 font-medium transition-colors" @click="showHelpDialog = false">Got it</button>
+          </div>
         </div>
       </div>
     </div>
@@ -294,7 +301,7 @@
         <div v-else class="space-y-4">
           <div class="flex items-center justify-between mb-1">
             <p class="text-xs text-gray-500">
-              Click on any text to get a word-by-word translation from OpenAI with grammar explanations. Phrases are delimited by punctuation—clicking before a comma, period, or other punctuation will translate the phrase from the start up to that punctuation mark.
+              Click on any Hebrew phrase to get a word-by-word translation from OpenAI with grammar explanations. Phrases are delimited by punctuation—clicking before a comma, period, or other punctuation will translate the phrase from the start up to that punctuation mark.
             </p>
             <button
               type="button"
@@ -315,8 +322,7 @@
                 <span
                   v-for="(phrase, pIdx) in splitIntoPhrases(section.en)"
                   :key="pIdx"
-                  class="hover:bg-blue-50 cursor-pointer rounded px-0.5 transition-colors"
-                  @click="translateWithOpenAI(phrase, true)"
+                  class="cursor-default text-gray-700"
                 >{{ phrase }} </span>
               </div>
               <div class="text-right text-lg select-none" style="direction: rtl">
