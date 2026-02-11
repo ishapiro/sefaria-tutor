@@ -697,14 +697,16 @@ const { isAdmin, fetch: fetchSession, user, loggedIn } = useAuth()
 const openaiModel = ref('gpt-4o')
 
 // Debug logging for admin status
+type SessionUser = { id?: string; email?: string; role?: string; isVerified?: boolean }
 watch([user, isAdmin, loggedIn], ([userVal, adminVal, loggedInVal]) => {
+  const u = userVal as SessionUser | null
   console.log('[Auth Debug]', {
     loggedIn: loggedInVal,
-    user: userVal ? {
-      id: userVal.id,
-      email: userVal.email,
-      role: userVal.role,
-      isVerified: userVal.isVerified
+    user: u ? {
+      id: u.id,
+      email: u.email,
+      role: u.role,
+      isVerified: u.isVerified
     } : null,
     isAdmin: adminVal
   })
@@ -746,6 +748,119 @@ function hasMultipleSentences (phrase: string): boolean {
 const translationHasMultipleSentences = computed(() =>
   hasMultipleSentences(lastTranslatedInputText.value || translationData.value?.originalPhrase || '')
 )
+
+/** Parse starting chapter from Sefaria ref (e.g. "Genesis_6.20-7.2" -> 6, "Genesis_6" -> 6, "Genesis_6:9-11:32" -> 6). */
+function parseStartChapterFromRef (sefariaRef: string): number {
+  const m = sefariaRef.match(/[._](\d+)(?:[.:\-]|$)/)
+  return m ? parseInt(m[1], 10) : 1
+}
+
+/** Build chapter:verse display numbers for Tanakh, preserving order. Verse numbers reset per chapter (Sefaria style). */
+function buildTanakhDisplayNumbers (sefariaRef: string, verseNums: number[]): string[] {
+  if (verseNums.length === 0) return []
+  const startChapter = parseStartChapterFromRef(sefariaRef)
+  const result: string[] = []
+  let chapter = startChapter
+  for (let i = 0; i < verseNums.length; i++) {
+    const v = verseNums[i]
+    if (i > 0 && v < (verseNums[i - 1] ?? 0)) chapter += 1
+    result.push(`${chapter}:${v}`)
+  }
+  return result
+}
+
+/** Parse range from Sefaria ref (e.g. "Genesis_25:19-28:9" -> {startCh:25, startV:19, endCh:28, endV:9}). */
+function parseRangeFromRef (sefariaRef: string): { startCh: number; startV: number; endCh: number; endV: number } | null {
+  const m = sefariaRef.match(/(\d+)[.:](\d+)\s*-\s*(\d+)[.:](\d+)/)
+  if (!m) return null
+  return {
+    startCh: parseInt(m[1], 10),
+    startV: parseInt(m[2], 10),
+    endCh: parseInt(m[3], 10),
+    endV: parseInt(m[4], 10)
+  }
+}
+
+/** Extract flat string[] and section refs (chapter:verse) from nested Tanakh data. Returns null if not nested. */
+function extractTextAndSections (val: unknown, sefariaRef: string): { texts: string[]; sections: string[] } | null {
+  const range = parseRangeFromRef(sefariaRef)
+  const numericKeys = (obj: Record<string, unknown>) => {
+    const keys = Object.keys(obj).filter(k => /^\d+$/.test(k))
+    keys.sort((a, b) => parseInt(a, 10) - parseInt(b, 10))
+    return keys
+  }
+  const collectFromObject = (obj: Record<string, unknown>): { texts: string[]; sections: string[] } | null => {
+    const keys = numericKeys(obj)
+    if (keys.length === 0) return null
+    const texts: string[] = []
+    const sections: string[] = []
+    for (let chIdx = 0; chIdx < keys.length; chIdx++) {
+      const chNum = parseInt(keys[chIdx], 10)
+      const chVal = obj[keys[chIdx]]
+      let verseStart = 1
+      let verseEnd = 999
+      if (range && keys.length > 0) {
+        if (chIdx === 0) verseStart = range.startCh === chNum ? range.startV : 1
+        if (chIdx === keys.length - 1) verseEnd = range.endCh === chNum ? range.endV : 999
+      }
+      if (Array.isArray(chVal)) {
+        for (let i = 0; i < chVal.length; i++) {
+          const s = chVal[i]
+          if (typeof s === 'string') {
+            texts.push(s)
+            const v = verseStart + i
+            sections.push(`${chNum}:${v}`)
+          }
+        }
+      } else if (chVal && typeof chVal === 'object') {
+        const nested = collectFromObject(chVal as Record<string, unknown>)
+        if (nested) {
+          texts.push(...nested.texts)
+          sections.push(...nested.sections)
+        }
+      }
+    }
+    return { texts, sections }
+  }
+  if (val && typeof val === 'object' && !Array.isArray(val)) {
+    const obj = val as Record<string, unknown>
+    if (numericKeys(obj).length > 0) return collectFromObject(obj)
+  }
+  if (Array.isArray(val) && val.length > 0) {
+    const first = val[0]
+    if (Array.isArray(first) || (first && typeof first === 'object' && !Array.isArray(first))) {
+      const texts: string[] = []
+      const sections: string[] = []
+      for (let chIdx = 0; chIdx < val.length; chIdx++) {
+        const chNum = (range ? range.startCh + chIdx : chIdx + 1)
+        const chVal = val[chIdx]
+        let verseStart = 1
+        let verseEnd = 999
+        if (range) {
+          if (chIdx === 0) verseStart = range.startV
+          if (chIdx === val.length - 1) verseEnd = range.endV
+        }
+        if (Array.isArray(chVal)) {
+          for (let i = 0; i < chVal.length; i++) {
+            const s = chVal[i]
+            if (typeof s === 'string') {
+              texts.push(s)
+              sections.push(`${chNum}:${verseStart + i}`)
+            }
+          }
+        } else if (chVal != null) {
+          const flat = extractTextArray(chVal)
+          flat.forEach((t, i) => {
+            texts.push(t)
+            sections.push(`${chNum}:${verseStart + i}`)
+          })
+        }
+      }
+      return { texts, sections }
+    }
+  }
+  return null
+}
 
 /** Extract flat string[] from Sefaria text/he which may be array, string, or nested object. */
 function extractTextArray (val: unknown): string[] {
@@ -1442,7 +1557,7 @@ async function fetchComplexBookToc (book: CategoryNode) {
   try {
     const isTalmud = book.categories?.includes('Talmud')
     const ref = String(book.title ?? '').replace(/\s+/g, '_')
-    const indexData = await $fetch<{ schema?: { lengths?: number[]; nodes?: unknown[] }; alts?: Record<string, unknown> }>(`/api/sefaria/index/${encodeURIComponent(ref)}`)
+    const indexData = await $fetch<{ schema?: { lengths?: number[]; nodes?: unknown[]; heSectionNames?: string[] }; alts?: Record<string, unknown> }>(`/api/sefaria/index/${encodeURIComponent(ref)}`)
     if (!indexData?.schema) {
       throw new Error('No schema found')
     }
@@ -1755,32 +1870,77 @@ async function fetchBookContent (refOverride?: string | null, displayLabel?: str
         return
       }
     } else if (isComplexBookFlag.value && heArr.length) {
-      textData = heArr.map((he, idx) => ({
-        number: idx + 1,
-        displayNumber: (Array.isArray(response.sections) && response.sections[idx] != null)
-          ? String(response.sections[idx])
-          : `${idx + 1}`,
-        en: enArr[idx] ?? '',
+      const isTanakh = selectedBook.value.categories?.includes('Tanakh')
+      let displayNumbers: string[]
+      let verseNums: number[]
+      let useEnArr = enArr
+      let useHeArr = heArr
+      if (isTanakh) {
+        const extractedHe = extractTextAndSections(response.he, sefariaRef)
+        const extractedEn = response.text ? extractTextAndSections(response.text, sefariaRef) : null
+        const extracted = extractedHe ?? extractedEn
+        if (extracted && extracted.sections.length === extracted.texts.length && extracted.texts.length > 0) {
+          displayNumbers = extracted.sections
+          verseNums = extracted.sections.map(s => {
+            const v = s.split(':')[1]
+            return v ? parseInt(v, 10) : 1
+          })
+          useHeArr = extractedHe ? extractedHe.texts : heArr
+          useEnArr = extractedEn ? extractedEn.texts : enArr
+          if (useEnArr.length !== useHeArr.length) useEnArr = enArr
+        } else {
+          const rawVerses = (response.verses ?? response.he_verses) as number[] | undefined
+          verseNums = (rawVerses != null && rawVerses.length === heArr.length)
+            ? rawVerses
+            : Array.from({ length: heArr.length }, (_, i) => i + 1)
+          displayNumbers = (Array.isArray(response.sections) && response.sections.length === heArr.length && response.sections.every((s): s is string => typeof s === 'string' && /^\d+:\d+$/.test(s)))
+            ? (response.sections as string[])
+            : buildTanakhDisplayNumbers(sefariaRef, verseNums)
+        }
+      } else {
+        const rawVerses = (response.verses ?? response.he_verses) as number[] | undefined
+        verseNums = (rawVerses != null && rawVerses.length === heArr.length)
+          ? rawVerses
+          : Array.from({ length: heArr.length }, (_, i) => i + 1)
+        displayNumbers = heArr.map((_, idx) =>
+          (Array.isArray(response.sections) && response.sections[idx] != null)
+            ? String(response.sections[idx])
+            : String(idx + 1)
+        )
+      }
+      textData = useHeArr.map((he, idx) => ({
+        number: verseNums[idx] ?? idx + 1,
+        displayNumber: displayNumbers[idx] ?? String(idx + 1),
+        en: useEnArr[idx] ?? '',
         he: he ?? ''
       }))
     } else if (enArr.length || heArr.length) {
-      const enVerses = response.verses ?? enArr.map((_, i) => i + 1)
-      const heVerses = response.he_verses ?? enVerses
-      let allNums = [...new Set([...enVerses, ...heVerses])].sort((a, b) => a - b)
-      if (allNums.length === 0 && (enArr.length || heArr.length)) {
-        const len = Math.max(enArr.length, heArr.length)
-        allNums = Array.from({ length: len }, (_, i) => i + 1)
-      }
-      const enMap: Record<number, string> = {}
-      enArr.forEach((t, i) => { enMap[enVerses[i] ?? i + 1] = t })
-      const heMap: Record<number, string> = {}
-      heArr.forEach((t, i) => { heMap[heVerses[i] ?? i + 1] = t })
+      const len = Math.max(enArr.length, heArr.length)
       const isTanakh = selectedBook.value.categories?.includes('Tanakh')
-      textData = allNums.map((num, idx) => ({
-        number: num,
-        displayNumber: isTanakh ? `${currentChapter.value}:${idx + 1}` : String(num),
-        en: enMap[num] ?? '',
-        he: heMap[num] ?? ''
+      let displayNumbers: string[]
+      let verseNums: number[]
+      if (isTanakh) {
+        const extracted = extractTextAndSections(response.he ?? response.text, sefariaRef)
+        if (extracted && extracted.sections.length === extracted.texts.length && extracted.texts.length === len) {
+          displayNumbers = extracted.sections
+          verseNums = extracted.sections.map(s => parseInt(s.split(':')[1] ?? '1', 10))
+        } else {
+          const enVerses = response.verses ?? enArr.map((_, i) => i + 1)
+          const heVerses = response.he_verses ?? enVerses
+          verseNums = Array.from({ length: len }, (_, i) => enVerses[i] ?? heVerses[i] ?? i + 1)
+          displayNumbers = buildTanakhDisplayNumbers(sefariaRef, verseNums)
+        }
+      } else {
+        const enVerses = response.verses ?? enArr.map((_, i) => i + 1)
+        const heVerses = response.he_verses ?? enVerses
+        verseNums = Array.from({ length: len }, (_, i) => enVerses[i] ?? heVerses[i] ?? i + 1)
+        displayNumbers = verseNums.map(String)
+      }
+      textData = Array.from({ length: len }, (_, i) => ({
+        number: verseNums[i],
+        displayNumber: displayNumbers[i] ?? String(verseNums[i]),
+        en: enArr[i] ?? '',
+        he: heArr[i] ?? ''
       }))
     }
     if (textData.length === 0 && response.next && !refOverride) {

@@ -28,12 +28,13 @@ export default defineEventHandler(async (event): Promise<unknown> => {
 
   try {
     const startTime = Date.now()
+    const sefariaUserAgent = 'SefariaTutor/0.1.0 (Cogitations; educational Torah study app; https://cogitations.com)'
     const response: unknown = await $fetch(sefariaUrl, {
       method: event.method,
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
-        'User-Agent': userAgent, // Forward user agent to Sefaria
+        'User-Agent': sefariaUserAgent, // Descriptive User-Agent per Sefaria's request for usage tracking
       },
     })
     const duration = Date.now() - startTime
