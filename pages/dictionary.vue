@@ -2,7 +2,7 @@
   <div class="container mx-auto p-4">
     <div class="flex justify-between items-center mb-6">
       <h1 class="text-3xl font-bold text-gray-800 flex items-center gap-2">
-        <span class="text-blue-600">📖</span> Translation Dictionary
+        <span class="text-blue-600">📖</span> Word-by-word Translation Dictionary (OpenAI)
       </h1>
       <NuxtLink to="/" class="text-blue-600 hover:underline flex items-center gap-1">
         ← Back to Explorer
@@ -68,18 +68,18 @@
         Loading dictionary entries...
       </div>
       <div v-else-if="!entries.length" class="p-12 text-center text-gray-500">
-        No translations found.
+        No word-by-word translations found.
       </div>
       <div v-else>
         <p class="px-6 py-2 text-sm text-gray-500 border-b border-gray-100">
-          Click any phrase to see the translation and grammar.
+          Click any phrase to see the word-by-word translation and grammar from OpenAI.
         </p>
         <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse">
           <thead>
             <tr class="bg-gray-50 border-b border-gray-200">
               <th class="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Phrase</th>
-              <th class="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Translation Snippet</th>
+              <th class="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Translation snippet (OpenAI)</th>
               <th class="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">v / Age</th>
               <th class="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Added</th>
               <th class="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Actions</th>
@@ -186,7 +186,7 @@
             </div>
           </div>
           <div>
-            <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Translation</h3>
+            <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Word-by-word translation</h3>
             <div class="p-4 bg-blue-50 text-blue-900 rounded-xl text-xl">
               {{ selectedEntry.translationSnippet }}
             </div>
@@ -234,7 +234,7 @@
     >
       <div class="bg-white rounded-lg shadow-xl p-6 w-[90vw] max-h-[90vh] overflow-auto text-base">
         <div class="flex justify-between items-center mb-4">
-          <h2 class="text-2xl font-bold">Translation</h2>
+          <h2 class="text-2xl font-bold">Word-by-word translation</h2>
           <button
             type="button"
             class="text-gray-500 hover:text-gray-700 text-2xl leading-none"
@@ -244,7 +244,7 @@
           </button>
         </div>
         <div v-if="translationLoading" class="text-center py-8 text-gray-500 text-lg">
-          Loading translation…
+          Loading word-by-word translation from OpenAI…
         </div>
         <div v-else-if="translationError" class="text-center py-8 text-red-600 text-lg">
           {{ translationError }}
