@@ -608,6 +608,49 @@
       </div>
     </div>
 
+    <!-- Long phrase: select words to translate -->
+    <div
+      v-if="showLongPhraseSelectionDialog"
+      class="fixed inset-0 z-[55] flex items-center justify-center bg-black/50 overflow-y-auto py-8"
+      @click.self="closeLongPhraseSelectionDialog"
+    >
+      <div class="bg-white rounded-lg shadow-xl p-6 max-w-2xl mx-4 w-full max-h-[90vh] overflow-auto">
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">Select words to translate</h3>
+        <p class="text-sm text-gray-600 mb-4">
+          This phrase has <strong>{{ longPhraseWords.length }}</strong> words. The more words you select, the longer the translation will take.
+        </p>
+        <div class="flex flex-wrap gap-2 mb-6" style="direction: rtl">
+          <button
+            v-for="(word, i) in longPhraseWords"
+            :key="i"
+            type="button"
+            class="px-3 py-1.5 rounded-lg border transition-colors text-base"
+            :class="longPhraseWordSelected[i] ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-100 text-gray-800 border-gray-200 hover:bg-gray-200'"
+            @click="toggleLongPhraseWord(i)"
+          >{{ word }}</button>
+        </div>
+        <div class="flex gap-3 justify-end flex-wrap">
+          <button
+            type="button"
+            class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
+            @click="closeLongPhraseSelectionDialog"
+          >Cancel</button>
+          <button
+            type="button"
+            class="px-4 py-2 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            :class="longPhraseSelectedCount ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed'"
+            :disabled="!longPhraseSelectedCount"
+            @click="translateLongPhraseSelection"
+          >Translate selection{{ longPhraseSelectedCount ? ` (${longPhraseSelectedCount})` : '' }}</button>
+          <button
+            type="button"
+            class="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600"
+            @click="translateLongPhraseAll"
+          >Translate all</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Raw translation data dialog -->
     <div
       v-if="showRawData"
@@ -702,6 +745,11 @@ const translationError = ref<string | null>(null)
 const lastTranslatedInputText = ref<string>('')
 const showMultiSentenceConfirmDialog = ref(false)
 const pendingTranslation = ref<{ plainText: string; fullSentence: boolean } | null>(null)
+const LONG_PHRASE_WORD_LIMIT = 10
+const showLongPhraseSelectionDialog = ref(false)
+const pendingLongPhrase = ref<{ plainText: string; fullSentence: boolean } | null>(null)
+const longPhraseWords = ref<string[]>([])
+const longPhraseWordSelected = ref<boolean[]>([])
 const showRawData = ref(false)
 const rawTranslationData = ref<unknown>(null)
 const { isAdmin, fetch: fetchSession, user, loggedIn } = useAuth()
@@ -756,9 +804,23 @@ function hasMultipleSentences (phrase: string): boolean {
   return sentences.length > 1
 }
 
+function countWords (text: string): number {
+  if (!text?.trim()) return 0
+  return text.trim().split(/\s+/).filter(Boolean).length
+}
+
 const translationHasMultipleSentences = computed(() =>
   hasMultipleSentences(lastTranslatedInputText.value || translationData.value?.originalPhrase || '')
 )
+
+const longPhraseSelectedCount = computed(() =>
+  longPhraseWordSelected.value.filter(Boolean).length
+)
+const longPhraseSelectedText = computed(() => {
+  const words = longPhraseWords.value
+  const selected = longPhraseWordSelected.value
+  return words.filter((_, i) => selected[i]).join(' ')
+})
 
 /** Parse starting chapter from Sefaria ref (e.g. "Genesis_6.20-7.2" -> 6, "Genesis_6" -> 6, "Genesis_6:9-11:32" -> 6). */
 function parseStartChapterFromRef (sefariaRef: string): number {
@@ -2142,6 +2204,34 @@ function confirmMultiSentenceContinue () {
   doTranslateApiCall(pending.plainText, pending.fullSentence)
 }
 
+function closeLongPhraseSelectionDialog () {
+  showLongPhraseSelectionDialog.value = false
+  pendingLongPhrase.value = null
+  longPhraseWords.value = []
+  longPhraseWordSelected.value = []
+}
+
+function toggleLongPhraseWord (index: number) {
+  const next = [...longPhraseWordSelected.value]
+  next[index] = !next[index]
+  longPhraseWordSelected.value = next
+}
+
+function translateLongPhraseSelection () {
+  const pending = pendingLongPhrase.value
+  const text = longPhraseSelectedText.value
+  if (!pending || !text.trim()) return
+  closeLongPhraseSelectionDialog()
+  doTranslateApiCall(text.trim(), pending.fullSentence)
+}
+
+function translateLongPhraseAll () {
+  const pending = pendingLongPhrase.value
+  if (!pending) return
+  closeLongPhraseSelectionDialog()
+  doTranslateApiCall(pending.plainText, pending.fullSentence)
+}
+
 async function translateWithOpenAI (text: string, fullSentence = false) {
   const config = useRuntimeConfig()
   const token = config.public.apiAuthToken as string
@@ -2156,6 +2246,14 @@ async function translateWithOpenAI (text: string, fullSentence = false) {
   if (hasMultipleSentences(plainText)) {
     pendingTranslation.value = { plainText, fullSentence }
     showMultiSentenceConfirmDialog.value = true
+    return
+  }
+
+  if (countWords(plainText) > LONG_PHRASE_WORD_LIMIT) {
+    pendingLongPhrase.value = { plainText, fullSentence }
+    longPhraseWords.value = plainText.trim().split(/\s+/).filter(Boolean)
+    longPhraseWordSelected.value = longPhraseWords.value.map(() => false)
+    showLongPhraseSelectionDialog.value = true
     return
   }
 
