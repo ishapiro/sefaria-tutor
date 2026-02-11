@@ -230,14 +230,23 @@
             </button>
           </div>
           <ul class="space-y-2">
-            <li v-for="section in complexSections" :key="section.ref" class="flex items-center">
+            <li
+              v-for="section in complexSections"
+              :key="section.ref"
+              class="flex items-center"
+            >
               <template v-if="isLeafNode(section)">
                 <button type="button" class="text-blue-600 hover:underline font-medium text-left" @click="fetchBookContent(section.ref)">
                   {{ getSectionDisplayTitle(section) }}
                 </button>
               </template>
               <template v-else>
-                <span class="text-gray-500 font-medium">{{ section.title }}<span v-if="section.heTitle"> / {{ section.heTitle }}</span></span>
+                <span
+                  class="text-gray-800 font-semibold text-sm md:text-base pl-1 border-l-2 border-gray-300"
+                  aria-hidden="true"
+                >
+                  {{ section.title }}<span v-if="section.heTitle"> / {{ section.heTitle }}</span>
+                </span>
               </template>
             </li>
           </ul>
@@ -624,7 +633,7 @@ const errorDetails = ref<Record<string, unknown> | null>(null)
 const showErrorDebugDialog = ref(false)
 const showHelpDialog = ref(false)
 const isComplexBookFlag = ref(false)
-const complexSections = ref<Array<{ ref: string; title: string; heTitle?: string }> | null>(null)
+const complexSections = ref<Array<{ ref: string; title: string; heTitle?: string; isContainer?: boolean }> | null>(null)
 const bookLoadAttempted = ref(false)
 const sectionStack = ref<unknown[]>([])
 const nextSectionRef = ref<string | null>(null)
@@ -1300,25 +1309,45 @@ function findSchemaLengths (obj: unknown): number[] | null {
   return null
 }
 
-function processSchemaNodes (nodes: unknown[], parentPath = ''): Array<{ ref: string; title: string; heTitle?: string }> {
+function processSchemaNodes (nodes: unknown[], parentPath = ''): Array<{ ref: string; title: string; heTitle?: string; isContainer?: boolean }> {
   if (!Array.isArray(nodes)) return []
-  let sections: Array<{ ref: string; title: string; heTitle?: string }> = []
+  let sections: Array<{ ref: string; title: string; heTitle?: string; isContainer?: boolean }> = []
   for (const node of nodes as Array<{ titles?: Array<{ lang: string; text: string }>; title?: string; heTitle?: string; key?: string; nodes?: unknown[]; lengths?: number[] }>) {
+    const hasText = !!(node.lengths?.[0] && node.lengths[0] > 0)
+    const hasChildren = !!(node.nodes && node.nodes.length > 0)
+    const isContainer = hasChildren && !hasText
+    
+    // Add nodes that have titles - either as clickable sections (if they have text or no children)
+    // or as container headers (if they have children but no direct text)
     if (node.titles?.length) {
       const enTitle = node.titles.find(t => t.lang === 'en')?.text ?? node.title ?? ''
       const heTitle = node.titles.find(t => t.lang === 'he')?.text ?? node.heTitle
-      const cleanKey = (node.key ?? node.title ?? '').toString().replace(/\s*\([^)]*\)/g, '').trim()
+      const baseLabel = enTitle || node.title || node.key || ''
+      const cleanKey = baseLabel.toString().replace(/\s*\([^)]*\)/g, '').trim()
       const fullPath = parentPath ? `${parentPath}/${cleanKey}` : cleanKey
-      sections.push({ ref: fullPath, title: enTitle, heTitle })
+      
+      // Always add nodes with titles - mark containers as non-clickable
+      sections.push({
+        ref: fullPath,
+        title: enTitle,
+        heTitle,
+        isContainer: isContainer,
+      })
     }
+    
+    // Handle numbered sections (like Simanim)
     if (node.lengths?.[0] && node.lengths[0] > 0 && !node.nodes?.length) {
       const totalChapters = node.lengths[0]
       for (let n = 1; n <= totalChapters; n++) {
         sections.push({ ref: String(n), title: `Siman ${n}`, heTitle: `סימן ${n}` })
       }
     }
+    
+    // Recursively process child nodes
     if (node.nodes?.length) {
-      const cleanKey = (node.key ?? node.title ?? '').toString().replace(/\s*\([^)]*\)/g, '').trim()
+      const enTitle = node.titles?.find(t => t.lang === 'en')?.text ?? node.title ?? ''
+      const baseLabel = enTitle || node.title || node.key || ''
+      const cleanKey = baseLabel.toString().replace(/\s*\([^)]*\)/g, '').trim()
       const childPath = parentPath ? `${parentPath}/${cleanKey}` : cleanKey
       sections = sections.concat(processSchemaNodes(node.nodes, childPath))
     }
@@ -1380,11 +1409,12 @@ async function fetchComplexBookToc (book: CategoryNode) {
   }
 }
 
-function isLeafNode (section: { ref: string }): boolean {
+function isLeafNode (section: { ref: string; isContainer?: boolean }): boolean {
+  if (section.isContainer) return false
   const list = complexSections.value ?? []
   const idx = list.findIndex(s => s.ref === section.ref)
   if (idx === -1 || idx === list.length - 1) return true
-  const next = list[idx + 1]
+  const next = list[idx + 1] as { ref: string }
   return !next.ref.startsWith(section.ref + '/')
 }
 
@@ -1402,6 +1432,17 @@ function goBackSection () {
 
 async function fetchBookContent (refOverride?: string | null) {
   if (!selectedBook.value) return
+  
+  // Safety check: don't fetch container nodes (schema-only headers)
+  if (refOverride && isComplexBookFlag.value && Array.isArray(complexSections.value)) {
+    const section = complexSections.value.find(s => s.ref === refOverride)
+    if (section?.isContainer) {
+      errorMessage.value = 'This entry is a structural header and has no direct text. Please choose one of the sub-sections instead.'
+      showErrorDialog.value = true
+      return
+    }
+  }
+  
   loading.value = true
   const bookTitle = String(selectedBook.value.title ?? '')
   const isTalmud = selectedBook.value.categories?.includes('Talmud')
@@ -1413,7 +1454,6 @@ async function fetchBookContent (refOverride?: string | null) {
       const parts = refOverride
         .split('/')
         .map(p => p.replace(/\s*\([^)]*\)/, '').trim())
-        .map(p => p.replace(/'([A-Za-z])/g, (_, c) => 'e' + c.toLowerCase()))
       if (parts.length === 1 && /^\d+$/.test(parts[0])) {
         sefariaRef = `${bookTitle} ${parts[0]}`.replace(/\s+/g, '_')
       } else {
@@ -1433,6 +1473,32 @@ async function fetchBookContent (refOverride?: string | null) {
       currentChapter.value = chapter
       sefariaRef = `${bookTitle} ${chapter}`.replace(/\s+/g, '_')
     }
+  }
+
+  // Hard guard for known schema-only siddur nodes that Sefaria rejects, e.g. Kaddish Yatom / Chatzi Kaddish.
+  // If we detect these refs, treat them as structural headers instead of calling the texts API.
+  const sefariaRefLower = sefariaRef.toLowerCase()
+  if (
+    isComplexBookFlag.value &&
+    selectedBook.value?.title === 'Siddur Ashkenaz' &&
+    (
+      sefariaRefLower.includes('kaddish_yatom') ||
+      sefariaRefLower.includes('kaddish yatom') ||
+      sefariaRefLower.includes('chatzi_kaddish') ||
+      sefariaRefLower.includes('chatzi kaddish')
+    ) &&
+    refOverride &&
+    Array.isArray(complexSections.value)
+  ) {
+    complexSections.value = complexSections.value.map(section =>
+      section.ref === refOverride
+        ? { ...section, isContainer: true }
+        : section,
+    )
+    errorMessage.value = 'This entry is a structural header in the siddur and has no direct text. Please choose one of the sub‑sections instead.'
+    showErrorDialog.value = true
+    loading.value = false
+    return
   }
   lastSefariaRefAttempted.value = sefariaRef
   lastSefariaResponse.value = null
@@ -1511,10 +1577,32 @@ async function fetchBookContent (refOverride?: string | null) {
     allVerseData.value = textData
     first.value = 0
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Request failed'
+    const httpErr = err as { data?: { error?: string }; message?: string }
+    const dataError = httpErr?.data?.error ?? ''
+    const msg = dataError || httpErr.message || 'Request failed'
     lastSefariaError.value = msg
     lastSefariaResponse.value = err
-    errorMessage.value = msg
+
+    // If Sefaria reports that this ref is actually a schema node (no direct text),
+    // mark the corresponding section as a non-clickable container so future clicks
+    // treat it as a header instead of attempting another texts API call.
+    if (
+      typeof dataError === 'string' &&
+      dataError.includes('schema node ref') &&
+      refOverride &&
+      isComplexBookFlag.value &&
+      Array.isArray(complexSections.value)
+    ) {
+      complexSections.value = complexSections.value.map(section =>
+        section.ref === refOverride
+          ? { ...section, isContainer: true }
+          : section,
+      )
+      errorMessage.value = 'This entry is a structural header in the siddur and has no direct text. Please choose one of the sub‑sections instead.'
+    } else {
+      errorMessage.value = msg
+    }
+
     showErrorDialog.value = true
     allVerseData.value = []
     totalRecords.value = 0
