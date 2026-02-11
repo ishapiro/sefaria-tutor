@@ -211,7 +211,7 @@
     <!-- Book reader (Step 3: minimal – Step 4 will add pagination and complex books) -->
     <div v-else class="border border-gray-200 rounded-lg bg-white overflow-hidden">
       <div class="flex justify-between items-center p-4 border-b border-gray-200 bg-gray-50">
-        <span class="font-semibold">{{ selectedBook?.title }}{{ totalRecords > 0 && currentChapter ? ` (${currentChapter})` : '' }}</span>
+        <span class="font-semibold">{{ selectedBook?.title }}{{ currentChapter ? ` (${currentChapter})` : '' }}</span>
         <button type="button" class="text-blue-600 hover:underline" @click="handleCloseBook">← Back</button>
       </div>
       <div class="p-4">
@@ -269,7 +269,7 @@
                          bg-white text-blue-700 border-blue-100 shadow-sm
                          hover:bg-blue-50 hover:border-blue-400 hover:text-blue-900
                          focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
-                  @click="fetchBookContent(section.ref)"
+                  @click="fetchBookContent(section.ref, section.title)"
                 >
                   {{ getSectionDisplayTitle(section) }}
                 </button>
@@ -749,9 +749,19 @@ const translationHasMultipleSentences = computed(() =>
 
 /** Extract flat string[] from Sefaria text/he which may be array, string, or nested object. */
 function extractTextArray (val: unknown): string[] {
-  if (Array.isArray(val)) return val.filter((x): x is string => typeof x === 'string')
+  // Most Sefaria responses use arrays of strings, but some (like large
+  // ranges or alternate structures) return jagged arrays or nested
+  // objects of strings. Flatten everything into a simple string[].
+  if (Array.isArray(val)) {
+    const out: string[] = []
+    for (const item of val) {
+      if (typeof item === 'string') out.push(item)
+      else if (item != null) out.push(...extractTextArray(item))
+    }
+    return out
+  }
   if (typeof val === 'string') return [val]
-  if (val && typeof val === 'object' && !Array.isArray(val)) {
+  if (val && typeof val === 'object') {
     const obj = val as Record<string, unknown>
     const keys = Object.keys(obj).sort((a, b) => {
       const na = Number(a)
@@ -1501,11 +1511,59 @@ async function fetchComplexBookToc (book: CategoryNode) {
         complexSections.value = sections
       }
     } else if (indexData.schema.lengths?.[0] && indexData.schema.lengths[0] > 0) {
-      const totalChapters = indexData.schema.lengths[0]
-      complexSections.value = Array.from({ length: totalChapters }, (_, i) => {
-        const n = i + 1
-        return { ref: String(n), title: `Siman ${n}`, heTitle: `סימן ${n}` }
-      })
+      const isTanakh = book.categories?.includes('Tanakh')
+      const topLevelCount = indexData.schema.lengths[0]
+
+      if (isTanakh) {
+        const sections: Array<{ ref: string; title: string; heTitle?: string; isContainer?: boolean }> = []
+
+        // Primary chapter list, like Sefaria's "Chapters" grid.
+        sections.push({
+          ref: '__chapters__',
+          title: 'Chapters',
+          heTitle: indexData.schema.heSectionNames?.[0] as string | undefined,
+          isContainer: true,
+        })
+        for (let n = 1; n <= topLevelCount; n++) {
+          sections.push({
+            ref: String(n),
+            title: String(n),
+          })
+        }
+
+        // Torah portions (Parasha alt structure), when available.
+        const parashaAlt = (indexData.alts?.Parasha as { nodes?: Array<Record<string, unknown>> } | undefined)?.nodes
+        if (Array.isArray(parashaAlt) && parashaAlt.length > 0) {
+          sections.push({
+            ref: '__parasha__',
+            title: 'Torah Portions',
+            heTitle: 'פרשיות התורה',
+            isContainer: true,
+          })
+
+          for (const node of parashaAlt) {
+            const wholeRef = typeof node.wholeRef === 'string' ? node.wholeRef : null
+            if (!wholeRef) continue
+            const titles = (node.titles as Array<{ lang?: string; text?: string; primary?: boolean }> | undefined) ?? []
+            const enTitle = titles.find(t => t.lang === 'en' && t.text)?.text ?? (node.title as string | undefined) ?? ''
+            const heTitle = titles.find(t => t.lang === 'he' && t.text)?.text ?? (node.heTitle as string | undefined)
+
+            sections.push({
+              ref: wholeRef,
+              title: enTitle,
+              heTitle,
+            })
+          }
+        }
+
+        complexSections.value = sections
+      } else {
+        // Non‑Tanakh complex book with a simple length array: treat as numbered simanim.
+        complexSections.value = Array.from({ length: topLevelCount }, (_, i) => {
+          const n = i + 1
+          return { ref: String(n), title: `Siman ${n}`, heTitle: `סימן ${n}` }
+        })
+      }
     } else {
       let sections = processSchemaNodes(indexData.schema.nodes ?? [])
       const lengths = findSchemaLengths(indexData.schema)
@@ -1558,7 +1616,7 @@ function goBackSection () {
   }
 }
 
-async function fetchBookContent (refOverride?: string | null) {
+async function fetchBookContent (refOverride?: string | null, displayLabel?: string) {
   if (!selectedBook.value) return
   
   // Safety check: don't fetch container nodes (schema-only headers)
@@ -1575,7 +1633,7 @@ async function fetchBookContent (refOverride?: string | null) {
   const bookTitle = String(selectedBook.value.title ?? '')
   const isTalmud = selectedBook.value.categories?.includes('Talmud')
   let chapter: number | string | null = refOverride ? null : 1
-  currentChapter.value = refOverride ?? chapter ?? 1
+  currentChapter.value = null
   let sefariaRef: string
   if (refOverride) {
     const cleanOverride = refOverride.replace(/\s*\([^)]*\)/, '').trim()
@@ -1588,13 +1646,32 @@ async function fetchBookContent (refOverride?: string | null) {
       sefariaRef = `${bookTitle} ${dafSide}`.replace(/\s+/g, '_')
       currentChapter.value = dafSide
     } else if (isComplexBookFlag.value) {
-      const parts = refOverride
-        .split('/')
-        .map(p => p.replace(/\s*\([^)]*\)/, '').trim())
-      if (parts.length === 1 && /^\d+$/.test(parts[0])) {
-        sefariaRef = `${bookTitle} ${parts[0]}`.replace(/\s+/g, '_')
+      // For complex non‑Talmud books we support:
+      // - Simple numbered sections (chapters / simanim), where refOverride is
+      //   something like "1" or "Chapters/1".
+      // - Alternate-structure ranges (e.g. Parasha wholeRefs) where the
+      //   refOverride already includes the book name and a verse range,
+      //   like "Genesis 1:1-6:8". In that case, use the range as-is.
+      if (cleanOverride.includes(':') && cleanOverride.includes(' ')) {
+        // Looks like a full Sefaria ref with a range; don't prepend the book title.
+        sefariaRef = cleanOverride.replace(/\s+/g, '_')
+        // For Torah portions and similar ranges, show both the portion name
+        // and the underlying range in the header so users know exactly what
+        // they're viewing, e.g. "Lech Lecha – Genesis 12:1-17:27".
+        currentChapter.value = displayLabel
+          ? `${displayLabel} – ${cleanOverride}`
+          : cleanOverride
       } else {
-        sefariaRef = `${bookTitle}, ${parts.join(', ')}`
+        const parts = refOverride
+          .split('/')
+          .map(p => p.replace(/\s*\([^)]*\)/, '').trim())
+        if (parts.length === 1 && /^\d+$/.test(parts[0])) {
+          sefariaRef = `${bookTitle} ${parts[0]}`.replace(/\s+/g, '_')
+          currentChapter.value = displayLabel ?? parts[0]
+        } else {
+          sefariaRef = `${bookTitle}, ${parts.join(', ')}`
+          currentChapter.value = displayLabel ?? parts.join(' ')
+        }
       }
     } else {
       sefariaRef = refOverride.replace(/\s+/g, '_').replace(/;/g, '_')
