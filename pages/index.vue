@@ -217,39 +217,65 @@
       <div class="p-4">
         <div v-if="loading" class="text-center py-8 text-gray-500">Loading…</div>
         <!-- Complex book: section list (when no section content loaded yet) – check before "not available" -->
-        <div v-else-if="complexSections?.length && allVerseData.length === 0" class="space-y-4">
-          <div class="flex items-center gap-2 mb-4 flex-wrap">
-            <button v-if="sectionStack.length > 0" type="button" class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm" @click="goBackSection">Back</button>
-            <span class="font-semibold">Select a section:</span>
+        <div v-else-if="complexSections?.length && allVerseData.length === 0" class="space-y-6">
+          <div class="flex items-center gap-2 mb-1 flex-wrap">
+            <button
+              v-if="sectionStack.length > 0"
+              type="button"
+              class="px-2 py-1 bg-gray-100 rounded-md hover:bg-gray-200 text-xs font-medium text-gray-700 border border-gray-200"
+              @click="goBackSection"
+            >
+              ← Back
+            </button>
+            <span class="font-semibold text-sm text-gray-800">Select a section:</span>
             <button
               type="button"
-              class="ml-2 px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100 text-gray-600"
+              class="ml-2 px-2 py-1 text-xs border border-gray-300 rounded-md hover:bg-gray-100 text-gray-600"
               @click="showSectionListDebugDialog = true"
             >
               Debug
             </button>
           </div>
-          <ul class="space-y-2">
-            <li
-              v-for="section in complexSections"
-              :key="section.ref"
-              class="flex items-center"
+
+          <!-- Sefaria-style grouped TOC: chapter headings with daf/section chips -->
+          <div class="space-y-6">
+            <div
+              v-for="group in complexSectionGroups"
+              :key="group.header?.ref || (group.items[0]?.ref ?? 'group')"
+              class="border border-gray-100 rounded-lg bg-gray-50/60 p-3 md:p-4 shadow-sm"
             >
-              <template v-if="isLeafNode(section)">
-                <button type="button" class="text-blue-600 hover:underline font-medium text-left" @click="fetchBookContent(section.ref)">
+              <!-- Chapter / group heading -->
+              <div
+                v-if="group.header"
+                class="flex items-baseline justify-between gap-2 mb-2"
+              >
+                <div class="text-sm md:text-base font-semibold text-gray-900">
+                  {{ group.header.title }}
+                  <span v-if="group.header.heTitle" class="text-gray-600 font-normal">
+                    / {{ group.header.heTitle }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Grid of clickable section chips -->
+              <div
+                class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-12 gap-1.5 md:gap-2"
+              >
+                <button
+                  v-for="section in group.items"
+                  :key="section.ref"
+                  type="button"
+                  class="px-2 py-1 md:px-2.5 md:py-1.5 rounded-md border text-xs md:text-sm font-medium
+                         bg-white text-blue-700 border-blue-100 shadow-sm
+                         hover:bg-blue-50 hover:border-blue-400 hover:text-blue-900
+                         focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
+                  @click="fetchBookContent(section.ref)"
+                >
                   {{ getSectionDisplayTitle(section) }}
                 </button>
-              </template>
-              <template v-else>
-                <span
-                  class="text-gray-800 font-semibold text-sm md:text-base pl-1 border-l-2 border-gray-300"
-                  aria-hidden="true"
-                >
-                  {{ section.title }}<span v-if="section.heTitle"> / {{ section.heTitle }}</span>
-                </span>
-              </template>
-            </li>
-          </ul>
+              </div>
+            </div>
+          </div>
         </div>
         <div v-else-if="bookLoadAttempted && !loading && currentPageText.length === 0 && !complexSections" class="text-center py-8 text-gray-500">
           <p class="mb-4">This book is not available via the API, or you need to select a section. Try another book or section.</p>
@@ -780,10 +806,20 @@ function getSectionDisplayTitle (section: { ref: string; title: string; heTitle?
 function buildSefariaRefForSection (sectionRef: string): string {
   if (!selectedBook.value) return sectionRef
   const bookTitle = String(selectedBook.value.title ?? '')
+  const isTalmud = selectedBook.value.categories?.includes('Talmud')
   const parts = sectionRef
     .split('/')
     .map(p => p.replace(/\s*\([^)]*\)/, '').trim())
     .map(p => p.replace(/'([A-Za-z])/g, (_, c) => 'e' + c.toLowerCase()))
+
+  // For Talmud, our section refs are simple daf strings like "2a" / "2b".
+  // Debug output should mirror Sefaria's style, e.g. "Berakhot 2a".
+  if (isTalmud) {
+    const last = parts[parts.length - 1] || ''
+    return `${bookTitle} ${last}`.trim()
+  }
+
+  // For non‑Talmud complex books, keep the hierarchical "Book, Section" style.
   return `${bookTitle}, ${parts.join(', ')}`
 }
 
@@ -887,6 +923,42 @@ const bookLoadDebugInfo = computed(() => {
     lastSefariaError: lastSefariaError.value,
     lastSefariaResponseSummary: safeResponse,
   }
+})
+
+/** Group complex sections into Sefaria-style headings plus their child links.
+ * For Talmud, this means chapter headings (e.g. "Chapter 1; MeEimatai") with
+ * daf buttons underneath. For other complex books without explicit containers,
+ * this simply returns a single group of all sections. */
+const complexSectionGroups = computed(() => {
+  const sections = complexSections.value ?? []
+  const groups: Array<{ header: { ref: string; title: string; heTitle?: string } | null; items: Array<{ ref: string; title: string; heTitle?: string }> }> = []
+  let current: { header: { ref: string; title: string; heTitle?: string } | null; items: Array<{ ref: string; title: string; heTitle?: string }> } | null = null
+
+  for (const section of sections) {
+    if (section.isContainer || !current) {
+      // Start a new group when we see a container (chapter) or when this is the first item.
+      current = {
+        header: section.isContainer ? { ref: section.ref, title: section.title, heTitle: section.heTitle } : null,
+        items: [],
+      }
+      groups.push(current)
+      if (!section.isContainer) {
+        current.items.push({ ref: section.ref, title: section.title, heTitle: section.heTitle })
+      }
+    } else {
+      current.items.push({ ref: section.ref, title: section.title, heTitle: section.heTitle })
+    }
+  }
+
+  // If there were no explicit containers, ensure at least one group containing all sections.
+  if (groups.length === 0 && sections.length > 0) {
+    groups.push({
+      header: null,
+      items: sections.map(s => ({ ref: s.ref, title: s.title, heTitle: s.heTitle })),
+    })
+  }
+
+  return groups
 })
 
 const currentPageText = computed(() => {
@@ -1360,18 +1432,74 @@ async function fetchComplexBookToc (book: CategoryNode) {
   try {
     const isTalmud = book.categories?.includes('Talmud')
     const ref = String(book.title ?? '').replace(/\s+/g, '_')
-    const indexData = await $fetch<{ schema?: { lengths?: number[]; nodes?: unknown[] } }>(`/api/sefaria/index/${encodeURIComponent(ref)}`)
+    const indexData = await $fetch<{ schema?: { lengths?: number[]; nodes?: unknown[] }; alts?: Record<string, unknown> }>(`/api/sefaria/index/${encodeURIComponent(ref)}`)
     if (!indexData?.schema) {
       throw new Error('No schema found')
     }
     if (isTalmud && indexData.schema.lengths?.[0]) {
-      const totalDafim = indexData.schema.lengths[0]
-      const sections: Array<{ ref: string; title: string; heTitle?: string }> = []
-      for (let daf = 1; daf <= totalDafim; daf++) {
-        sections.push({ ref: `${book.title} ${daf}a`, title: `${daf}a`, heTitle: `${daf}א` })
-        sections.push({ ref: `${book.title} ${daf}b`, title: `${daf}b`, heTitle: `${daf}ב` })
+      // Talmud tractates have an alternate chapter structure that Sefaria
+      // uses for the Contents tab (e.g. "Chapter 1; MeEimatai" with a range
+      // of dapim under it). This lives in index.alts.Chapters.
+      const chaptersAlt = (indexData.alts?.Chapters as { nodes?: Array<Record<string, unknown>> } | undefined)?.nodes
+
+      if (Array.isArray(chaptersAlt) && chaptersAlt.length > 0) {
+        const sections: Array<{ ref: string; title: string; heTitle?: string; isContainer?: boolean }> = []
+
+        for (const chapterNode of chaptersAlt) {
+          const titles = (chapterNode.titles as Array<{ lang?: string; text?: string; primary?: boolean }> | undefined) ?? []
+          const enTitle = titles.find(t => t.lang === 'en' && t.text)?.text ?? 'Chapter'
+          const heTitle = titles.find(t => t.lang === 'he' && t.text)?.text
+          const chapterLabel = enTitle
+
+          // Add a non-clickable container row for the chapter heading.
+          sections.push({
+            ref: chapterLabel,
+            title: enTitle,
+            heTitle,
+            isContainer: true,
+          })
+
+          // Under each chapter, add the daf refs it covers as clickable leaf nodes.
+          // chapterNode.refs is a jagged array of refs; flatten and extract the daf part.
+          const rawRefs = chapterNode.refs as unknown
+          const flatRefs: string[] = []
+          if (Array.isArray(rawRefs)) {
+            for (const item of rawRefs) {
+              if (Array.isArray(item)) {
+                for (const r of item) {
+                  if (typeof r === 'string') flatRefs.push(r)
+                }
+              } else if (typeof item === 'string') {
+                flatRefs.push(item)
+              }
+            }
+          }
+
+          for (const r of flatRefs) {
+            // Examples: "Berakhot 2a", "Berakhot 7b:1-5", etc.
+            const match = r.match(/(\d+[ab])\b/i)
+            if (!match) continue
+            const daf = match[1]
+            sections.push({
+              ref: `${chapterLabel}/${daf}`,
+              title: `${daf}`,
+              heTitle: undefined,
+            })
+          }
+        }
+
+        complexSections.value = sections
+      } else {
+        // Fallback: no chapter alt-structure; generate a flat daf list.
+        const totalAmudim = indexData.schema.lengths[0]
+        const sections: Array<{ ref: string; title: string; heTitle?: string }> = []
+        const lastDaf = Math.ceil(totalAmudim / 2)
+        for (let daf = 2; daf <= lastDaf; daf++) {
+          sections.push({ ref: `${daf}a`, title: `${daf}a`, heTitle: `${daf}א` })
+          sections.push({ ref: `${daf}b`, title: `${daf}b`, heTitle: `${daf}ב` })
+        }
+        complexSections.value = sections
       }
-      complexSections.value = sections
     } else if (indexData.schema.lengths?.[0] && indexData.schema.lengths[0] > 0) {
       const totalChapters = indexData.schema.lengths[0]
       complexSections.value = Array.from({ length: totalChapters }, (_, i) => {
@@ -1450,7 +1578,16 @@ async function fetchBookContent (refOverride?: string | null) {
   currentChapter.value = refOverride ?? chapter ?? 1
   let sefariaRef: string
   if (refOverride) {
-    if (isComplexBookFlag.value) {
+    const cleanOverride = refOverride.replace(/\s*\([^)]*\)/, '').trim()
+    if (isTalmud) {
+      // Expect refs like "2a" / "2b" (from our Talmud TOC) or a full ref
+      // like "Berakhot 2a". Normalize to a "Book dafSide" shape and then
+      // to Sefaria's Berakhot_2a style for the API.
+      const match = cleanOverride.match(/(\d+[ab])$/i)
+      const dafSide = (match ? match[1] : cleanOverride).toLowerCase()
+      sefariaRef = `${bookTitle} ${dafSide}`.replace(/\s+/g, '_')
+      currentChapter.value = dafSide
+    } else if (isComplexBookFlag.value) {
       const parts = refOverride
         .split('/')
         .map(p => p.replace(/\s*\([^)]*\)/, '').trim())
