@@ -9,8 +9,8 @@ const displayName = computed(() => {
 
 <template>
   <div class="min-h-screen bg-gray-50 select-none">
-    <header class="bg-white shadow-sm border-b px-4 py-3 flex justify-between items-center">
-      <div class="flex items-center gap-3">
+    <header class="bg-white shadow-sm border-b px-4 py-3 flex flex-col items-center gap-3 sm:flex-row sm:justify-between sm:items-center">
+      <div class="flex flex-col items-center gap-1 sm:flex-row sm:items-center sm:gap-3">
         <a
           href="https://cogitations.com"
           target="_blank"
@@ -20,20 +20,20 @@ const displayName = computed(() => {
           <img
             src="/cogitations-logo-only.svg"
             alt="Cogitations logo"
-            class="h-10 w-auto md:h-12"
+            class="h-9 w-auto sm:h-10 md:h-12"
             loading="lazy"
           />
         </a>
         <NuxtLink
           to="/"
-          class="text-2xl font-semibold tracking-tight whitespace-nowrap text-[#003c71]"
+          class="text-lg font-semibold tracking-tight text-center sm:text-left sm:text-2xl sm:whitespace-nowrap text-[#003c71] no-underline hover:underline"
         >
-          Sefaria Tutor provide by Cogitations
+          Sefaria-Tutor by Cogitations
         </NuxtLink>
       </div>
-      <div class="flex items-center gap-4">
+      <div class="flex items-center gap-4 shrink-0">
         <template v-if="loggedIn">
-          <span class="text-gray-600 text-sm">Hello, {{ displayName }}</span>
+          <span class="text-gray-600 text-sm truncate max-w-[140px] sm:max-w-none">Hello, {{ displayName }}</span>
           <button @click="logout" class="text-sm font-medium text-gray-700 hover:text-indigo-600">Logout</button>
         </template>
         <template v-else>
