@@ -991,6 +991,10 @@ const pendingTranslation = ref<{ plainText: string; fullSentence: boolean } | nu
 const LONG_PHRASE_WORD_LIMIT = 10
 const showLongPhraseSelectionDialog = ref(false)
 const pendingLongPhrase = ref<{ plainText: string; fullSentence: boolean } | null>(null)
+/** Sefaria ref captured when long phrase or multi-sentence dialog is shown; used when translation is performed so add-to-word-list has the correct reference. */
+const pendingTranslationSefariaRef = ref<string | null>(null)
+/** Sefaria ref for the translation currently shown in the dialog; used by addWordToList so reference is preserved when user came via long-phrase selection. */
+const translationSefariaRef = ref<string | null>(null)
 const longPhraseWords = ref<string[]>([])
 const longPhraseWordSelected = ref<boolean[]>([])
 const showRawData = ref(false)
@@ -2445,10 +2449,11 @@ function countWordInPhrase (phrase: string, word: string): number {
   return tokens.filter(t => t === word).length
 }
 
-async function doTranslateApiCall (plainText: string, fullSentence: boolean) {
+async function doTranslateApiCall (plainText: string, fullSentence: boolean, sefariaRefOverride?: string | null) {
   const config = useRuntimeConfig()
   const token = config.public.apiAuthToken as string
   if (!token) return
+  translationSefariaRef.value = sefariaRefOverride ?? lastSefariaRefAttempted.value
   showTranslationDialog.value = true
   translationLoading.value = true
   translationData.value = null
@@ -2497,22 +2502,26 @@ async function doTranslateApiCall (plainText: string, fullSentence: boolean) {
 function cancelMultiSentenceConfirm () {
   showMultiSentenceConfirmDialog.value = false
   pendingTranslation.value = null
+  pendingTranslationSefariaRef.value = null
 }
 
 function confirmMultiSentenceContinue () {
   const pending = pendingTranslation.value
+  const refToUse = pendingTranslationSefariaRef.value
   if (!pending) {
     showMultiSentenceConfirmDialog.value = false
     return
   }
   showMultiSentenceConfirmDialog.value = false
   pendingTranslation.value = null
-  doTranslateApiCall(pending.plainText, pending.fullSentence)
+  pendingTranslationSefariaRef.value = null
+  doTranslateApiCall(pending.plainText, pending.fullSentence, refToUse)
 }
 
 function closeLongPhraseSelectionDialog () {
   showLongPhraseSelectionDialog.value = false
   pendingLongPhrase.value = null
+  pendingTranslationSefariaRef.value = null
   longPhraseWords.value = []
   longPhraseWordSelected.value = []
 }
@@ -2526,16 +2535,18 @@ function toggleLongPhraseWord (index: number) {
 function translateLongPhraseSelection () {
   const pending = pendingLongPhrase.value
   const text = longPhraseSelectedText.value
+  const refToUse = pendingTranslationSefariaRef.value
   if (!pending || !text.trim()) return
   closeLongPhraseSelectionDialog()
-  doTranslateApiCall(text.trim(), pending.fullSentence)
+  doTranslateApiCall(text.trim(), pending.fullSentence, refToUse)
 }
 
 function translateLongPhraseAll () {
   const pending = pendingLongPhrase.value
+  const refToUse = pendingTranslationSefariaRef.value
   if (!pending) return
   closeLongPhraseSelectionDialog()
-  doTranslateApiCall(pending.plainText, pending.fullSentence)
+  doTranslateApiCall(pending.plainText, pending.fullSentence, refToUse)
 }
 
 async function translateWithOpenAI (text: string, fullSentence = false) {
@@ -2550,12 +2561,14 @@ async function translateWithOpenAI (text: string, fullSentence = false) {
   if (!plainText) return
 
   if (hasMultipleSentences(plainText)) {
+    pendingTranslationSefariaRef.value = lastSefariaRefAttempted.value
     pendingTranslation.value = { plainText, fullSentence }
     showMultiSentenceConfirmDialog.value = true
     return
   }
 
   if (countWords(plainText) > LONG_PHRASE_WORD_LIMIT) {
+    pendingTranslationSefariaRef.value = lastSefariaRefAttempted.value
     pendingLongPhrase.value = { plainText, fullSentence }
     longPhraseWords.value = plainText.trim().split(/\s+/).filter(Boolean)
     longPhraseWordSelected.value = longPhraseWords.value.map(() => false)
@@ -2679,12 +2692,13 @@ async function addWordToList(index: number) {
       throw new Error('Book title is missing. Cannot save word.')
     }
 
-    // Build source text reference
+    // Build source text reference (use ref tied to this translation when coming from long-phrase/multi-sentence flow)
+    const sefariaRefForWord = translationSefariaRef.value ?? lastSefariaRefAttempted.value
     let sourceText = ''
     
-    if (selectedBook.value && lastSefariaRefAttempted.value) {
+    if (selectedBook.value && sefariaRefForWord) {
       // Use the buildSefariaRefForSection function to format the reference properly
-      sourceText = buildSefariaRefForSection(lastSefariaRefAttempted.value)
+      sourceText = buildSefariaRefForSection(sefariaRefForWord)
     } else if (selectedBook.value) {
       // Fallback: just book title and chapter if available
       const parts: string[] = [bookTitle]
@@ -2704,7 +2718,7 @@ async function addWordToList(index: number) {
       sourceText: sourceText || undefined,
       bookTitle: bookTitle || undefined, // Title from selectedBook (matches index exactly)
       bookPath: bookPath || undefined,   // Path for more reliable lookup
-      sefariaRef: lastSefariaRefAttempted.value || undefined // Exact Sefaria API reference
+      sefariaRef: sefariaRefForWord || undefined // Exact Sefaria API reference (preserved from long-phrase selection when applicable)
     }
 
     await $fetch('/api/word-list/add', {
