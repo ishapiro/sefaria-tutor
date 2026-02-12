@@ -256,8 +256,9 @@
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRuntimeConfig } from 'nuxt/app'
 import type { CategoryNode } from '~/components/WordExplorer/BookBrowser.vue'
-import { hasMultipleSentences, countWords } from '~/utils/text'
-import { parseStartChapterFromRef, buildTanakhDisplayNumbers, parseRangeFromRef, extractTextArray } from '~/utils/sefaria'
+import { hasMultipleSentences, countWords, getPlainTextFromHtml, splitIntoPhrases, countWordInPhrase, phraseContainsWord } from '~/utils/text'
+import { parseStartChapterFromRef, buildTanakhDisplayNumbers, parseRangeFromRef, extractTextArray, extractTextAndSections } from '~/utils/sefaria'
+import { useClipboard } from '~/composables/useClipboard'
 
 interface VerseSection {
   displayNumber: string | number
@@ -380,7 +381,7 @@ watch([user, isAdmin, loggedIn], ([userVal, adminVal, loggedInVal]) => {
 }, { immediate: true })
 const modelLoading = ref(false)
 const ttsLoading = ref(false)
-const copiedStatus = ref<string | null>(null)
+const { copiedStatus, copy: copyToClipboardWithFeedback } = useClipboard()
 
 const openaiLoading = computed(() =>
   translationLoading.value || ttsLoading.value
@@ -420,119 +421,12 @@ const longPhraseSelectedText = computed(() => {
   return words.filter((_, i) => selected[i]).join(' ')
 })
 
-/** Extract flat string[] and section refs (chapter:verse) from nested Tanakh data. Returns null if not nested. */
-function extractTextAndSections (val: unknown, sefariaRef: string): { texts: string[]; sections: string[] } | null {
-  const range = parseRangeFromRef(sefariaRef)
-  const numericKeys = (obj: Record<string, unknown>) => {
-    const keys = Object.keys(obj).filter(k => /^\d+$/.test(k))
-    keys.sort((a, b) => parseInt(a, 10) - parseInt(b, 10))
-    return keys
-  }
-  const collectFromObject = (obj: Record<string, unknown>): { texts: string[]; sections: string[] } | null => {
-    const keys = numericKeys(obj)
-    if (keys.length === 0) return null
-    const texts: string[] = []
-    const sections: string[] = []
-    for (let chIdx = 0; chIdx < keys.length; chIdx++) {
-      const chNum = parseInt(keys[chIdx], 10)
-      const chVal = obj[keys[chIdx]]
-      let verseStart = 1
-      let verseEnd = 999
-      if (range && keys.length > 0) {
-        if (chIdx === 0) verseStart = range.startCh === chNum ? range.startV : 1
-        if (chIdx === keys.length - 1) verseEnd = range.endCh === chNum ? range.endV : 999
-      }
-      if (Array.isArray(chVal)) {
-        for (let i = 0; i < chVal.length; i++) {
-          const s = chVal[i]
-          if (typeof s === 'string') {
-            texts.push(s)
-            const v = verseStart + i
-            sections.push(`${chNum}:${v}`)
-          }
-        }
-      } else if (chVal && typeof chVal === 'object') {
-        const nested = collectFromObject(chVal as Record<string, unknown>)
-        if (nested) {
-          texts.push(...nested.texts)
-          sections.push(...nested.sections)
-        }
-      }
-    }
-    return { texts, sections }
-  }
-  if (val && typeof val === 'object' && !Array.isArray(val)) {
-    const obj = val as Record<string, unknown>
-    if (numericKeys(obj).length > 0) return collectFromObject(obj)
-  }
-  if (Array.isArray(val) && val.length > 0) {
-    const first = val[0]
-    if (Array.isArray(first) || (first && typeof first === 'object' && !Array.isArray(first))) {
-      const texts: string[] = []
-      const sections: string[] = []
-      for (let chIdx = 0; chIdx < val.length; chIdx++) {
-        const chNum = (range ? range.startCh + chIdx : chIdx + 1)
-        const chVal = val[chIdx]
-        let verseStart = 1
-        let verseEnd = 999
-        if (range) {
-          if (chIdx === 0) verseStart = range.startV
-          if (chIdx === val.length - 1) verseEnd = range.endV
-        }
-        if (Array.isArray(chVal)) {
-          for (let i = 0; i < chVal.length; i++) {
-            const s = chVal[i]
-            if (typeof s === 'string') {
-              texts.push(s)
-              sections.push(`${chNum}:${verseStart + i}`)
-            }
-          }
-        } else if (chVal != null) {
-          const flat = extractTextArray(chVal)
-          flat.forEach((t, i) => {
-            texts.push(t)
-            sections.push(`${chNum}:${verseStart + i}`)
-          })
-        }
-      }
-      return { texts, sections }
-    }
-  }
-  return null
-}
-
-async function copyToClipboard (text: string) {
-  try {
-    await navigator.clipboard.writeText(text)
-  } catch {
-    // Fallback for older browsers
-    const ta = document.createElement('textarea')
-    ta.value = text
-    ta.style.position = 'fixed'
-    ta.style.opacity = '0'
-    document.body.appendChild(ta)
-    ta.select()
-    document.execCommand('copy')
-    document.body.removeChild(ta)
-  }
-}
-
 function onDebugCopy (text: string, key: string) {
-  handleCopy(text, key)
+  copyToClipboardWithFeedback(text, key)
 }
 
 function onTranslationCopy (text: string, key: string) {
-  handleCopy(text, key)
-}
-
-async function handleCopy (text: string, id: string) {
-  await copyToClipboard(text)
-  copiedStatus.value = id
-  setTimeout(() => {
-    if (copiedStatus.value === id) {
-      copiedStatus.value = null
-    }
-  }, 2000)
+  copyToClipboardWithFeedback(text, key)
 }
 
 function getSectionDisplayTitle (section: { ref: string; title: string; heTitle?: string }): string {
@@ -1706,34 +1600,6 @@ function handleCloseBook () {
   }
 }
 
-function getPlainTextFromHtml (html: string): string {
-  if (!html) return ''
-  const temp = document.createElement('div')
-  temp.innerHTML = html
-  return (temp.textContent ?? temp.innerText ?? html).trim()
-}
-
-/** Split text into phrases by comma, period, or colon (English and Hebrew). */
-function splitIntoPhrases (text: string): string[] {
-  if (!text) return []
-  // Strip HTML for phrase splitting logic to avoid breaking tags
-  const plainText = getPlainTextFromHtml(text)
-  // Split by any punctuation. We keep the punctuation with the preceding phrase.
-  // Using a regex that captures the content up to and including the delimiter.
-  // We include common English and Hebrew punctuation as separators.
-  const regex = /[^,.׃:;!?\u05C3\u05C0]+[.,׃:;!?\u05C3\u05C0]*/g
-  const matches = plainText.match(regex)
-  return matches ? matches.map(m => m.trim()).filter(Boolean) : [plainText]
-}
-
-/** Count how many times a word appears in the phrase (space-separated tokens). */
-function countWordInPhrase (phrase: string, word: string): number {
-  if (!phrase || !word) return 0
-  const plain = phrase.replace(/<[^>]+>/g, '').trim()
-  const tokens = plain.split(/\s+/).filter(Boolean)
-  return tokens.filter(t => t === word).length
-}
-
 async function doTranslateApiCall (plainText: string, fullSentence: boolean, sefariaRefOverride?: string | null) {
   const config = useRuntimeConfig()
   const token = config.public.apiAuthToken as string
@@ -1842,7 +1708,7 @@ async function translateWithOpenAI (text: string, fullSentence = false) {
     showErrorDialog.value = true
     return
   }
-  const plainText = import.meta.client ? getPlainTextFromHtml(text) : text.replace(/<[^>]+>/g, '')
+  const plainText = getPlainTextFromHtml(text)
   if (!plainText) return
 
   if (hasMultipleSentences(plainText)) {
@@ -2360,20 +2226,6 @@ async function navigateToWordReference(word: {
       }, 5000)
     }, 300)
   }
-}
-
-/**
- * Check if a phrase contains the Hebrew word (handles word boundaries)
- */
-function phraseContainsWord(phrase: string, word: string): boolean {
-  if (!phrase || !word) return false
-  // Remove whitespace and normalize for comparison
-  const normalizedPhrase = phrase.trim()
-  const normalizedWord = word.trim()
-  
-  // Check if phrase contains the word (exact match or as part of a larger word)
-  // For Hebrew, we want to match even if there are prefixes/suffixes
-  return normalizedPhrase.includes(normalizedWord)
 }
 
 /**
