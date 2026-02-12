@@ -44,7 +44,8 @@
           Showing {{ filteredWordList.length }} of {{ wordListLength }} words
         </span>
         <span v-else>
-          Total words: {{ wordListLength }}
+          {{ wordListTotal }} word{{ wordListTotal === 1 ? '' : 's' }}
+          <span v-if="hasMore" class="text-gray-400"> · showing {{ wordListLength }}</span>
         </span>
       </div>
 
@@ -65,11 +66,13 @@
 
       <!-- Word list -->
       <div v-else class="space-y-3">
-        <div
-          v-for="word in filteredWordList"
-          :key="word.id"
-          class="border border-gray-200 rounded-lg p-4 bg-white shadow-sm hover:border-blue-200 transition-colors"
-        >
+        <div class="overflow-y-auto max-h-[60vh] pr-1">
+          <div class="space-y-3">
+            <div
+              v-for="word in filteredWordList"
+              :key="word.id"
+              class="border border-gray-200 rounded-lg p-4 bg-white shadow-sm hover:border-blue-200 transition-colors"
+            >
           <!-- Source text reference (clickable) -->
           <div v-if="word.wordData.sourceText || word.wordData.bookTitle" class="mb-2 text-xs text-blue-600 font-medium border-b border-gray-100 pb-2">
             <button
@@ -145,6 +148,18 @@
           >
             {{ word.wordData.wordEntry.grammarNotes }}
           </div>
+            </div>
+          </div>
+        </div>
+        <div v-if="hasMore && !searchQuery" class="pt-2 border-t border-gray-200">
+          <button
+            type="button"
+            class="w-full py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded disabled:opacity-50"
+            :disabled="wordListLoadingMore"
+            @click="$emit('load-more')"
+          >
+            {{ wordListLoadingMore ? 'Loading…' : 'Load more' }}
+          </button>
         </div>
       </div>
 
@@ -181,12 +196,14 @@ export interface WordListEntry {
   createdAt: number
 }
 
-defineProps<{
+const props = defineProps<{
   open: boolean
   searchQuery: string
   filteredWordList: WordListEntry[]
   wordListLength: number
+  wordListTotal: number
   wordListLoading: boolean
+  wordListLoadingMore: boolean
   deletingWordId: number | null
 }>()
 
@@ -195,7 +212,10 @@ defineEmits<{
   'update:searchQuery': [value: string]
   'navigate-to-word': [word: WordListEntry]
   'confirm-delete-word': [wordId: number]
+  'load-more': []
 }>()
+
+const hasMore = computed(() => props.wordListLength < props.wordListTotal)
 
 function formatDate (unixSeconds: number) {
   return new Date(unixSeconds * 1000).toLocaleDateString()

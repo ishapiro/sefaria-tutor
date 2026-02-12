@@ -38,6 +38,18 @@
         <span class="text-base leading-none">📚</span>
         <span>My Word List</span>
       </button>
+      <button
+        v-if="loggedIn"
+        type="button"
+        class="px-4 py-2 text-sm font-medium border rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center gap-2"
+        :class="showNotesListModal
+          ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm'
+          : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400'"
+        @click="$emit('open-notes-list')"
+      >
+        <span class="text-base leading-none">📝</span>
+        <span>My Notes</span>
+      </button>
       <NuxtLink
         v-if="isAdmin"
         to="/admin"
@@ -125,6 +137,7 @@ defineProps<{
   showErrorDebugDialog: boolean
   showHelpDialog: boolean
   showWordListModal: boolean
+  showNotesListModal: boolean
   loggedIn: boolean
   isAdmin: boolean
   copiedStatus: string | null
@@ -135,6 +148,7 @@ defineEmits<{
   'refresh-index': []
   'open-help': []
   'open-word-list': []
+  'open-notes-list': []
   'book-select': [event: { data: CategoryNode }]
   'tab-open': [category: CategoryNode]
   'close-category-dialog': []

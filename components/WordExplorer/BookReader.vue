@@ -16,6 +16,18 @@
           <span>My Word List</span>
         </button>
         <button
+          v-if="loggedIn"
+          type="button"
+          class="px-3 py-1.5 text-sm font-medium border rounded-md transition-all duration-150 whitespace-nowrap inline-flex items-center gap-1.5"
+          :class="showNotesListModal
+            ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm'
+            : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400'"
+          @click="$emit('open-notes-list')"
+        >
+          <span class="text-base leading-none">📝</span>
+          <span>My Notes</span>
+        </button>
+        <button
           type="button"
           class="text-blue-600 hover:text-blue-700 hover:underline font-medium transition-colors duration-150"
           @click="$emit('close-book')"
@@ -126,12 +138,26 @@
               <span
                 v-for="(phrase, pIdx) in splitIntoPhrases(section.he)"
                 :key="pIdx"
-                :class="[
-                  'hover:bg-blue-50 cursor-pointer rounded px-0.5 transition-colors',
-                  wordToHighlight && phraseContainsWord(phrase, wordToHighlight) ? 'bg-yellow-300 font-semibold' : ''
-                ]"
-                @click="$emit('phrase-click', phrase, true)"
-              >{{ phrase }} </span>
+                class="inline-flex items-center gap-0.5 align-baseline"
+              >
+                <span
+                  :class="[
+                    'hover:bg-blue-50 cursor-pointer rounded px-0.5 transition-colors',
+                    wordToHighlight && phraseContainsWord(phrase, wordToHighlight) ? 'bg-yellow-300 font-semibold' : ''
+                  ]"
+                  @click="$emit('phrase-click', phrase, true)"
+                >{{ phrase }} </span>
+                <button
+                  v-if="loggedIn"
+                  type="button"
+                  class="shrink-0 p-0.5 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors align-middle"
+                  title="Add note"
+                  aria-label="Add note for this phrase"
+                  @click.stop="$emit('open-note', index, pIdx)"
+                >
+                  <span class="text-sm" aria-hidden="true">📝</span>
+                </button>
+              </span>
             </div>
           </div>
         </template>
@@ -196,6 +222,7 @@ defineProps<{
   wordToHighlight: string | null
   loggedIn: boolean
   showWordListModal: boolean
+  showNotesListModal: boolean
   splitIntoPhrases: (segment: string) => string[]
   phraseContainsWord: (phrase: string, word: string) => boolean
   getSectionDisplayTitle: (section: SectionRef) => string
@@ -204,12 +231,14 @@ defineProps<{
 defineEmits<{
   'close-book': []
   'open-word-list': []
+  'open-notes-list': []
   'select-section': [ref: string, title: string]
   'go-back-section': []
   'open-section-list-debug': []
   'open-book-load-debug': []
   'open-content-debug': []
   'phrase-click': [phrase: string, fromHebrew: boolean]
+  'open-note': [rowIndex: number, phraseIndex: number]
   'update:first': [value: number]
 }>()
 </script>

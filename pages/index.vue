@@ -28,6 +28,7 @@
       :show-error-debug-dialog="showErrorDebugDialog"
       :show-help-dialog="showHelpDialog"
       :show-word-list-modal="showWordListModal"
+      :show-notes-list-modal="showNotesListModal"
       :logged-in="loggedIn"
       :is-admin="isAdmin"
       :copied-status="copiedStatus"
@@ -35,6 +36,7 @@
       @refresh-index="refreshIndex"
       @open-help="showHelpDialog = true"
       @open-word-list="showWordListModal = true"
+      @open-notes-list="showNotesListModal = true"
       @book-select="onBookSelectFromBrowser"
       @tab-open="onTabOpen"
       @close-category-dialog="showCategoryDialog = false"
@@ -62,17 +64,20 @@
       :word-to-highlight="wordToHighlight"
       :logged-in="loggedIn"
       :show-word-list-modal="showWordListModal"
+      :show-notes-list-modal="showNotesListModal"
       :split-into-phrases="splitIntoPhrases"
       :phrase-contains-word="phraseContainsWord"
       :get-section-display-title="getSectionDisplayTitle"
       @close-book="handleCloseBook"
       @open-word-list="showWordListModal = true"
+      @open-notes-list="showNotesListModal = true"
       @select-section="onSelectSection"
       @go-back-section="goBackSection"
       @open-section-list-debug="showSectionListDebugDialog = true"
       @open-book-load-debug="showBookLoadDebugDialog = true"
       @open-content-debug="showContentDebugDialog = true"
       @phrase-click="onPhraseClick"
+      @open-note="onOpenNote"
       @update:first="first = $event"
     />
 
@@ -134,18 +139,31 @@
       @add-word-to-list="addWordToList($event)"
     />
 
+    <!-- My Note Modal (logged-in users) -->
+    <WordExplorerNotesModal />
+
+    <!-- My Notes List Modal -->
+    <WordExplorerNotesListModal
+      :open="showNotesListModal"
+      @close="showNotesListModal = false"
+      @navigate-to-reference="navigateToNoteReference($event)"
+    />
+
     <!-- Word List Modal -->
     <WordExplorerWordListModal
       :open="showWordListModal"
       :search-query="wordListSearchQuery"
       :filtered-word-list="filteredWordList"
       :word-list-length="wordList.length"
+      :word-list-total="wordListTotal"
       :word-list-loading="wordListLoading"
+      :word-list-loading-more="wordListLoadingMore"
       :deleting-word-id="deletingWordId"
       @close="showWordListModal = false"
       @update:search-query="wordListSearchQuery = $event"
       @navigate-to-word="navigateToWordReference($event)"
       @confirm-delete-word="confirmDeleteWord($event)"
+      @load-more="loadMoreWordList"
     />
 
     <!-- Delete confirmation dialog -->
@@ -258,7 +276,9 @@ import { useRuntimeConfig } from 'nuxt/app'
 import type { CategoryNode } from '~/components/WordExplorer/BookBrowser.vue'
 import { hasMultipleSentences, countWords, getPlainTextFromHtml, splitIntoPhrases, countWordInPhrase, phraseContainsWord } from '~/utils/text'
 import { parseStartChapterFromRef, buildTanakhDisplayNumbers, parseRangeFromRef, extractTextArray, extractTextAndSections } from '~/utils/sefaria'
+import { buildNoteContext } from '~/utils/notes'
 import { useClipboard } from '~/composables/useClipboard'
+import { useNotes } from '~/composables/useNotes'
 
 interface VerseSection {
   displayNumber: string | number
@@ -333,6 +353,7 @@ const openaiModel = ref('gpt-4o')
 
 // Word List state
 const showWordListModal = ref(false)
+const showNotesListModal = ref(false)
 const wordList = ref<Array<{
   id: number
   wordData: {
@@ -350,7 +371,9 @@ const wordList = ref<Array<{
   }
   createdAt: number
 }>>([])
+const wordListTotal = ref(0)
 const wordListLoading = ref(false)
+const wordListLoadingMore = ref(false)
 const wordListSearchQuery = ref('')
 const wordListButtonStates = ref<Record<number, 'default' | 'loading' | 'success' | 'in-list'>>({})
 const deletingWordId = ref<number | null>(null)
@@ -382,6 +405,7 @@ watch([user, isAdmin, loggedIn], ([userVal, adminVal, loggedInVal]) => {
 const modelLoading = ref(false)
 const ttsLoading = ref(false)
 const { copiedStatus, copy: copyToClipboardWithFeedback } = useClipboard()
+const { openNoteModal } = useNotes()
 
 const openaiLoading = computed(() =>
   translationLoading.value || ttsLoading.value
@@ -956,6 +980,22 @@ function onSelectSection (ref: string, title: string) {
 
 function onPhraseClick (phrase: string) {
   translateWithOpenAI(phrase, true)
+}
+
+function onOpenNote (rowIndex: number, phraseIndex: number) {
+  const section = currentPageText.value[rowIndex]
+  if (!section) return
+  const bookTitle = String(selectedBook.value?.title ?? '')
+  const bookPath = selectedBook.value?.path
+  const ctx = buildNoteContext(
+    section,
+    phraseIndex,
+    bookTitle,
+    bookPath,
+    lastSefariaRefAttempted.value ?? '',
+    splitIntoPhrases
+  )
+  if (ctx) openNoteModal(ctx)
 }
 
 function onCategoryExpand (category: CategoryNode) {
@@ -1573,6 +1613,8 @@ async function onBookSelect (event: { data: CategoryNode }) {
 }
 
 function handleCloseBook () {
+  showWordListModal.value = false
+  showNotesListModal.value = false
   if (isComplexBookFlag.value) {
     if (allVerseData.value.length > 0) {
       allVerseData.value = []
@@ -1899,10 +1941,16 @@ async function addWordToList(index: number) {
   }
 }
 
-async function fetchWordList() {
+const WORD_LIST_PAGE_SIZE = 100
+
+async function fetchWordList(offset = 0, append = false) {
   if (!loggedIn.value) return
 
-  wordListLoading.value = true
+  if (append) {
+    wordListLoadingMore.value = true
+  } else {
+    wordListLoading.value = true
+  }
   try {
     const response = await $fetch<{
       words: Array<{
@@ -1912,40 +1960,52 @@ async function fetchWordList() {
           translatedPhrase?: string
           sourceText?: string
           bookTitle?: string
+          bookPath?: string
           sefariaRef?: string
           wordEntry: any
         }
         createdAt: number
       }>
       total: number
-    }>('/api/word-list')
+      limit: number
+      offset: number
+    }>('/api/word-list', {
+      params: { limit: WORD_LIST_PAGE_SIZE, offset }
+    })
 
-    wordList.value = response.words || []
-    
-    // Update button states for current translation dialog
-    if (translationData.value?.wordTable) {
+    const words = response.words || []
+    wordListTotal.value = response.total ?? 0
+    if (append) {
+      wordList.value = [...wordList.value, ...words]
+    } else {
+      wordList.value = words
+    }
+
+    if (!append && translationData.value?.wordTable) {
       translationData.value.wordTable.forEach((row, index) => {
-        // Match only on exact Hebrew word (not translation, as same word may have different translations in different contexts)
         const isInList = wordList.value.some(w => {
           const entry = w.wordData.wordEntry
-          // Exact match on Hebrew word only - must be non-empty and exactly equal
           if (!entry?.word || !row.word) return false
           return entry.word.trim() === row.word.trim()
         })
         if (isInList && wordListButtonStates.value[index] !== 'success') {
           wordListButtonStates.value[index] = 'in-list'
         } else if (!isInList && wordListButtonStates.value[index] === 'in-list') {
-          // Reset to default if word is no longer in list
           wordListButtonStates.value[index] = 'default'
         }
       })
     }
   } catch (err: any) {
     console.error('Failed to fetch word list:', err)
-    alert('Failed to load word list. Please try again.')
+    if (!append) alert('Failed to load word list. Please try again.')
   } finally {
     wordListLoading.value = false
+    wordListLoadingMore.value = false
   }
+}
+
+function loadMoreWordList() {
+  fetchWordList(wordList.value.length, true)
 }
 
 async function deleteWord(wordId: number) {
@@ -1955,8 +2015,8 @@ async function deleteWord(wordId: number) {
       method: 'DELETE'
     })
 
-    // Remove from local list
     wordList.value = wordList.value.filter(w => w.id !== wordId)
+    wordListTotal.value = Math.max(0, wordListTotal.value - 1)
 
     // Update button states in translation dialog
     if (translationData.value?.wordTable) {
@@ -2055,177 +2115,154 @@ function findBookByPath(nodes: CategoryNode[] | null | undefined, path: string):
   return null
 }
 
+/** Derive book title from sefariaRef for legacy notes that don't have bookTitle stored. */
+function deriveBookTitleFromSefariaRef (sefariaRef: string): string {
+  const commaIdx = sefariaRef.indexOf(',')
+  if (commaIdx > 0) return sefariaRef.substring(0, commaIdx).trim().replace(/_/g, ' ')
+  const underIdx = sefariaRef.indexOf('_')
+  if (underIdx > 0) return sefariaRef.substring(0, underIdx).trim().replace(/_/g, ' ')
+  return sefariaRef.replace(/_/g, ' ')
+}
+
 /**
- * Navigate to the reference for a word in the word list
+ * Shared navigation to a book/section reference. Used by both My Word List and My Notes.
  */
+async function navigateToReference (params: {
+  bookTitle?: string
+  bookPath?: string
+  sefariaRef?: string
+  highlightWord?: string
+}) {
+  const bookTitle = params.bookTitle || (params.sefariaRef ? deriveBookTitleFromSefariaRef(params.sefariaRef) : null)
+  const bookPath = params.bookPath
+  const sefariaRef = params.sefariaRef
+
+  if (!bookTitle && !sefariaRef) {
+    console.warn('Cannot navigate: missing bookTitle and sefariaRef')
+    return
+  }
+  if (!bookTitle) {
+    console.warn('Cannot navigate: missing bookTitle')
+    return
+  }
+
+  showWordListModal.value = false
+  showNotesListModal.value = false
+
+  if (!fullIndex.value || (Array.isArray(fullIndex.value) && fullIndex.value.length === 0)) {
+    await fetchAndCacheFullIndex()
+    await new Promise(resolve => setTimeout(resolve, 500))
+  }
+
+  let book: CategoryNode | null = null
+  if (bookPath) {
+    book = findBookByPath(fullIndex.value as CategoryNode[] | null, bookPath)
+  }
+  if (!book && bookTitle) {
+    book = findBookByTitle(fullIndex.value as CategoryNode[] | null, bookTitle)
+  }
+  if (!book) {
+    const similarTitles: string[] = []
+    function collectBookTitles(nodes: CategoryNode[] | null | undefined, depth = 0) {
+      if (!nodes || depth > 5) return
+      for (const node of nodes) {
+        const isBook = node.type === 'book' || (node.title && !node.children?.length && !node.contents?.length)
+        if (isBook && node.title) similarTitles.push(String(node.title))
+        if (node.children) collectBookTitles(node.children as CategoryNode[], depth + 1)
+        if (node.contents) collectBookTitles(node.contents as CategoryNode[], depth + 1)
+      }
+    }
+    collectBookTitles(fullIndex.value as CategoryNode[] | null)
+    const suggestions = similarTitles
+      .filter(t => t.toLowerCase().includes(bookTitle.toLowerCase().substring(0, 3)))
+      .slice(0, 5)
+    const errorMsg = suggestions.length > 0
+      ? `Could not find book "${bookTitle}" in the index. Did you mean: ${suggestions.join(', ')}?`
+      : `Could not find book "${bookTitle}" in the index. Please try selecting it manually.`
+    alert(errorMsg)
+    return
+  }
+
+  let refOverride: string | null = null
+  if (sefariaRef) {
+    const bookTitleLower = bookTitle.toLowerCase()
+    const bookTitleNormalized = bookTitle.replace(/\s+/g, '_')
+    const bookTitleEscaped = bookTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const bookTitleNormalizedEscaped = bookTitleNormalized.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    let match = sefariaRef.match(new RegExp(`^${bookTitleNormalizedEscaped}_(.+)`, 'i'))
+    if (match) {
+      refOverride = match[1]
+    } else {
+      match = sefariaRef.match(new RegExp(`^${bookTitleEscaped}\\s+(.+)`, 'i'))
+      if (match) refOverride = match[1]
+      else {
+        const commaIndex = sefariaRef.indexOf(',')
+        if (commaIndex > 0) {
+          const beforeComma = sefariaRef.substring(0, commaIndex).trim()
+          if (beforeComma.toLowerCase() === bookTitleLower || beforeComma.toLowerCase() === bookTitleNormalized.toLowerCase()) {
+            refOverride = sefariaRef.substring(commaIndex + 1).trim()
+          }
+        }
+      }
+    }
+    if (!refOverride && sefariaRef.toLowerCase().startsWith(bookTitleLower)) {
+      refOverride = sefariaRef.substring(bookTitle.length).replace(/^[_ ,]+/, '').trim() || null
+    }
+  }
+
+  const bookWithPath = await ensureBookPath(book)
+  await onBookSelect({ data: bookWithPath || book })
+  await nextTick()
+  const maxWait = 5000
+  const startTime = Date.now()
+  while (loading.value && (Date.now() - startTime) < maxWait) {
+    await new Promise(resolve => setTimeout(resolve, 100))
+  }
+  if (params.highlightWord) {
+    wordToHighlight.value = params.highlightWord.trim()
+  }
+  if (refOverride) {
+    await fetchBookContent(refOverride)
+  } else {
+    await fetchBookContent()
+  }
+  if (params.highlightWord) {
+    const hebrewWord = params.highlightWord.trim()
+    await nextTick()
+    setTimeout(() => {
+      scrollToHighlightedWord(hebrewWord)
+      setTimeout(() => { wordToHighlight.value = null }, 5000)
+    }, 300)
+  }
+}
+
 async function navigateToWordReference(word: {
   wordData: {
     bookTitle?: string
     bookPath?: string
     sefariaRef?: string
     sourceText?: string
+    wordEntry?: { word?: string }
   }
 }) {
-  if (!word.wordData.bookTitle && !word.wordData.sefariaRef) {
-    console.warn('Cannot navigate: missing bookTitle and sefariaRef')
-    return
-  }
+  await navigateToReference({
+    bookTitle: word.wordData.bookTitle,
+    bookPath: word.wordData.bookPath,
+    sefariaRef: word.wordData.sefariaRef,
+    highlightWord: word.wordData.wordEntry?.word
+  })
+}
 
-  // Close the word list modal first
-  showWordListModal.value = false
-
-  const bookTitle = word.wordData.bookTitle
-  const bookPath = word.wordData.bookPath
-  
-  if (!bookTitle) {
-    console.warn('Cannot navigate: missing bookTitle')
-    return
-  }
-
-  // Ensure the full index is loaded
-  if (!fullIndex.value || (Array.isArray(fullIndex.value) && fullIndex.value.length === 0)) {
-    console.log('Full index not loaded, fetching...')
-    await fetchAndCacheFullIndex()
-    // Wait a bit for the index to be processed
-    await new Promise(resolve => setTimeout(resolve, 500))
-  }
-
-  // Try to find book by path first (more reliable), then fall back to title
-  let book: CategoryNode | null = null
-  if (bookPath) {
-    book = findBookByPath(fullIndex.value as CategoryNode[] | null, bookPath)
-  }
-  
-  // Fall back to title-based search if path didn't work
-  if (!book && bookTitle) {
-    book = findBookByTitle(fullIndex.value as CategoryNode[] | null, bookTitle)
-  }
-  if (!book) {
-    console.warn(`Book not found: ${bookTitle}`, {
-      searchTitle: bookTitle,
-      fullIndexAvailable: !!fullIndex.value,
-      fullIndexType: Array.isArray(fullIndex.value) ? 'array' : typeof fullIndex.value,
-      fullIndexLength: Array.isArray(fullIndex.value) ? fullIndex.value.length : 'N/A'
-    })
-    
-    // Try to find similar titles for better error message
-    const similarTitles: string[] = []
-    function collectBookTitles(nodes: CategoryNode[] | null | undefined, depth = 0) {
-      if (!nodes || depth > 5) return // Limit depth to avoid infinite recursion
-      for (const node of nodes) {
-        const isBook = node.type === 'book' || (node.title && !node.children?.length && !node.contents?.length)
-        if (isBook && node.title) {
-          similarTitles.push(String(node.title))
-        }
-        if (node.children) collectBookTitles(node.children as CategoryNode[], depth + 1)
-        if (node.contents) collectBookTitles(node.contents as CategoryNode[], depth + 1)
-      }
-    }
-    collectBookTitles(fullIndex.value as CategoryNode[] | null)
-    
-    const suggestions = similarTitles
-      .filter(t => t.toLowerCase().includes(bookTitle.toLowerCase().substring(0, 3)))
-      .slice(0, 5)
-    
-    const errorMsg = suggestions.length > 0
-      ? `Could not find book "${bookTitle}" in the index. Did you mean: ${suggestions.join(', ')}?`
-      : `Could not find book "${bookTitle}" in the index. Please try selecting it manually.`
-    
-    alert(errorMsg)
-    return
-  }
-
-  // Extract reference from sefariaRef
-  // sefariaRef format examples stored in DB:
-  // - "Genesis_18:1" -> extract "18:1" as refOverride
-  // - "Genesis_18" -> extract "18" as refOverride
-  // - "Berakhot_2a" -> extract "2a" as refOverride
-  // - "Genesis_25:19-28:9" -> extract "25:19-28:9" as refOverride
-  // - "Siddur Ashkenaz, Shacharit" -> extract "Shacharit" as refOverride (complex book)
-  let refOverride: string | null = null
-  if (word.wordData.sefariaRef) {
-    const sefariaRef = word.wordData.sefariaRef
-    const bookTitleLower = bookTitle.toLowerCase()
-    
-    // Normalize book title for matching (replace spaces with underscores)
-    const bookTitleNormalized = bookTitle.replace(/\s+/g, '_')
-    const bookTitleNormalizedLower = bookTitleNormalized.toLowerCase()
-    
-    // Try to remove book title prefix using regex (handles both underscore and space formats)
-    const bookTitleEscaped = bookTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    const bookTitleNormalizedEscaped = bookTitleNormalized.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    
-    // Try matching with underscore format first (most common)
-    let match = sefariaRef.match(new RegExp(`^${bookTitleNormalizedEscaped}_(.+)`, 'i'))
-    if (match) {
-      refOverride = match[1]
-    } else {
-      // Try matching with space format
-      match = sefariaRef.match(new RegExp(`^${bookTitleEscaped}\\s+(.+)`, 'i'))
-      if (match) {
-        refOverride = match[1]
-      } else {
-        // Try matching with comma format (complex books like "Siddur Ashkenaz, Shacharit")
-        const commaIndex = sefariaRef.indexOf(',')
-        if (commaIndex > 0) {
-          const beforeComma = sefariaRef.substring(0, commaIndex).trim()
-          if (beforeComma.toLowerCase() === bookTitleLower || beforeComma.toLowerCase() === bookTitleNormalizedLower) {
-            refOverride = sefariaRef.substring(commaIndex + 1).trim()
-          }
-        }
-      }
-    }
-    
-    // Final fallback: if sefariaRef starts with book title (case-insensitive), remove it
-    if (!refOverride && sefariaRef.toLowerCase().startsWith(bookTitleLower)) {
-      refOverride = sefariaRef.substring(bookTitle.length).replace(/^[_ ,]+/, '').trim() || null
-    }
-  }
-
-  // Ensure the book has a path before selecting
-  const bookWithPath = await ensureBookPath(book)
-  
-  // Select the book (this will trigger loading)
-  await onBookSelect({ data: bookWithPath || book })
-
-  // Wait for the book to load, then navigate to the reference
-  // Use nextTick to ensure the book selection has been processed
-  await nextTick()
-  
-  // Wait for book content to be ready (check loading state)
-  // Poll until loading is complete or timeout
-  const maxWait = 5000 // 5 seconds max
-  const startTime = Date.now()
-  while (loading.value && (Date.now() - startTime) < maxWait) {
-    await new Promise(resolve => setTimeout(resolve, 100))
-  }
-  
-  // Get the Hebrew word to highlight
-  const hebrewWord = (word.wordData as any).wordEntry?.word as string | undefined
-  if (hebrewWord) {
-    wordToHighlight.value = hebrewWord.trim()
-  }
-  
-  // Navigate to the reference
-  if (refOverride) {
-    await fetchBookContent(refOverride)
-  } else {
-    // If no specific reference, just load the first section
-    await fetchBookContent()
-  }
-  
-  // Wait for content to render, then scroll to highlighted word
-  if (hebrewWord) {
-    await nextTick()
-    // Wait a bit more for DOM to update
-    setTimeout(() => {
-      scrollToHighlightedWord(hebrewWord)
-      // Clear highlight after 5 seconds
-      setTimeout(() => {
-        wordToHighlight.value = null
-      }, 5000)
-    }, 300)
-  }
+async function navigateToNoteReference(note: {
+  bookTitle?: string
+  bookPath?: string
+  sefariaRef: string
+}) {
+  await navigateToReference({
+    bookTitle: note.bookTitle,
+    bookPath: note.bookPath,
+    sefariaRef: note.sefariaRef
+  })
 }
 
 /**

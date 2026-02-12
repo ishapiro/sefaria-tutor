@@ -33,34 +33,32 @@ export default defineEventHandler(async (event) => {
 
   try {
     const countResult = await db.prepare(
-      'SELECT COUNT(*) as total FROM user_word_list WHERE user_id = ?'
+      'SELECT COUNT(*) as total FROM user_notes WHERE user_id = ?'
     )
       .bind(userData.id)
       .first()
     const total = (countResult as { total: number } | null)?.total ?? 0
 
     const { results } = await db.prepare(
-      'SELECT id, word_data, created_at FROM user_word_list WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?'
+      'SELECT id, he_phrase, en_phrase, ref_display, sefaria_ref, book_title, book_path, note_text, created_at FROM user_notes WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?'
     )
       .bind(userData.id, limit, offset)
       .all()
 
-    const words = (results || []).map((row: any) => {
-      let wordData
-      try {
-        wordData = JSON.parse(row.word_data)
-      } catch (e) {
-        return null
-      }
-      return {
-        id: row.id,
-        wordData,
-        createdAt: row.created_at
-      }
-    }).filter(Boolean)
+    const notes = (results || []).map((row: any) => ({
+      id: row.id,
+      hePhrase: row.he_phrase,
+      enPhrase: row.en_phrase,
+      refDisplay: row.ref_display,
+      sefariaRef: row.sefaria_ref,
+      bookTitle: row.book_title ?? undefined,
+      bookPath: row.book_path ?? undefined,
+      noteText: row.note_text,
+      createdAt: row.created_at
+    }))
 
     return {
-      words,
+      notes,
       total,
       limit,
       offset
@@ -68,7 +66,7 @@ export default defineEventHandler(async (event) => {
   } catch (err: any) {
     throw createError({
       statusCode: 500,
-      message: err.message || 'Failed to fetch word list'
+      message: err.message || 'Failed to fetch notes'
     })
   }
 })
