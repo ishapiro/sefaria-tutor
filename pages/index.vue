@@ -1,17 +1,7 @@
 <template>
   <div class="container mx-auto p-4 relative">
     <!-- API loading spinner overlay -->
-    <div
-      v-if="apiLoading"
-      class="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 pointer-events-auto"
-      aria-live="polite"
-      aria-busy="true"
-    >
-      <div class="bg-white rounded-xl shadow-xl p-6 flex flex-col items-center gap-4">
-        <div class="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
-        <span class="text-gray-700 font-medium">{{ apiLoadingMessage }}</span>
-      </div>
-    </div>
+    <CommonLoadingOverlay :open="apiLoading" :message="apiLoadingMessage" />
     <h1 class="text-xl font-bold mb-2">
       Word Explorer
       <span class="pl-2 text-base font-normal text-gray-600">(Using OpenAI Model: {{ openaiModel }})</span>
@@ -112,129 +102,24 @@
       </div>
       
       <!-- Error debug dialog -->
-      <div
-        v-if="showErrorDebugDialog"
-        class="fixed inset-0 z-[55] flex items-center justify-center bg-black/50 overflow-y-auto py-8"
-        @click.self="showErrorDebugDialog = false"
-      >
-        <div class="bg-white rounded-lg shadow-xl p-6 w-[90vw] max-w-3xl max-h-[90vh] overflow-auto text-sm">
-          <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-bold">Error Debug Information</h2>
-            <button type="button" class="text-gray-500 hover:text-gray-700 text-2xl leading-none" @click="showErrorDebugDialog = false">×</button>
-          </div>
-          <p class="text-gray-600 text-xs mb-4">This information can help diagnose browser-specific issues.</p>
-          <pre class="bg-gray-100 p-4 rounded text-xs overflow-x-auto whitespace-pre-wrap font-mono max-h-[70vh] overflow-y-auto">{{ JSON.stringify(errorDetails, null, 2) }}</pre>
-          <div class="mt-4 flex gap-2">
-            <button
-              type="button"
-              class="px-4 py-2 rounded transition-all duration-200"
-              :class="copiedStatus === 'errorDebug' ? 'bg-green-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'"
-              @click="handleCopy(JSON.stringify(errorDetails, null, 2), 'errorDebug')"
-            >
-              {{ copiedStatus === 'errorDebug' ? '✅ Copied!' : 'Copy to clipboard' }}
-            </button>
-            <button type="button" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-gray-800" @click="showErrorDebugDialog = false">Close</button>
-          </div>
-        </div>
-      </div>
+      <CommonDebugDialog
+        :open="showErrorDebugDialog"
+        title="Error Debug Information"
+        description="This information can help diagnose browser-specific issues."
+        :payload="errorDetails"
+        copy-key="errorDebug"
+        :copied-status="copiedStatus"
+        @close="showErrorDebugDialog = false"
+        @copy="onDebugCopy"
+      />
       <!-- Help dialog -->
-      <div
-        v-if="showHelpDialog"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 overflow-y-auto py-8 backdrop-blur-sm"
-        @click.self="showHelpDialog = false"
-      >
-        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
-          <!-- Header -->
-          <div class="px-8 pt-8 pb-4">
-            <h2 class="text-2xl font-bold text-gray-900 tracking-tight">How to Use Sefaria Tutor</h2>
-            <p class="text-gray-500 text-sm mt-1">Learn classical Jewish texts word by word</p>
-          </div>
-
-          <!-- Content -->
-          <div class="px-8 pb-8 overflow-y-auto flex-1 space-y-6">
-            <section class="rounded-xl bg-slate-50 p-5">
-              <h3 class="font-semibold text-slate-900 mb-2 text-base">What This App Does</h3>
-              <p class="text-slate-600 text-sm leading-relaxed">
-                Sefaria Tutor helps you build vocabulary and deepen your understanding of classical Jewish texts by exploring them word by word. Created by a learner for learners—free to use.
-              </p>
-            </section>
-
-            <section>
-              <h3 class="font-semibold text-slate-900 mb-3 text-base">Getting Started</h3>
-              <ol class="space-y-2 text-slate-600 text-sm">
-                <li class="flex gap-3"><span class="font-semibold text-slate-400 shrink-0">1.</span> Choose a category (Tanakh, Talmud, Liturgy, etc.).</li>
-                <li class="flex gap-3"><span class="font-semibold text-slate-400 shrink-0">2.</span> Select a book.</li>
-                <li class="flex gap-3"><span class="font-semibold text-slate-400 shrink-0">3.</span> For multi-section books (e.g., Siddur, Kitzur Shulchan Arukh), pick a section from the list.</li>
-                <li class="flex gap-3"><span class="font-semibold text-slate-400 shrink-0">4.</span> Use pagination to move between pages.</li>
-              </ol>
-            </section>
-
-            <section class="rounded-xl bg-blue-50/60 p-5">
-              <h3 class="font-semibold text-slate-900 mb-2 text-base">Word-by-Word Translation</h3>
-              <p class="text-slate-600 text-sm leading-relaxed mb-3">
-                Click any Hebrew or Aramaic phrase—a segment up to the next punctuation mark—to see a word-by-word breakdown with grammar notes, powered by OpenAI.
-              </p>
-            </section>
-
-            <section>
-              <h3 class="font-semibold text-slate-900 mb-3 text-base">Listen & Learn (Text-to-Speech)</h3>
-              <ul class="space-y-2 text-slate-600 text-sm">
-                <li class="flex gap-2"><span class="font-medium text-slate-700">Phrase:</span> In the translation popup, click the Hebrew phrase at the top to hear it spoken aloud.</li>
-                <li class="flex gap-2"><span class="font-medium text-slate-700">Word:</span> Click any Hebrew word in a word-analysis card to hear its pronunciation.</li>
-              </ul>
-            </section>
-
-            <section>
-              <h3 class="font-semibold text-slate-900 mb-3 text-base">Word Analysis Cards</h3>
-              <p class="text-slate-600 text-sm mb-3">Each word appears in its own card. Here’s what each field means:</p>
-              <div class="grid gap-2 text-sm sm:grid-cols-2">
-                <div class="flex gap-2 rounded-lg bg-slate-50 px-3 py-2"><span class="font-medium text-slate-700 shrink-0">Word</span><span class="text-slate-600">Hebrew form (click to hear pronunciation)</span></div>
-                <div class="flex gap-2 rounded-lg bg-slate-50 px-3 py-2"><span class="font-medium text-slate-700 shrink-0">Translation</span><span class="text-slate-600">English meaning</span></div>
-                <div class="flex gap-2 rounded-lg bg-slate-50 px-3 py-2"><span class="font-medium text-slate-700 shrink-0">Root</span><span class="text-slate-600">Lexical root (shoresh)</span></div>
-                <div class="flex gap-2 rounded-lg bg-slate-50 px-3 py-2"><span class="font-medium text-slate-700 shrink-0">Occurrences</span><span class="text-slate-600">Shown when the word appears more than once in the phrase</span></div>
-                <div class="flex gap-2 rounded-lg bg-slate-50 px-3 py-2"><span class="font-medium text-slate-700 shrink-0">Part of Speech</span><span class="text-slate-600">Noun, verb, adjective, etc.</span></div>
-                <div class="flex gap-2 rounded-lg bg-slate-50 px-3 py-2"><span class="font-medium text-slate-700 shrink-0">Gender</span><span class="text-slate-600">Masculine, feminine, or common</span></div>
-                <div class="flex gap-2 rounded-lg bg-slate-50 px-3 py-2"><span class="font-medium text-slate-700 shrink-0">Tense</span><span class="text-slate-600">Past, present, future, etc.</span></div>
-                <div class="flex gap-2 rounded-lg bg-slate-50 px-3 py-2"><span class="font-medium text-slate-700 shrink-0">Binyan</span><span class="text-slate-600">Verb pattern (Qal, Piel, Hiphil…)</span></div>
-                <div class="flex gap-2 rounded-lg bg-slate-50 px-3 py-2"><span class="font-medium text-slate-700 shrink-0">Language</span><span class="text-slate-600">Hebrew or Aramaic</span></div>
-                <div class="flex gap-2 rounded-lg bg-slate-50 px-3 py-2 sm:col-span-2"><span class="font-medium text-slate-700 shrink-0">Grammar Notes</span><span class="text-slate-600">Additional context or explanation</span></div>
-              </div>
-            </section>
-
-            <section class="rounded-xl border border-slate-200 bg-slate-50/50 p-5">
-              <h3 class="font-semibold text-slate-900 mb-3 text-base">About This Project</h3>
-              <p class="text-slate-600 text-sm leading-relaxed mb-3">
-                Independently developed by <a href="https://cogitations.com" target="_blank" rel="noopener" class="text-blue-600 hover:text-blue-700 hover:underline font-medium">Cogitations</a>. Not affiliated with, endorsed by, or operated by Sefaria.org.
-              </p>
-              <ul class="space-y-2 text-slate-600 text-sm">
-                <li><strong class="text-slate-700">Texts:</strong> Hebrew and English sources come from the <a href="https://developers.sefaria.org/" target="_blank" rel="noopener" class="text-blue-600 hover:underline">Sefaria API</a>. We display them; Sefaria provides them.</li>
-                <li><strong class="text-slate-700">Translations:</strong> Word-by-word analysis uses <a href="https://openai.com/" target="_blank" rel="noopener" class="text-blue-600 hover:underline">OpenAI</a>’s GPT models—not Sefaria. Text-to-speech is also from OpenAI and may occasionally be inaccurate.</li>
-              </ul>
-              <p class="text-slate-600 text-sm mt-3 leading-relaxed">
-                This app wouldn’t exist without Sefaria. Please consider <a href="https://donate.sefaria.org/" target="_blank" rel="noopener" class="text-blue-600 hover:underline font-medium">donating to Sefaria</a> to support free access to Jewish texts.
-              </p>
-            </section>
-
-            <section class="pt-4 border-t border-slate-200">
-              <h3 class="font-semibold text-slate-900 mb-2 text-base">License & Feedback</h3>
-              <p class="text-slate-600 text-sm leading-relaxed">
-                Open source under <strong>GNU GPL v3.0</strong>. <a href="https://github.com/ishapiro/sefaria-tutor" target="_blank" rel="noopener" class="text-blue-600 hover:underline">View on GitHub</a>. Suggestions welcome: <a href="mailto:ishapiro@cogitations.com" class="text-blue-600 hover:underline">ishapiro@cogitations.com</a>
-              </p>
-            </section>
-          </div>
-
-          <!-- Footer -->
-          <div class="px-8 py-4 bg-slate-50 border-t border-slate-100 rounded-b-2xl">
-            <button type="button" class="w-full sm:w-auto px-6 py-2.5 bg-slate-900 text-white rounded-xl hover:bg-slate-800 font-medium transition-colors" @click="showHelpDialog = false">Got it</button>
-          </div>
-        </div>
-      </div>
+      <CommonHelpDialog :open="showHelpDialog" @close="showHelpDialog = false" />
     </div>
 
     <!-- Book reader (Step 3: minimal – Step 4 will add pagination and complex books) -->
     <div v-else class="border border-gray-200 rounded-lg bg-white overflow-hidden">
       <div class="flex justify-between items-center p-4 border-b border-gray-200 bg-gray-50">
-        <span class="font-semibold text-gray-900">{{ selectedBook?.title }}{{ currentChapter ? ` (${currentChapter})` : '' }}</span>
+        <span class="font-semibold text-gray-900">{{ selectedBookTitle }}{{ currentChapter ? ` (${currentChapter})` : '' }}</span>
         <div class="flex items-center gap-3">
           <button
             v-if="loggedIn"
@@ -398,85 +283,40 @@
     </div>
 
     <!-- Content view debug dialog -->
-    <div
-      v-if="showContentDebugDialog"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto py-8"
-      @click.self="showContentDebugDialog = false"
-    >
-      <div class="bg-white rounded-lg shadow-xl p-6 w-[90vw] max-w-3xl max-h-[90vh] overflow-auto text-sm">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-xl font-bold">Content Debug</h2>
-          <button type="button" class="text-gray-500 hover:text-gray-700 text-2xl leading-none" @click="showContentDebugDialog = false">×</button>
-        </div>
-        <p class="text-gray-600 text-xs mb-4">API response and parsed data for the currently displayed content.</p>
-        <pre class="bg-gray-100 p-4 rounded text-xs overflow-x-auto whitespace-pre-wrap font-mono max-h-[70vh] overflow-y-auto">{{ JSON.stringify(contentDebugInfo, null, 2) }}</pre>
-        <div class="mt-4 flex gap-2">
-          <button
-            type="button"
-            class="px-4 py-2 rounded transition-all duration-200"
-            :class="copiedStatus === 'debugContent' ? 'bg-green-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'"
-            @click="handleCopy(JSON.stringify(contentDebugInfo, null, 2), 'debugContent')"
-          >
-            {{ copiedStatus === 'debugContent' ? '✅ Copied!' : 'Copy to clipboard' }}
-          </button>
-          <button type="button" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-gray-800" @click="showContentDebugDialog = false">Close</button>
-        </div>
-      </div>
-    </div>
+    <CommonDebugDialog
+      :open="showContentDebugDialog"
+      title="Content Debug"
+      description="API response and parsed data for the currently displayed content."
+      :payload="contentDebugInfo"
+      copy-key="debugContent"
+      :copied-status="copiedStatus"
+      @close="showContentDebugDialog = false"
+      @copy="onDebugCopy"
+    />
 
     <!-- Section list debug dialog -->
-    <div
-      v-if="showSectionListDebugDialog"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto py-8"
-      @click.self="showSectionListDebugDialog = false"
-    >
-      <div class="bg-white rounded-lg shadow-xl p-6 w-[90vw] max-w-2xl max-h-[90vh] overflow-auto text-sm">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-xl font-bold">Section List Debug</h2>
-          <button type="button" class="text-gray-500 hover:text-gray-700 text-2xl leading-none" @click="showSectionListDebugDialog = false">×</button>
-        </div>
-        <p class="text-gray-600 text-xs mb-4">Refs that would be sent when clicking each section (first 10 leaf sections shown).</p>
-        <pre class="bg-gray-100 p-4 rounded text-xs overflow-x-auto whitespace-pre-wrap font-mono">{{ JSON.stringify(sectionListDebugInfo, null, 2) }}</pre>
-        <div class="mt-4 flex gap-2">
-          <button
-            type="button"
-            class="px-4 py-2 rounded transition-all duration-200"
-            :class="copiedStatus === 'debugSection' ? 'bg-green-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'"
-            @click="handleCopy(JSON.stringify(sectionListDebugInfo, null, 2), 'debugSection')"
-          >
-            {{ copiedStatus === 'debugSection' ? '✅ Copied!' : 'Copy to clipboard' }}
-          </button>
-          <button type="button" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-gray-800" @click="showSectionListDebugDialog = false">Close</button>
-        </div>
-      </div>
-    </div>
+    <CommonDebugDialog
+      :open="showSectionListDebugDialog"
+      title="Section List Debug"
+      description="Refs that would be sent when clicking each section (first 10 leaf sections shown)."
+      :payload="sectionListDebugInfo"
+      copy-key="debugSection"
+      :copied-status="copiedStatus"
+      @close="showSectionListDebugDialog = false"
+      @copy="onDebugCopy"
+    />
 
     <!-- Book load debug dialog -->
-    <div
-      v-if="showBookLoadDebugDialog"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto py-8"
-      @click.self="showBookLoadDebugDialog = false"
-    >
-      <div class="bg-white rounded-lg shadow-xl p-6 w-[90vw] max-w-2xl max-h-[90vh] overflow-auto text-sm">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-xl font-bold">Book Load Debug Info</h2>
-          <button type="button" class="text-gray-500 hover:text-gray-700 text-2xl leading-none" @click="showBookLoadDebugDialog = false">×</button>
-        </div>
-        <p class="text-gray-600 text-xs mb-4">Context for debugging when a book fails to load.</p>
-        <pre class="bg-gray-100 p-4 rounded text-xs overflow-x-auto whitespace-pre-wrap font-mono">{{ JSON.stringify(bookLoadDebugInfo, null, 2) }}</pre>
-        <div class="mt-4 flex gap-2">
-          <button
-            type="button"
-            class="px-4 py-2 rounded transition-all duration-200"
-            :class="copiedStatus === 'debugBookLoad' ? 'bg-green-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'"
-            @click="handleCopy(JSON.stringify(bookLoadDebugInfo, null, 2), 'debugBookLoad')"
-          >
-            {{ copiedStatus === 'debugBookLoad' ? '✅ Copied!' : 'Copy to clipboard' }}
-          </button>
-          <button type="button" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-gray-800" @click="showBookLoadDebugDialog = false">Close</button>
-        </div>
-      </div>
-    </div>
+    <CommonDebugDialog
+      :open="showBookLoadDebugDialog"
+      title="Book Load Debug Info"
+      description="Context for debugging when a book fails to load."
+      :payload="bookLoadDebugInfo"
+      copy-key="debugBookLoad"
+      :copied-status="copiedStatus"
+      @close="showBookLoadDebugDialog = false"
+      @copy="onDebugCopy"
+    />
 
     <!-- Translation dialog -->
     <div
@@ -795,34 +635,16 @@
     </div>
 
     <!-- Delete confirmation dialog -->
-    <div
-      v-if="showDeleteConfirm"
-      class="fixed inset-0 z-[55] flex items-center justify-center bg-black/50"
-      @click.self="cancelDeleteWord"
-    >
-      <div class="bg-white rounded-lg shadow-xl p-6 max-w-md mx-4">
-        <h3 class="text-lg font-semibold text-gray-900 mb-3">Remove word from list?</h3>
-        <p class="text-gray-700 mb-4">
-          Are you sure you want to remove this word from your list? This action cannot be undone.
-        </p>
-        <div class="flex gap-3 justify-end">
-          <button
-            type="button"
-            class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-700"
-            @click="cancelDeleteWord"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-            @click="wordToDelete && deleteWord(wordToDelete)"
-          >
-            Delete
-          </button>
-        </div>
-      </div>
-    </div>
+    <CommonConfirmDialog
+      :open="showDeleteConfirm"
+      title="Remove word from list?"
+      message="Are you sure you want to remove this word from your list? This action cannot be undone."
+      confirm-label="Delete"
+      cancel-label="Cancel"
+      :loading="deletingWordId !== null"
+      @confirm="wordToDelete && deleteWord(wordToDelete)"
+      @cancel="cancelDeleteWord"
+    />
 
     <!-- Multi-sentence confirmation (before sending to OpenAI) -->
     <div
@@ -860,7 +682,8 @@
       <div class="bg-white rounded-lg shadow-xl p-6 max-w-2xl mx-4 w-full max-h-[90vh] overflow-auto">
         <h3 class="text-lg font-semibold text-gray-900 mb-2">Select words to translate</h3>
         <p class="text-sm text-gray-600 mb-4">
-          This phrase has <strong>{{ longPhraseWords.length }}</strong> words. The more words you select, the longer the translation will take.
+          This phrase contains <strong>{{ longPhraseWords.length }}</strong> words. Selecting more words will result in a longer translation time.
+          For best results—especially for vocalization—try to select consecutive words when possible.
         </p>
         <div class="flex flex-wrap gap-2 mb-6" style="direction: rtl">
           <button
@@ -944,6 +767,7 @@ const fullIndex = ref<unknown[] | null>(null)
 const categories = ref<CategoryNode[]>([])
 const searchQuery = ref('')
 const selectedBook = ref<CategoryNode | null>(null)
+const selectedBookTitle = computed(() => selectedBook.value?.title ?? '')
 const allVerseData = ref<VerseSection[]>([])
 const first = ref(0)
 const rowsPerPage = 5
@@ -1058,7 +882,9 @@ const apiLoading = computed(() => loading.value || openaiLoading.value)
 const apiLoadingMessage = computed(() => {
   if (loading.value) return 'Calling Sefaria…'
   if (ttsLoading.value) return 'Generating audio pronunciation…'
-  if (translationLoading.value) return 'Getting word-by-word translation from OpenAI. Processing takes approximately 3 seconds per word—please be patient.'
+  if (translationLoading.value) {
+    return 'Getting word-by-word translation from OpenAI.\n\nProcessing takes approximately 5 seconds per word—please be patient.\n\nResults are saved so future translations will be faster.'
+  }
   return 'Loading…'
 })
 
@@ -1257,6 +1083,10 @@ async function copyToClipboard (text: string) {
     document.execCommand('copy')
     document.body.removeChild(ta)
   }
+}
+
+function onDebugCopy (text: string, key: string) {
+  handleCopy(text, key)
 }
 
 async function handleCopy (text: string, id: string) {
