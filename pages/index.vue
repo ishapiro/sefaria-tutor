@@ -52,6 +52,18 @@
         >
           Help
         </button>
+        <button
+          v-if="loggedIn"
+          type="button"
+          class="px-4 py-2 text-sm font-medium border rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center gap-2"
+          :class="showWordListModal 
+            ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm' 
+            : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400'"
+          @click="showWordListModal = true"
+        >
+          <span class="text-base leading-none">📚</span>
+          <span>My Word List</span>
+        </button>
         <NuxtLink
           v-if="isAdmin"
           to="/admin"
@@ -222,8 +234,28 @@
     <!-- Book reader (Step 3: minimal – Step 4 will add pagination and complex books) -->
     <div v-else class="border border-gray-200 rounded-lg bg-white overflow-hidden">
       <div class="flex justify-between items-center p-4 border-b border-gray-200 bg-gray-50">
-        <span class="font-semibold">{{ selectedBook?.title }}{{ currentChapter ? ` (${currentChapter})` : '' }}</span>
-        <button type="button" class="text-blue-600 hover:underline" @click="handleCloseBook">← Back</button>
+        <span class="font-semibold text-gray-900">{{ selectedBook?.title }}{{ currentChapter ? ` (${currentChapter})` : '' }}</span>
+        <div class="flex items-center gap-3">
+          <button
+            v-if="loggedIn"
+            type="button"
+            class="px-3 py-1.5 text-sm font-medium border rounded-md transition-all duration-150 whitespace-nowrap inline-flex items-center gap-1.5"
+            :class="showWordListModal 
+              ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm' 
+              : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400'"
+            @click="showWordListModal = true"
+          >
+            <span class="text-base leading-none">📚</span>
+            <span>My Word List</span>
+          </button>
+          <button 
+            type="button" 
+            class="text-blue-600 hover:text-blue-700 hover:underline font-medium transition-colors duration-150" 
+            @click="handleCloseBook"
+          >
+            ← Back
+          </button>
+        </div>
       </div>
       <div class="p-4">
         <div v-if="loading" class="text-center py-8 text-gray-500">Loading…</div>
@@ -330,7 +362,10 @@
                 <span
                   v-for="(phrase, pIdx) in splitIntoPhrases(section.he)"
                   :key="pIdx"
-                  class="hover:bg-blue-50 cursor-pointer rounded px-0.5 transition-colors"
+                  :class="[
+                    'hover:bg-blue-50 cursor-pointer rounded px-0.5 transition-colors',
+                    wordToHighlight && phraseContainsWord(phrase, wordToHighlight) ? 'bg-yellow-300 font-semibold' : ''
+                  ]"
                   @click="translateWithOpenAI(phrase, true)"
                 >{{ phrase }} </span>
               </div>
@@ -491,6 +526,9 @@
           </div>
           <p class="text-xs text-gray-500 -mt-2 mb-1">
             Click the Hebrew phrase to listen to the whole phrase, or click any word in the table to hear its individual pronunciation.
+            <span v-if="loggedIn && (user as SessionUser)?.role && ['general', 'team', 'admin'].includes(String((user as SessionUser).role))">
+              To save a word for later study, click the "⭐ Add" button next to any word entry below.
+            </span>
             Note: The text-to-speech feature uses OpenAI and may sometimes contain mistakes or repeat words.
           </p>
           <div class="bg-gray-50 p-4 rounded-lg space-y-2">
@@ -546,6 +584,19 @@
                 >
                   {{ countWordInPhrase(translationData?.originalPhrase ?? '', row.word ?? '') }} occurrences
                 </div>
+                <button
+                  v-if="loggedIn && (user as SessionUser)?.role && ['general', 'team', 'admin'].includes(String((user as SessionUser).role))"
+                  type="button"
+                  class="px-2 py-1 text-xs rounded transition-all duration-200 flex items-center gap-1 whitespace-nowrap"
+                  :class="getWordListButtonClass(i)"
+                  :disabled="wordListButtonStates[i] === 'loading' || wordListButtonStates[i] === 'in-list'"
+                  @click="addWordToList(i)"
+                >
+                  <span v-if="wordListButtonStates[i] === 'loading'">⏳</span>
+                  <span v-else-if="wordListButtonStates[i] === 'success' || wordListButtonStates[i] === 'in-list'">✅</span>
+                  <span v-else>⭐</span>
+                  <span>{{ getWordListButtonText(i) }}</span>
+                </button>
               </div>
 
               <!-- Line 2: Part of Speech, Gender, Tense, Binyan -->
@@ -577,6 +628,198 @@
               Close
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Word List Modal -->
+    <div
+      v-if="showWordListModal"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto py-8"
+      @click.self="showWordListModal = false"
+    >
+      <div class="bg-white rounded-lg shadow-xl p-6 w-[90vw] max-w-3xl max-h-[90vh] overflow-auto">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-2xl font-bold">My Word List</h2>
+          <button
+            type="button"
+            class="text-gray-500 hover:text-gray-700 text-2xl leading-none"
+            @click="showWordListModal = false"
+          >
+            ×
+          </button>
+        </div>
+
+        <!-- Search input -->
+        <div class="mb-4">
+          <div class="relative">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">🔍</span>
+            <input
+              v-model="wordListSearchQuery"
+              type="text"
+              placeholder="Search words..."
+              class="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            <button
+              v-if="wordListSearchQuery"
+              type="button"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              @click="wordListSearchQuery = ''"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+
+        <!-- Word count -->
+        <div class="mb-4 text-sm text-gray-600">
+          <span v-if="wordListSearchQuery">
+            Showing {{ filteredWordList.length }} of {{ wordList.length }} words
+          </span>
+          <span v-else>
+            Total words: {{ wordList.length }}
+          </span>
+        </div>
+
+        <!-- Loading state -->
+        <div v-if="wordListLoading" class="text-center py-8 text-gray-500">
+          Loading your word list...
+        </div>
+
+        <!-- Empty state -->
+        <div v-else-if="filteredWordList.length === 0" class="text-center py-8">
+          <p v-if="wordListSearchQuery" class="text-gray-600">
+            No words found matching "{{ wordListSearchQuery }}"
+          </p>
+          <p v-else class="text-gray-600">
+            You haven't saved any words yet. Use the "Add" button in the translation dialog to start building your collection.
+          </p>
+        </div>
+
+        <!-- Word list -->
+        <div v-else class="space-y-3">
+          <div
+            v-for="word in filteredWordList"
+            :key="word.id"
+            class="border border-gray-200 rounded-lg p-4 bg-white shadow-sm hover:border-blue-200 transition-colors"
+          >
+            <!-- Source text reference (clickable) -->
+            <div v-if="word.wordData.sourceText || word.wordData.bookTitle" class="mb-2 text-xs text-blue-600 font-medium border-b border-gray-100 pb-2">
+              <button
+                v-if="word.wordData.sourceText || word.wordData.bookTitle"
+                type="button"
+                class="hover:underline cursor-pointer text-left"
+                @click="navigateToWordReference(word)"
+              >
+                <span v-if="word.wordData.sourceText">
+                  {{ word.wordData.sourceText }}
+                  <span v-if="word.wordData.bookPath" class="text-gray-500 font-normal">({{ word.wordData.bookPath }})</span>
+                </span>
+                <span v-else-if="word.wordData.bookTitle">
+                  {{ word.wordData.bookTitle }}
+                  <span v-if="word.wordData.bookPath" class="text-gray-500 font-normal">({{ word.wordData.bookPath }})</span>
+                </span>
+              </button>
+            </div>
+
+            <!-- Context phrase (smaller, at top) -->
+            <div v-if="word.wordData.originalPhrase || word.wordData.translatedPhrase" class="mb-2 text-xs text-gray-500 border-b border-gray-100 pb-2">
+              <div v-if="word.wordData.originalPhrase" class="text-right" style="direction: rtl">
+                {{ word.wordData.originalPhrase }}
+              </div>
+              <div v-if="word.wordData.translatedPhrase" class="text-gray-600">
+                {{ word.wordData.translatedPhrase }}
+              </div>
+            </div>
+
+            <!-- Word entry -->
+            <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+              <div
+                v-if="word.wordData.wordEntry?.word"
+                class="text-2xl font-bold text-blue-700"
+                style="direction: rtl"
+              >
+                {{ word.wordData.wordEntry.word }}
+              </div>
+              <div v-if="word.wordData.wordEntry?.wordTranslation" class="text-xl font-semibold text-gray-900">
+                {{ word.wordData.wordEntry.wordTranslation }}
+              </div>
+              <div v-if="word.wordData.wordEntry?.wordRoot && word.wordData.wordEntry.wordRoot !== '—'" class="text-lg text-gray-600">
+                <span class="text-xs text-gray-400 uppercase font-bold mr-1">Root:</span>
+                {{ word.wordData.wordEntry.wordRoot }}
+              </div>
+              <div class="flex-grow"></div>
+              <div class="text-xs text-gray-500">
+                Saved: {{ new Date(word.createdAt * 1000).toLocaleDateString() }}
+              </div>
+              <button
+                type="button"
+                class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-colors"
+                :disabled="deletingWordId === word.id"
+                @click="confirmDeleteWord(word.id)"
+              >
+                <span v-if="deletingWordId === word.id">Deleting...</span>
+                <span v-else>🗑️ Delete</span>
+              </button>
+            </div>
+
+            <!-- Metadata -->
+            <div v-if="word.wordData.wordEntry?.wordPartOfSpeech || word.wordData.wordEntry?.wordGender || word.wordData.wordEntry?.wordTense || word.wordData.wordEntry?.wordBinyan" class="ml-4 mt-1.5 flex flex-wrap gap-x-3 text-sm text-gray-500 font-medium">
+              <span v-if="word.wordData.wordEntry.wordPartOfSpeech && word.wordData.wordEntry.wordPartOfSpeech !== '—'">{{ word.wordData.wordEntry.wordPartOfSpeech }}</span>
+              <span v-if="word.wordData.wordEntry.wordGender && word.wordData.wordEntry.wordGender !== '—'">{{ word.wordData.wordEntry.wordGender }}</span>
+              <span v-if="word.wordData.wordEntry.wordTense && word.wordData.wordEntry.wordTense !== '—'">{{ word.wordData.wordEntry.wordTense }}</span>
+              <span v-if="word.wordData.wordEntry.wordBinyan && word.wordData.wordEntry.wordBinyan !== '—'">{{ word.wordData.wordEntry.wordBinyan }}</span>
+            </div>
+
+            <!-- Grammar notes -->
+            <div
+              v-if="word.wordData.wordEntry?.grammarNotes && word.wordData.wordEntry.grammarNotes !== '—'"
+              class="mt-2 text-gray-700 text-sm border-t border-gray-50 pt-2 italic leading-relaxed"
+            >
+              {{ word.wordData.wordEntry.grammarNotes }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Close button -->
+        <div class="mt-6 flex justify-end">
+          <button
+            type="button"
+            class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-gray-800"
+            @click="showWordListModal = false"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delete confirmation dialog -->
+    <div
+      v-if="showDeleteConfirm"
+      class="fixed inset-0 z-[55] flex items-center justify-center bg-black/50"
+      @click.self="cancelDeleteWord"
+    >
+      <div class="bg-white rounded-lg shadow-xl p-6 max-w-md mx-4">
+        <h3 class="text-lg font-semibold text-gray-900 mb-3">Remove word from list?</h3>
+        <p class="text-gray-700 mb-4">
+          Are you sure you want to remove this word from your list? This action cannot be undone.
+        </p>
+        <div class="flex gap-3 justify-end">
+          <button
+            type="button"
+            class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-700"
+            @click="cancelDeleteWord"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+            @click="wordToDelete && deleteWord(wordToDelete)"
+          >
+            Delete
+          </button>
         </div>
       </div>
     </div>
@@ -673,7 +916,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRuntimeConfig } from 'nuxt/app'
 
 interface CategoryNode {
@@ -754,6 +997,33 @@ const showRawData = ref(false)
 const rawTranslationData = ref<unknown>(null)
 const { isAdmin, fetch: fetchSession, user, loggedIn } = useAuth()
 const openaiModel = ref('gpt-4o')
+
+// Word List state
+const showWordListModal = ref(false)
+const wordList = ref<Array<{
+  id: number
+  wordData: {
+    originalPhrase?: string
+    translatedPhrase?: string
+    sourceText?: string
+    bookTitle?: string
+    bookPath?: string
+    sefariaRef?: string
+    wordEntry: {
+      word?: string
+      wordTranslation?: string
+      [key: string]: any
+    }
+  }
+  createdAt: number
+}>>([])
+const wordListLoading = ref(false)
+const wordListSearchQuery = ref('')
+const wordListButtonStates = ref<Record<number, 'default' | 'loading' | 'success' | 'in-list'>>({})
+const deletingWordId = ref<number | null>(null)
+const showDeleteConfirm = ref(false)
+const wordToDelete = ref<number | null>(null)
+const wordToHighlight = ref<string | null>(null) // Hebrew word to highlight after navigation
 
 // Debug logging for admin status
 type SessionUser = { id?: string; email?: string; role?: string; isVerified?: boolean }
@@ -1817,6 +2087,12 @@ async function fetchBookContent (refOverride?: string | null, displayLabel?: str
     }
   }
   
+  // Ensure selectedBook has a path - if not, find it in the index
+  const bookWithPath = await ensureBookPath(selectedBook.value)
+  if (bookWithPath && bookWithPath.path) {
+    selectedBook.value = bookWithPath
+  }
+  
   loading.value = true
   const bookTitle = String(selectedBook.value.title ?? '')
   const isTalmud = selectedBook.value.categories?.includes('Talmud')
@@ -2059,13 +2335,43 @@ async function fetchBookContent (refOverride?: string | null, displayLabel?: str
   }
 }
 
+/**
+ * Ensure selectedBook has a path by looking it up in the index if needed
+ */
+async function ensureBookPath(book: CategoryNode | null): Promise<CategoryNode | null> {
+  if (!book || !book.title) return book
+  
+  // If path already exists, return as-is
+  if (book.path) return book
+  
+  // Ensure the full index is loaded
+  if (!fullIndex.value || (Array.isArray(fullIndex.value) && fullIndex.value.length === 0)) {
+    await fetchAndCacheFullIndex()
+    await new Promise(resolve => setTimeout(resolve, 200))
+  }
+  
+  // Find the book in the index to get its path
+  const bookInIndex = findBookByTitle(fullIndex.value as CategoryNode[] | null, book.title)
+  if (bookInIndex && bookInIndex.path) {
+    // Return book with path from index
+    return { ...book, path: bookInIndex.path }
+  }
+  
+  // If not found, return original book (path might be set elsewhere)
+  return book
+}
+
 async function onBookSelect (event: { data: CategoryNode }) {
   const data = event.data
   if (data.type === 'category') {
     showCategoryDialog.value = true
     return
   }
-  selectedBook.value = data
+  
+  // Ensure the book has a path before setting it
+  const bookWithPath = await ensureBookPath(data)
+  selectedBook.value = bookWithPath
+  
   allVerseData.value = []
   totalRecords.value = 0
   first.value = 0
@@ -2073,10 +2379,10 @@ async function onBookSelect (event: { data: CategoryNode }) {
   sectionStack.value = []
   nextSectionRef.value = null
   bookLoadAttempted.value = false // Reset flag before starting load
-  const isComplex = await isComplexBook(data)
+  const isComplex = await isComplexBook(bookWithPath || data)
   isComplexBookFlag.value = isComplex
   if (isComplex) {
-    await fetchComplexBookToc(data)
+    await fetchComplexBookToc(bookWithPath || data)
   } else {
     await fetchBookContent()
   }
@@ -2312,6 +2618,515 @@ function extractOutputText (response: { output?: Array<{ type?: string; content?
   }
   return parts.join('').trim()
 }
+
+// Word List functions
+function getWordListButtonClass(index: number): string {
+  const state = wordListButtonStates.value[index] || 'default'
+  switch (state) {
+    case 'loading':
+      return 'bg-gray-300 text-gray-600 cursor-wait'
+    case 'success':
+      return 'bg-green-600 text-white'
+    case 'in-list':
+      return 'bg-gray-200 text-gray-600 cursor-not-allowed'
+    default:
+      return 'bg-blue-600 text-white hover:bg-blue-700'
+  }
+}
+
+function getWordListButtonText(index: number): string {
+  const state = wordListButtonStates.value[index] || 'default'
+  switch (state) {
+    case 'loading':
+      return 'Adding...'
+    case 'success':
+      return 'Added'
+    case 'in-list':
+      return 'In List'
+    default:
+      return 'Add'
+  }
+}
+
+async function addWordToList(index: number) {
+  if (!translationData.value || !translationData.value.wordTable || !translationData.value.wordTable[index]) {
+    return
+  }
+
+  const wordEntry = translationData.value.wordTable[index]
+  if (!wordEntry) return
+
+  // Set loading state
+  wordListButtonStates.value[index] = 'loading'
+
+  try {
+    // Ensure we have a selected book (this should always be true if we're viewing content)
+    if (!selectedBook.value) {
+      throw new Error('No book selected. Please select a book first.')
+    }
+
+    // Ensure selectedBook has a path before saving
+    const bookWithPath = await ensureBookPath(selectedBook.value)
+    if (bookWithPath) {
+      selectedBook.value = bookWithPath
+    }
+    
+    // Get book information from the currently selected book (which came from the index)
+    const bookTitle = selectedBook.value.title || ''
+    const bookPath = selectedBook.value.path || ''
+    
+    if (!bookTitle) {
+      throw new Error('Book title is missing. Cannot save word.')
+    }
+
+    // Build source text reference
+    let sourceText = ''
+    
+    if (selectedBook.value && lastSefariaRefAttempted.value) {
+      // Use the buildSefariaRefForSection function to format the reference properly
+      sourceText = buildSefariaRefForSection(lastSefariaRefAttempted.value)
+    } else if (selectedBook.value) {
+      // Fallback: just book title and chapter if available
+      const parts: string[] = [bookTitle]
+      if (currentChapter.value) {
+        parts.push(String(currentChapter.value))
+      }
+      sourceText = parts.filter(Boolean).join(' - ')
+    }
+
+    // Store the word data with reliable references
+    // We store both bookTitle (for display) and bookPath (for reliable lookup)
+    // The sefariaRef is the exact reference used to fetch the content
+    const wordData = {
+      originalPhrase: translationData.value.originalPhrase,
+      translatedPhrase: translationData.value.translatedPhrase,
+      wordEntry: wordEntry,
+      sourceText: sourceText || undefined,
+      bookTitle: bookTitle || undefined, // Title from selectedBook (matches index exactly)
+      bookPath: bookPath || undefined,   // Path for more reliable lookup
+      sefariaRef: lastSefariaRefAttempted.value || undefined // Exact Sefaria API reference
+    }
+
+    await $fetch('/api/word-list/add', {
+      method: 'POST',
+      body: { wordData }
+    })
+
+    // Success state
+    wordListButtonStates.value[index] = 'success'
+
+    // After 2-3 seconds, change to "in-list" state
+    setTimeout(() => {
+      wordListButtonStates.value[index] = 'in-list'
+    }, 2500)
+
+    // Refresh word list if modal is open
+    if (showWordListModal.value) {
+      await fetchWordList()
+    }
+  } catch (err: any) {
+    console.error('Failed to add word to list:', err)
+    // Reset to default on error
+    wordListButtonStates.value[index] = 'default'
+    // Show error message - handle both Error objects and API error responses
+    const errorMessage = err?.message || err?.data?.message || 'Failed to add word to list. Please try again.'
+    alert(errorMessage)
+  }
+}
+
+async function fetchWordList() {
+  if (!loggedIn.value) return
+
+  wordListLoading.value = true
+  try {
+    const response = await $fetch<{
+      words: Array<{
+        id: number
+        wordData: {
+          originalPhrase?: string
+          translatedPhrase?: string
+          sourceText?: string
+          bookTitle?: string
+          sefariaRef?: string
+          wordEntry: any
+        }
+        createdAt: number
+      }>
+      total: number
+    }>('/api/word-list')
+
+    wordList.value = response.words || []
+    
+    // Update button states for current translation dialog
+    if (translationData.value?.wordTable) {
+      translationData.value.wordTable.forEach((row, index) => {
+        // Match only on exact Hebrew word (not translation, as same word may have different translations in different contexts)
+        const isInList = wordList.value.some(w => {
+          const entry = w.wordData.wordEntry
+          // Exact match on Hebrew word only - must be non-empty and exactly equal
+          if (!entry?.word || !row.word) return false
+          return entry.word.trim() === row.word.trim()
+        })
+        if (isInList && wordListButtonStates.value[index] !== 'success') {
+          wordListButtonStates.value[index] = 'in-list'
+        } else if (!isInList && wordListButtonStates.value[index] === 'in-list') {
+          // Reset to default if word is no longer in list
+          wordListButtonStates.value[index] = 'default'
+        }
+      })
+    }
+  } catch (err: any) {
+    console.error('Failed to fetch word list:', err)
+    alert('Failed to load word list. Please try again.')
+  } finally {
+    wordListLoading.value = false
+  }
+}
+
+async function deleteWord(wordId: number) {
+  deletingWordId.value = wordId
+  try {
+    await $fetch(`/api/word-list/${wordId}`, {
+      method: 'DELETE'
+    })
+
+    // Remove from local list
+    wordList.value = wordList.value.filter(w => w.id !== wordId)
+
+    // Update button states in translation dialog
+    if (translationData.value?.wordTable) {
+      translationData.value.wordTable.forEach((row, index) => {
+        // Match only on exact Hebrew word (not translation, as same word may have different translations in different contexts)
+        const isInList = wordList.value.some(w => {
+          const entry = w.wordData.wordEntry
+          // Exact match on Hebrew word only - must be non-empty and exactly equal
+          if (!entry?.word || !row.word) return false
+          return entry.word.trim() === row.word.trim()
+        })
+        if (!isInList && wordListButtonStates.value[index] === 'in-list') {
+          wordListButtonStates.value[index] = 'default'
+        }
+      })
+    }
+  } catch (err: any) {
+    console.error('Failed to delete word:', err)
+    alert(err.data?.message || 'Failed to delete word. Please try again.')
+  } finally {
+    deletingWordId.value = null
+    showDeleteConfirm.value = false
+    wordToDelete.value = null
+  }
+}
+
+function confirmDeleteWord(wordId: number) {
+  wordToDelete.value = wordId
+  showDeleteConfirm.value = true
+}
+
+function cancelDeleteWord() {
+  showDeleteConfirm.value = false
+  wordToDelete.value = null
+}
+
+/**
+ * Recursively find a book by title in the category tree
+ * Handles case-insensitive matching and variations
+ */
+function findBookByTitle(nodes: CategoryNode[] | null | undefined, title: string): CategoryNode | null {
+  if (!nodes) return null
+  
+  // Normalize the search title (trim, lowercase for comparison)
+  const normalizedTitle = title.trim().toLowerCase()
+  
+  for (const node of nodes) {
+    // Check if this node matches
+    // A book is identified by: type === 'book' OR (has title and no children/contents indicating it's a leaf)
+    const isBook = node.type === 'book' || (node.title && !node.children?.length && !node.contents?.length)
+    
+    if (isBook && node.title) {
+      // Case-insensitive comparison
+      const nodeTitleNormalized = String(node.title).trim().toLowerCase()
+      if (nodeTitleNormalized === normalizedTitle) {
+        return node
+      }
+    }
+    
+    // Recursively search children/contents
+    if (node.children && Array.isArray(node.children)) {
+      const found = findBookByTitle(node.children as CategoryNode[], title)
+      if (found) return found
+    }
+    if (node.contents && Array.isArray(node.contents)) {
+      const found = findBookByTitle(node.contents as CategoryNode[], title)
+      if (found) return found
+    }
+  }
+  return null
+}
+
+/**
+ * Recursively find a book by path in the category tree
+ */
+function findBookByPath(nodes: CategoryNode[] | null | undefined, path: string): CategoryNode | null {
+  if (!nodes) return null
+  
+  const normalizedPath = path.trim().toLowerCase()
+  
+  for (const node of nodes) {
+    if (node.path && String(node.path).trim().toLowerCase() === normalizedPath) {
+      return node
+    }
+    
+    // Recursively search children/contents
+    if (node.children && Array.isArray(node.children)) {
+      const found = findBookByPath(node.children as CategoryNode[], path)
+      if (found) return found
+    }
+    if (node.contents && Array.isArray(node.contents)) {
+      const found = findBookByPath(node.contents as CategoryNode[], path)
+      if (found) return found
+    }
+  }
+  return null
+}
+
+/**
+ * Navigate to the reference for a word in the word list
+ */
+async function navigateToWordReference(word: {
+  wordData: {
+    bookTitle?: string
+    bookPath?: string
+    sefariaRef?: string
+    sourceText?: string
+  }
+}) {
+  if (!word.wordData.bookTitle && !word.wordData.sefariaRef) {
+    console.warn('Cannot navigate: missing bookTitle and sefariaRef')
+    return
+  }
+
+  // Close the word list modal first
+  showWordListModal.value = false
+
+  const bookTitle = word.wordData.bookTitle
+  const bookPath = word.wordData.bookPath
+  
+  if (!bookTitle) {
+    console.warn('Cannot navigate: missing bookTitle')
+    return
+  }
+
+  // Ensure the full index is loaded
+  if (!fullIndex.value || (Array.isArray(fullIndex.value) && fullIndex.value.length === 0)) {
+    console.log('Full index not loaded, fetching...')
+    await fetchAndCacheFullIndex()
+    // Wait a bit for the index to be processed
+    await new Promise(resolve => setTimeout(resolve, 500))
+  }
+
+  // Try to find book by path first (more reliable), then fall back to title
+  let book: CategoryNode | null = null
+  if (bookPath) {
+    book = findBookByPath(fullIndex.value as CategoryNode[] | null, bookPath)
+  }
+  
+  // Fall back to title-based search if path didn't work
+  if (!book && bookTitle) {
+    book = findBookByTitle(fullIndex.value as CategoryNode[] | null, bookTitle)
+  }
+  if (!book) {
+    console.warn(`Book not found: ${bookTitle}`, {
+      searchTitle: bookTitle,
+      fullIndexAvailable: !!fullIndex.value,
+      fullIndexType: Array.isArray(fullIndex.value) ? 'array' : typeof fullIndex.value,
+      fullIndexLength: Array.isArray(fullIndex.value) ? fullIndex.value.length : 'N/A'
+    })
+    
+    // Try to find similar titles for better error message
+    const similarTitles: string[] = []
+    function collectBookTitles(nodes: CategoryNode[] | null | undefined, depth = 0) {
+      if (!nodes || depth > 5) return // Limit depth to avoid infinite recursion
+      for (const node of nodes) {
+        const isBook = node.type === 'book' || (node.title && !node.children?.length && !node.contents?.length)
+        if (isBook && node.title) {
+          similarTitles.push(String(node.title))
+        }
+        if (node.children) collectBookTitles(node.children as CategoryNode[], depth + 1)
+        if (node.contents) collectBookTitles(node.contents as CategoryNode[], depth + 1)
+      }
+    }
+    collectBookTitles(fullIndex.value as CategoryNode[] | null)
+    
+    const suggestions = similarTitles
+      .filter(t => t.toLowerCase().includes(bookTitle.toLowerCase().substring(0, 3)))
+      .slice(0, 5)
+    
+    const errorMsg = suggestions.length > 0
+      ? `Could not find book "${bookTitle}" in the index. Did you mean: ${suggestions.join(', ')}?`
+      : `Could not find book "${bookTitle}" in the index. Please try selecting it manually.`
+    
+    alert(errorMsg)
+    return
+  }
+
+  // Extract reference from sefariaRef
+  // sefariaRef format examples stored in DB:
+  // - "Genesis_18:1" -> extract "18:1" as refOverride
+  // - "Genesis_18" -> extract "18" as refOverride
+  // - "Berakhot_2a" -> extract "2a" as refOverride
+  // - "Genesis_25:19-28:9" -> extract "25:19-28:9" as refOverride
+  // - "Siddur Ashkenaz, Shacharit" -> extract "Shacharit" as refOverride (complex book)
+  let refOverride: string | null = null
+  if (word.wordData.sefariaRef) {
+    const sefariaRef = word.wordData.sefariaRef
+    const bookTitleLower = bookTitle.toLowerCase()
+    
+    // Normalize book title for matching (replace spaces with underscores)
+    const bookTitleNormalized = bookTitle.replace(/\s+/g, '_')
+    const bookTitleNormalizedLower = bookTitleNormalized.toLowerCase()
+    
+    // Try to remove book title prefix using regex (handles both underscore and space formats)
+    const bookTitleEscaped = bookTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const bookTitleNormalizedEscaped = bookTitleNormalized.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    
+    // Try matching with underscore format first (most common)
+    let match = sefariaRef.match(new RegExp(`^${bookTitleNormalizedEscaped}_(.+)`, 'i'))
+    if (match) {
+      refOverride = match[1]
+    } else {
+      // Try matching with space format
+      match = sefariaRef.match(new RegExp(`^${bookTitleEscaped}\\s+(.+)`, 'i'))
+      if (match) {
+        refOverride = match[1]
+      } else {
+        // Try matching with comma format (complex books like "Siddur Ashkenaz, Shacharit")
+        const commaIndex = sefariaRef.indexOf(',')
+        if (commaIndex > 0) {
+          const beforeComma = sefariaRef.substring(0, commaIndex).trim()
+          if (beforeComma.toLowerCase() === bookTitleLower || beforeComma.toLowerCase() === bookTitleNormalizedLower) {
+            refOverride = sefariaRef.substring(commaIndex + 1).trim()
+          }
+        }
+      }
+    }
+    
+    // Final fallback: if sefariaRef starts with book title (case-insensitive), remove it
+    if (!refOverride && sefariaRef.toLowerCase().startsWith(bookTitleLower)) {
+      refOverride = sefariaRef.substring(bookTitle.length).replace(/^[_ ,]+/, '').trim() || null
+    }
+  }
+
+  // Ensure the book has a path before selecting
+  const bookWithPath = await ensureBookPath(book)
+  
+  // Select the book (this will trigger loading)
+  await onBookSelect({ data: bookWithPath || book })
+
+  // Wait for the book to load, then navigate to the reference
+  // Use nextTick to ensure the book selection has been processed
+  await nextTick()
+  
+  // Wait for book content to be ready (check loading state)
+  // Poll until loading is complete or timeout
+  const maxWait = 5000 // 5 seconds max
+  const startTime = Date.now()
+  while (loading.value && (Date.now() - startTime) < maxWait) {
+    await new Promise(resolve => setTimeout(resolve, 100))
+  }
+  
+  // Get the Hebrew word to highlight
+  const hebrewWord = (word.wordData as any).wordEntry?.word as string | undefined
+  if (hebrewWord) {
+    wordToHighlight.value = hebrewWord.trim()
+  }
+  
+  // Navigate to the reference
+  if (refOverride) {
+    await fetchBookContent(refOverride)
+  } else {
+    // If no specific reference, just load the first section
+    await fetchBookContent()
+  }
+  
+  // Wait for content to render, then scroll to highlighted word
+  if (hebrewWord) {
+    await nextTick()
+    // Wait a bit more for DOM to update
+    setTimeout(() => {
+      scrollToHighlightedWord(hebrewWord)
+      // Clear highlight after 5 seconds
+      setTimeout(() => {
+        wordToHighlight.value = null
+      }, 5000)
+    }, 300)
+  }
+}
+
+/**
+ * Check if a phrase contains the Hebrew word (handles word boundaries)
+ */
+function phraseContainsWord(phrase: string, word: string): boolean {
+  if (!phrase || !word) return false
+  // Remove whitespace and normalize for comparison
+  const normalizedPhrase = phrase.trim()
+  const normalizedWord = word.trim()
+  
+  // Check if phrase contains the word (exact match or as part of a larger word)
+  // For Hebrew, we want to match even if there are prefixes/suffixes
+  return normalizedPhrase.includes(normalizedWord)
+}
+
+/**
+ * Scroll to the highlighted Hebrew word in the displayed text
+ */
+function scrollToHighlightedWord(hebrewWord: string) {
+  if (!hebrewWord) return
+  
+  // Find all Hebrew text elements (phrases)
+  const hebrewElements = document.querySelectorAll('[style*="direction: rtl"] span.cursor-pointer')
+  
+  for (const element of hebrewElements) {
+    const text = element.textContent || ''
+    if (phraseContainsWord(text, hebrewWord)) {
+      // Scroll to this element
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      break
+    }
+  }
+}
+
+const filteredWordList = computed(() => {
+  const query = wordListSearchQuery.value.toLowerCase().trim()
+  if (!query) return wordList.value
+
+  return wordList.value.filter(word => {
+    const data = word.wordData
+    const entry = data.wordEntry || {}
+
+    // Only search Hebrew word and English translation
+    // Check Hebrew word
+    if (entry.word?.toLowerCase().includes(query)) return true
+    // Check English translation
+    if (entry.wordTranslation?.toLowerCase().includes(query)) return true
+
+    return false
+  })
+})
+
+// Watch for translation dialog opening to check which words are already in list
+watch(showTranslationDialog, async (isOpen) => {
+  if (isOpen && loggedIn.value) {
+    await fetchWordList()
+  }
+})
+
+// Watch for word list modal opening to fetch words
+watch(showWordListModal, async (isOpen) => {
+  if (isOpen && loggedIn.value) {
+    await fetchWordList()
+  }
+})
 
 async function fetchLatestModel () {
   const config = useRuntimeConfig()

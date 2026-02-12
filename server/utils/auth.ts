@@ -18,7 +18,7 @@ export async function requireUserRole(event: H3Event, allowedRoles: UserRole[]) 
   }
 
   // Cast to our expected type since getUserSession returns any
-  const userData = user as { role: UserRole, isVerified: boolean }
+  const userData = user as { id?: string; role: UserRole; isVerified: boolean }
 
   if (!userData.isVerified) {
     throw createError({
