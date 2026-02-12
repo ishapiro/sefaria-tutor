@@ -17,7 +17,7 @@
       </div>
       <div v-if="translationLoading" class="text-center py-8 text-gray-500 text-lg">Loading word-by-word translation from OpenAI…</div>
       <div v-else-if="translationError" class="text-center py-8 text-red-600 text-lg">{{ translationError }}</div>
-      <div v-else-if="translationData" class="space-y-6">
+      <div v-else-if="translationData && !translationLoading" class="space-y-6">
         <div class="flex flex-wrap items-center gap-3">
           <button
             type="button"

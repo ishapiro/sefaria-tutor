@@ -16,271 +16,65 @@
     </div>
 
     <!-- Book list -->
-    <div v-else-if="!selectedBook" class="mb-4">
-      <div class="flex items-center gap-4 mb-4 flex-wrap">
-        <span class="relative flex-grow min-w-[200px]">
-          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">🔍</span>
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Search books..."
-            class="w-full pl-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
-        </span>
-        <button
-          type="button"
-          class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 whitespace-nowrap"
-          :disabled="loading"
-          @click="refreshIndex"
-        >
-          Refresh Index
-        </button>
-        <button
-          type="button"
-          class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 whitespace-nowrap"
-          @click="showHelpDialog = true"
-        >
-          Help
-        </button>
-        <button
-          v-if="loggedIn"
-          type="button"
-          class="px-4 py-2 text-sm font-medium border rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center gap-2"
-          :class="showWordListModal 
-            ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm' 
-            : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400'"
-          @click="showWordListModal = true"
-        >
-          <span class="text-base leading-none">📚</span>
-          <span>My Word List</span>
-        </button>
-        <NuxtLink
-          v-if="isAdmin"
-          to="/admin"
-          class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 whitespace-nowrap inline-flex items-center"
-        >
-          Admin
-        </NuxtLink>
-      </div>
-      <CategoryAccordion
-        :categories="filteredCategories"
-        :loading="loading"
-        @book-select="(e) => onBookSelect({ data: e.data as CategoryNode })"
-        @tab-open="(cat) => onCategoryExpand(cat as CategoryNode)"
-      />
-      <!-- Category error: please select a book -->
-      <div
-        v-if="showCategoryDialog"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-        @click.self="showCategoryDialog = false"
-      >
-        <div class="bg-white rounded-lg shadow-xl p-6 max-w-sm mx-4 text-center">
-          <p class="font-semibold text-gray-800 mb-2">Please select a book, not a category.</p>
-          <button type="button" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700" @click="showCategoryDialog = false">OK</button>
-        </div>
-      </div>
-      <!-- API error -->
-      <div
-        v-if="showErrorDialog"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-        @click.self="showErrorDialog = false"
-      >
-        <div class="bg-white rounded-lg shadow-xl p-6 max-w-md mx-4 text-center">
-          <p class="font-semibold text-gray-800 mb-4">{{ errorMessage }}</p>
-          <div class="flex gap-2 justify-center">
-            <button
-              v-if="errorDetails"
-              type="button"
-              class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-700"
-              @click="showErrorDebugDialog = true"
-            >
-              Debug Info
-            </button>
-            <button type="button" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700" @click="showErrorDialog = false">OK</button>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Error debug dialog -->
-      <CommonDebugDialog
-        :open="showErrorDebugDialog"
-        title="Error Debug Information"
-        description="This information can help diagnose browser-specific issues."
-        :payload="errorDetails"
-        copy-key="errorDebug"
-        :copied-status="copiedStatus"
-        @close="showErrorDebugDialog = false"
-        @copy="onDebugCopy"
-      />
-      <!-- Help dialog -->
-      <CommonHelpDialog :open="showHelpDialog" @close="showHelpDialog = false" />
-    </div>
+    <WordExplorerBookBrowser
+      v-else-if="!selectedBook"
+      :search-query="searchQuery"
+      :loading="loading"
+      :filtered-categories="filteredCategories"
+      :show-category-dialog="showCategoryDialog"
+      :show-error-dialog="showErrorDialog"
+      :error-message="errorMessage"
+      :error-details="errorDetails"
+      :show-error-debug-dialog="showErrorDebugDialog"
+      :show-help-dialog="showHelpDialog"
+      :show-word-list-modal="showWordListModal"
+      :logged-in="loggedIn"
+      :is-admin="isAdmin"
+      :copied-status="copiedStatus"
+      @update:search-query="searchQuery = $event"
+      @refresh-index="refreshIndex"
+      @open-help="showHelpDialog = true"
+      @open-word-list="showWordListModal = true"
+      @book-select="onBookSelectFromBrowser"
+      @tab-open="onTabOpen"
+      @close-category-dialog="showCategoryDialog = false"
+      @close-error-dialog="showErrorDialog = false"
+      @open-error-debug="showErrorDebugDialog = true"
+      @close-error-debug-dialog="showErrorDebugDialog = false"
+      @close-help="showHelpDialog = false"
+      @copy-debug="onDebugCopy"
+    />
 
-    <!-- Book reader (Step 3: minimal – Step 4 will add pagination and complex books) -->
-    <div v-else class="border border-gray-200 rounded-lg bg-white overflow-hidden">
-      <div class="flex justify-between items-center p-4 border-b border-gray-200 bg-gray-50">
-        <span class="font-semibold text-gray-900">{{ selectedBookTitle }}{{ currentChapter ? ` (${currentChapter})` : '' }}</span>
-        <div class="flex items-center gap-3">
-          <button
-            v-if="loggedIn"
-            type="button"
-            class="px-3 py-1.5 text-sm font-medium border rounded-md transition-all duration-150 whitespace-nowrap inline-flex items-center gap-1.5"
-            :class="showWordListModal 
-              ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm' 
-              : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400'"
-            @click="showWordListModal = true"
-          >
-            <span class="text-base leading-none">📚</span>
-            <span>My Word List</span>
-          </button>
-          <button 
-            type="button" 
-            class="text-blue-600 hover:text-blue-700 hover:underline font-medium transition-colors duration-150" 
-            @click="handleCloseBook"
-          >
-            ← Back
-          </button>
-        </div>
-      </div>
-      <div class="p-4">
-        <div v-if="loading" class="text-center py-8 text-gray-500">Loading…</div>
-        <!-- Complex book: section list (when no section content loaded yet) – check before "not available" -->
-        <div v-else-if="complexSections?.length && allVerseData.length === 0" class="space-y-6">
-          <div class="flex items-center gap-2 mb-1 flex-wrap">
-            <button
-              v-if="sectionStack.length > 0"
-              type="button"
-              class="px-2 py-1 bg-gray-100 rounded-md hover:bg-gray-200 text-xs font-medium text-gray-700 border border-gray-200"
-              @click="goBackSection"
-            >
-              ← Back
-            </button>
-            <span class="font-semibold text-sm text-gray-800">Select a section:</span>
-            <button
-              type="button"
-              class="ml-2 px-2 py-1 text-xs border border-gray-300 rounded-md hover:bg-gray-100 text-gray-600"
-              @click="showSectionListDebugDialog = true"
-            >
-              Debug
-            </button>
-          </div>
-
-          <!-- Sefaria-style grouped TOC: chapter headings with daf/section chips -->
-          <div class="space-y-6">
-            <div
-              v-for="group in complexSectionGroups"
-              :key="group.header?.ref || (group.items[0]?.ref ?? 'group')"
-              class="border border-gray-100 rounded-lg bg-gray-50/60 p-3 md:p-4 shadow-sm"
-            >
-              <!-- Chapter / group heading -->
-              <div
-                v-if="group.header"
-                class="flex items-baseline justify-between gap-2 mb-2"
-              >
-                <div class="text-sm md:text-base font-semibold text-gray-900">
-                  {{ group.header.title }}
-                  <span v-if="group.header.heTitle" class="text-gray-600 font-normal">
-                    / {{ group.header.heTitle }}
-                  </span>
-                </div>
-              </div>
-
-              <!-- Grid of clickable section chips -->
-              <div
-                class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-12 gap-1.5 md:gap-2"
-              >
-                <button
-                  v-for="section in group.items"
-                  :key="section.ref"
-                  type="button"
-                  class="px-2 py-1 md:px-2.5 md:py-1.5 rounded-md border text-xs md:text-sm font-medium
-                         bg-white text-blue-700 border-blue-100 shadow-sm
-                         hover:bg-blue-50 hover:border-blue-400 hover:text-blue-900
-                         focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
-                  @click="fetchBookContent(section.ref, section.title)"
-                >
-                  {{ getSectionDisplayTitle(section) }}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div v-else-if="bookLoadAttempted && !loading && currentPageText.length === 0 && !complexSections" class="text-center py-8 text-gray-500">
-          <p class="mb-4">This book is not available via the API, or you need to select a section. Try another book or section.</p>
-          <button
-            type="button"
-            class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100 text-gray-600"
-            @click="showBookLoadDebugDialog = true"
-          >
-            Show debug info
-          </button>
-        </div>
-        <div v-else class="space-y-4">
-          <div class="flex items-center justify-between mb-1">
-            <p class="text-xs text-gray-500">
-              Click on any Hebrew phrase to get a word-by-word translation from OpenAI with grammar explanations. Phrases are delimited by punctuation—clicking before a comma, period, or other punctuation will translate the phrase from the start up to that punctuation mark.
-            </p>
-            <button
-              type="button"
-              class="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100 text-gray-600"
-              @click="showContentDebugDialog = true"
-            >
-              Debug
-            </button>
-          </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div class="font-medium text-gray-500">English</div>
-            <div class="font-medium text-gray-500 text-right" style="direction: rtl">Hebrew</div>
-          </div>
-          <template v-for="(section, index) in currentPageText" :key="'v-' + index">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-b border-gray-100 pb-4 last:border-0">
-              <div class="select-none">
-                <span class="text-gray-500 mr-2 pointer-events-none cursor-default">{{ section.displayNumber }}</span>
-                <span
-                  v-for="(phrase, pIdx) in splitIntoPhrases(section.en)"
-                  :key="pIdx"
-                  class="cursor-default text-gray-700"
-                >{{ phrase }} </span>
-              </div>
-              <div class="text-right text-lg select-none" style="direction: rtl">
-                <span class="text-gray-500 ml-2 text-sm pointer-events-none cursor-default">{{ section.displayNumber }}</span>
-                <span
-                  v-for="(phrase, pIdx) in splitIntoPhrases(section.he)"
-                  :key="pIdx"
-                  :class="[
-                    'hover:bg-blue-50 cursor-pointer rounded px-0.5 transition-colors',
-                    wordToHighlight && phraseContainsWord(phrase, wordToHighlight) ? 'bg-yellow-300 font-semibold' : ''
-                  ]"
-                  @click="translateWithOpenAI(phrase, true)"
-                >{{ phrase }} </span>
-              </div>
-            </div>
-          </template>
-          <!-- Pagination -->
-          <div v-if="totalRecords > rowsPerPage" class="flex items-center justify-between pt-4 border-t border-gray-200">
-            <button
-              type="button"
-              class="px-3 py-1 border border-gray-300 rounded disabled:opacity-50"
-              :disabled="first === 0"
-              @click="first = Math.max(0, first - rowsPerPage)"
-            >
-              Prev
-            </button>
-            <span class="text-sm text-gray-600">
-              {{ first + 1 }}–{{ Math.min(first + rowsPerPage, totalRecords) }} of {{ totalRecords }}
-            </span>
-            <button
-              type="button"
-              class="px-3 py-1 border border-gray-300 rounded disabled:opacity-50"
-              :disabled="first + rowsPerPage >= totalRecords"
-              @click="first = Math.min(first + rowsPerPage, totalRecords - 1)"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- Book reader -->
+    <WordExplorerBookReader
+      v-else
+      :selected-book-title="selectedBookTitle"
+      :current-chapter="currentChapter"
+      :loading="loading"
+      :show-section-list="showSectionList"
+      :show-book-not-available="showBookNotAvailable"
+      :section-stack-length="sectionStack.length"
+      :complex-section-groups="complexSectionGroups"
+      :current-page-text="currentPageText"
+      :total-records="totalRecords"
+      :rows-per-page="rowsPerPage"
+      :first="first"
+      :word-to-highlight="wordToHighlight"
+      :logged-in="loggedIn"
+      :show-word-list-modal="showWordListModal"
+      :split-into-phrases="splitIntoPhrases"
+      :phrase-contains-word="phraseContainsWord"
+      :get-section-display-title="getSectionDisplayTitle"
+      @close-book="handleCloseBook"
+      @open-word-list="showWordListModal = true"
+      @select-section="onSelectSection"
+      @go-back-section="goBackSection"
+      @open-section-list-debug="showSectionListDebugDialog = true"
+      @open-book-load-debug="showBookLoadDebugDialog = true"
+      @open-content-debug="showContentDebugDialog = true"
+      @phrase-click="onPhraseClick"
+      @update:first="first = $event"
+    />
 
     <!-- Content view debug dialog -->
     <CommonDebugDialog
@@ -461,19 +255,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRuntimeConfig } from 'nuxt/app'
-
-interface CategoryNode {
-  type: string
-  path: string
-  loaded?: boolean
-  children?: CategoryNode[]
-  contents?: CategoryNode[]
-  category?: string
-  heCategory?: string
-  title?: string
-  categories?: string[]
-  [key: string]: unknown
-}
+import type { CategoryNode } from '~/components/WordExplorer/BookBrowser.vue'
 
 interface VerseSection {
   displayNumber: string | number
@@ -999,6 +781,9 @@ const currentPageText = computed(() => {
   return allVerseData.value.slice(start, end)
 })
 
+const showSectionList = computed(() => (complexSections.value?.length ?? 0) > 0 && allVerseData.value.length === 0)
+const showBookNotAvailable = computed(() => bookLoadAttempted.value && !loading.value && currentPageText.value.length === 0 && !complexSections.value)
+
 const filteredCategories = computed(() => {
   const q = searchQuery.value.toLowerCase()
   if (!q) return categories.value
@@ -1339,10 +1124,26 @@ function refreshIndex () {
   fetchAndCacheFullIndex()
 }
 
+function onBookSelectFromBrowser (e: { data: CategoryNode }) {
+  onBookSelect(e)
+}
+
+function onTabOpen (cat: CategoryNode) {
+  onCategoryExpand(cat)
+}
+
+function onSelectSection (ref: string, title: string) {
+  fetchBookContent(ref, title)
+}
+
+function onPhraseClick (phrase: string) {
+  translateWithOpenAI(phrase, true)
+}
+
 function onCategoryExpand (category: CategoryNode) {
   if (category.loaded || !category.contents) return
   category.children = category.contents.map((child: Record<string, unknown>) =>
-    processNode(child, category.path)
+    processNode(child, category.path ?? '')
   )
   category.loaded = true
 }
@@ -2014,7 +1815,6 @@ async function doTranslateApiCall (plainText: string, fullSentence: boolean, sef
   const token = config.public.apiAuthToken as string
   if (!token) return
   translationSefariaRef.value = sefariaRefOverride ?? lastSefariaRefAttempted.value
-  showTranslationDialog.value = true
   translationLoading.value = true
   translationData.value = null
   translationError.value = null
@@ -2056,6 +1856,7 @@ async function doTranslateApiCall (plainText: string, fullSentence: boolean, sef
     translationError.value = err instanceof Error ? err.message : 'Translation failed'
   } finally {
     translationLoading.value = false
+    showTranslationDialog.value = true
   }
 }
 
