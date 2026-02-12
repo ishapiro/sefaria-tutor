@@ -176,7 +176,7 @@
       <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         <div class="p-6 border-b border-gray-100 flex justify-between items-center">
           <h2 class="text-xl font-bold text-gray-800">Entry Details</h2>
-          <button @click="selectedEntry = null" class="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+          <button type="button" @click="selectedEntry = null" class="min-h-[44px] px-4 py-2.5 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 active:bg-gray-100 touch-manipulation">Close</button>
         </div>
         <div class="p-6 overflow-y-auto space-y-6">
           <div>
@@ -217,8 +217,9 @@
         </div>
         <div class="p-6 border-t border-gray-100 bg-gray-50 flex justify-end">
           <button
+            type="button"
             @click="selectedEntry = null"
-            class="px-6 py-2 bg-white border border-gray-300 rounded-lg font-medium hover:bg-gray-100 transition-colors"
+            class="min-h-[44px] px-4 py-2.5 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 active:bg-gray-100 touch-manipulation"
           >
             Close
           </button>
@@ -237,10 +238,10 @@
           <h2 class="text-2xl font-bold">Word-by-word translation</h2>
           <button
             type="button"
-            class="text-gray-500 hover:text-gray-700 text-2xl leading-none"
+            class="min-h-[44px] px-4 py-2.5 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 active:bg-gray-100 touch-manipulation"
             @click="showTranslationDialog = false"
           >
-            ×
+            Close
           </button>
         </div>
         <div v-if="translationLoading" class="text-center py-8 text-gray-500 text-lg">
@@ -413,10 +414,10 @@
           <h2 class="text-xl font-bold">Raw Translation Data</h2>
           <button
             type="button"
-            class="text-gray-500 hover:text-gray-700 text-2xl leading-none"
+            class="min-h-[44px] px-4 py-2.5 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 active:bg-gray-100 touch-manipulation"
             @click="showRawData = false"
           >
-            ×
+            Close
           </button>
         </div>
         <pre class="bg-gray-50 p-4 rounded-lg overflow-auto text-sm">

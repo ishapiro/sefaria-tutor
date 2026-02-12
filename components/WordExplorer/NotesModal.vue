@@ -15,11 +15,11 @@
         </h2>
         <button
           type="button"
-          class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+          class="min-h-[44px] px-4 py-2.5 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 active:bg-gray-100 touch-manipulation"
           aria-label="Close"
           @click="closeNoteModal"
         >
-          <span class="text-xl leading-none">×</span>
+          Close
         </button>
       </div>
 

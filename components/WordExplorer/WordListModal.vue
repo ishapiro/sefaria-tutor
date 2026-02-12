@@ -9,10 +9,10 @@
         <h2 class="text-2xl font-bold">My Word List</h2>
         <button
           type="button"
-          class="text-gray-500 hover:text-gray-700 text-2xl leading-none"
+          class="min-h-[44px] px-4 py-2.5 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 active:bg-gray-100 touch-manipulation"
           @click="$emit('close')"
         >
-          ×
+          Close
         </button>
       </div>
 
@@ -30,10 +30,11 @@
           <button
             v-if="searchQuery"
             type="button"
-            class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500 hover:text-gray-700"
+            aria-label="Clear search"
             @click="$emit('update:searchQuery', '')"
           >
-            ×
+            Clear
           </button>
         </div>
       </div>
@@ -167,7 +168,7 @@
       <div class="mt-6 flex justify-end">
         <button
           type="button"
-          class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-gray-800"
+          class="min-h-[44px] px-4 py-2.5 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 active:bg-gray-100 touch-manipulation"
           @click="$emit('close')"
         >
           Close
