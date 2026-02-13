@@ -7,7 +7,7 @@
     <div class="bg-white rounded-2xl shadow-2xl max-w-2xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
       <!-- Header -->
       <div class="px-8 pt-8 pb-4">
-        <h2 class="text-2xl font-bold text-gray-900 tracking-tight">How to Use Soresh</h2>
+        <h2 class="text-2xl font-bold text-gray-900 tracking-tight">How to Use Shoresh</h2>
         <p class="text-gray-500 text-sm mt-1">Learn classical Jewish texts word by word</p>
       </div>
 
@@ -16,7 +16,7 @@
         <section class="rounded-xl bg-slate-50 p-5">
           <h3 class="font-semibold text-slate-900 mb-2 text-base">What This App Does</h3>
           <p class="text-slate-600 text-sm leading-relaxed">
-            Soresh helps you build vocabulary and deepen your understanding of classical Jewish texts by exploring them word by word. Created by a learner for learners—free to use.
+            Shoresh helps you build vocabulary and deepen your understanding of classical Jewish texts by exploring them word by word. Created by a learner for learners—free to use.
           </p>
         </section>
 

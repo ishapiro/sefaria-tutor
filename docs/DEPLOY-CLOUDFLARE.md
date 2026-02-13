@@ -1,4 +1,4 @@
-# Deploy Soresh to Cloudflare Workers
+# Deploy Shoresh to Cloudflare Workers
 
 The app is configured for Cloudflare (Nitro preset `cloudflare_module`). Follow these steps to deploy.
 

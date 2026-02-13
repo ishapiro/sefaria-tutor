@@ -23,7 +23,7 @@ export default defineNuxtConfig({
     resendApiKey: '',
     turnstileSecretKey: '', // Server-side secret for Turnstile verification
     public: {
-      appName: 'Soresh',
+      appName: 'Shoresh',
       apiAuthToken: '', // Client sends this to /api/openai/chat (set NUXT_PUBLIC_API_AUTH_TOKEN in .env)
       siteUrl: '',
       turnstileSiteKey: '', // Client-side site key for Turnstile widget (set NUXT_PUBLIC_TURNSTILE_SITE_KEY in .env)

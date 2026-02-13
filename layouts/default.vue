@@ -28,7 +28,7 @@ const displayName = computed(() => {
           to="/"
           class="text-base sm:text-lg md:text-2xl font-semibold tracking-tight text-[#003c71] no-underline hover:underline truncate"
         >
-          Soresh
+          Shoresh
         </NuxtLink>
       </div>
       <div class="flex items-center gap-2 sm:gap-4 shrink-0">

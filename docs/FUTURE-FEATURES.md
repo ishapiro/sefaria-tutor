@@ -1,6 +1,6 @@
 # Future Features & Product Roadmap
 
-This document outlines potential features to enhance Soresh for high school students in Jewish day schools, focusing on bridging the gap between basic translation and textual mastery.
+This document outlines potential features to enhance Shoresh for high school students in Jewish day schools, focusing on bridging the gap between basic translation and textual mastery.
 
 ## 1. Student Mastery & Vocabulary Building
 *Focus: Building independent learning skills (lekshir).*

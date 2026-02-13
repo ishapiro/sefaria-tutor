@@ -1,8 +1,8 @@
-# Soresh: Empowering Independent Learning of Jewish Texts
+# Shoresh: Empowering Independent Learning of Jewish Texts
 ## A Guide for Jewish Educators
 
 ### Overview
-Soresh is an AI-powered study companion designed to help students transition from basic reading to independent textual mastery (*lekshir*). By combining the vast library of **Sefaria** with advanced Large Language Models, the app provides a personalized, word-by-word bridge to the original Hebrew and Aramaic sources.
+Shoresh is an AI-powered study companion designed to help students transition from basic reading to independent textual mastery (*lekshir*). By combining the vast library of **Sefaria** with advanced Large Language Models, the app provides a personalized, word-by-word bridge to the original Hebrew and Aramaic sources.
 
 ---
 
@@ -43,7 +43,7 @@ We are actively developing features to support the specific needs of Jewish Day 
 
 #### 2. Teacher & Classroom Tools
 *   **Teacher Dashboards:** Leaders can view anonymized data on which verses or words their class is finding difficult, allowing for more focused lesson planning.
-*   **Pinned Assignments:** Teachers can create "Direct Links" to specific chapters, so students land exactly where they need to study (ideal for homework: “Open Soresh and go directly to Bereshit 12:1–3”).
+*   **Pinned Assignments:** Teachers can create "Direct Links" to specific chapters, so students land exactly where they need to study (ideal for homework: “Open Shoresh and go directly to Bereshit 12:1–3”).
 *   **Chavrusa Mode (Planned):** Collaborative digital study where students can share notes and lookups in real-time—useful for paired chevruta work in a high‑school Beit Midrash.
 *   **Admin & Roster Management (In Progress):**
     *   Admin users can create and manage accounts, restore accidentally deleted users, and ensure only verified students have access.
@@ -59,7 +59,7 @@ We are actively developing features to support the specific needs of Jewish Day 
 
 ---
 
-### Why Use Soresh?
+### Why Use Shoresh?
 *   **Promotes Independence:** Students no longer get "stuck" on a single word; they have the tools to move forward on their own.
 *   **Focuses on Grammar:** We don't just give the answer; we explain *why* the word means what it does by showing the root and structure.
 *   **Free for All:** This project is provided free of charge to support the growth of Torah study worldwide.

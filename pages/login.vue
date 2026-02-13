@@ -298,7 +298,7 @@ const onEmailBlur = async () => {
     <div class="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-lg border border-gray-100">
       <div>
         <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          {{ isRegistering ? 'Create your account' : 'Sign in to Soresh' }}
+          {{ isRegistering ? 'Create your account' : 'Sign in to Shoresh' }}
         </h2>
         <p class="mt-2 text-center text-sm text-gray-600">
           Or
@@ -501,7 +501,7 @@ const onEmailBlur = async () => {
           {{ message || 'Your account has been created. Please check your email for verification instructions.' }}
         </p>
         <p class="text-xs text-gray-500">
-          After verifying your email, you can sign in and start using advanced Soresh features.
+          After verifying your email, you can sign in and start using advanced Shoresh features.
         </p>
         <div class="mt-4 flex justify-end">
           <button

@@ -1,4 +1,4 @@
-# Soresh → Nuxt + Tailwind on Cloudflare
+# Shoresh → Nuxt + Tailwind on Cloudflare
 
 **Last updated:** January 2025 — aligned with current Nuxt, Tailwind, and Cloudflare docs.
 
