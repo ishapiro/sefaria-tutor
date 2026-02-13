@@ -504,7 +504,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useSupportPageContext } from '~/composables/useSupportPageContext'
+import { SUPPORT_VIEW_NAMES } from '~/constants/supportViewNames'
+
+const { setSupportView, clearSupportView } = useSupportPageContext()
 
 const entries = ref<any[]>([])
 const stats = ref({ hits: 0, misses: 0, malformed_hits: 0, updated_at: 0 })
@@ -909,6 +913,10 @@ function translatePhrase(text: string) {
 }
 
 onMounted(() => {
+  setSupportView(SUPPORT_VIEW_NAMES.DICTIONARY)
   refresh()
+})
+onUnmounted(() => {
+  clearSupportView()
 })
 </script>

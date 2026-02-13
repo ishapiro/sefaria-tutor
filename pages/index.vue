@@ -273,7 +273,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRuntimeConfig } from 'nuxt/app'
 import type { CategoryNode } from '~/components/WordExplorer/BookBrowser.vue'
 import { hasMultipleSentences, countWords, getPlainTextFromHtml, splitIntoPhrases, countWordInPhrase, phraseContainsWord } from '~/utils/text'
@@ -281,6 +281,7 @@ import { parseStartChapterFromRef, buildTanakhDisplayNumbers, parseRangeFromRef,
 import { buildNoteContext } from '~/utils/notes'
 import { useClipboard } from '~/composables/useClipboard'
 import { useNotes } from '~/composables/useNotes'
+import { useSupportPageContext } from '~/composables/useSupportPageContext'
 
 interface VerseSection {
   displayNumber: string | number
@@ -2336,6 +2337,25 @@ async function fetchLatestModel () {
     modelLoading.value = false
   }
 }
+
+const { updateSupportRefs, clearSupportView } = useSupportPageContext()
+watch([lastSefariaRefAttempted, selectedBook], () => {
+  const sefariaRef = lastSefariaRefAttempted.value
+  const book = selectedBook.value
+  if (sefariaRef && book) {
+    updateSupportRefs({
+      sefariaRef,
+      bookTitle: book.title ?? null,
+      bookPath: book.path ?? null
+    })
+  } else {
+    updateSupportRefs({ sefariaRef: null, bookTitle: null, bookPath: null })
+  }
+}, { immediate: true })
+
+onUnmounted(() => {
+  clearSupportView()
+})
 
 onMounted(async () => {
   // Fetch user session to ensure isAdmin is properly computed

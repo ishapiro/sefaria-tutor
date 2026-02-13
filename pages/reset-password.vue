@@ -1,6 +1,13 @@
 <script setup lang="ts">
+import { useSupportPageContext } from '~/composables/useSupportPageContext'
+import { SUPPORT_VIEW_NAMES } from '~/constants/supportViewNames'
+
 const route = useRoute()
 const router = useRouter()
+const { setSupportView, clearSupportView } = useSupportPageContext()
+
+onMounted(() => setSupportView(SUPPORT_VIEW_NAMES.RESET_PASSWORD))
+onUnmounted(() => clearSupportView())
 
 const token = computed(() => (route.query.token as string) || '')
 const isResetMode = computed(() => Boolean(token.value))

@@ -154,6 +154,9 @@
 </template>
 
 <script setup lang="ts">
+import { useSupportPageContext } from '~/composables/useSupportPageContext'
+import { SUPPORT_VIEW_NAMES } from '~/constants/supportViewNames'
+
 export interface TranslationWordRow {
   word?: string
   wordTranslation?: string
@@ -174,7 +177,7 @@ export interface TranslationData {
   wordTable?: TranslationWordRow[]
 }
 
-defineProps<{
+const props = defineProps<{
   open: boolean
   translationLoading: boolean
   translationError: string | null
@@ -188,6 +191,12 @@ defineProps<{
   getWordListButtonClass: (index: number) => string
   getWordListButtonText: (index: number) => string
 }>()
+
+const { setSupportView, clearSupportView } = useSupportPageContext()
+watch(() => props.open, (isOpen) => {
+  if (isOpen) setSupportView(SUPPORT_VIEW_NAMES.TRANSLATION)
+  else clearSupportView()
+}, { immediate: true })
 
 defineEmits<{
   close: []

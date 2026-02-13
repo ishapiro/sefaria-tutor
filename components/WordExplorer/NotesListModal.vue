@@ -233,10 +233,18 @@
 <script setup lang="ts">
 import type { UserNote } from '~/composables/useNotes'
 import { copyToClipboard } from '~/utils/clipboard'
+import { useSupportPageContext } from '~/composables/useSupportPageContext'
+import { SUPPORT_VIEW_NAMES } from '~/constants/supportViewNames'
 
 const props = defineProps<{
   open: boolean
 }>()
+
+const { setSupportView, clearSupportView } = useSupportPageContext()
+watch(() => props.open, (isOpen) => {
+  if (isOpen) setSupportView(SUPPORT_VIEW_NAMES.MY_NOTES)
+  else clearSupportView()
+}, { immediate: true })
 
 defineEmits<{
   close: []

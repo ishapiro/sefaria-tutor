@@ -94,6 +94,8 @@
 <script setup lang="ts">
 import type { NoteContext } from '~/composables/useNotes'
 import { useNotes } from '~/composables/useNotes'
+import { useSupportPageContext } from '~/composables/useSupportPageContext'
+import { SUPPORT_VIEW_NAMES } from '~/constants/supportViewNames'
 
 const {
   noteModalOpen,
@@ -106,6 +108,12 @@ const {
   closeNoteModal,
   saveNote
 } = useNotes()
+
+const { setSupportView, clearSupportView } = useSupportPageContext()
+watch(noteModalOpen, (isOpen) => {
+  if (isOpen) setSupportView(SUPPORT_VIEW_NAMES.NOTE_EDITOR)
+  else clearSupportView()
+}, { immediate: true })
 
 const sefariaLink = computed(() => {
   const ctx = noteContext.value as NoteContext | null

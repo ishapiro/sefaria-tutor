@@ -112,6 +112,13 @@
 </template>
 
 <script setup lang="ts">
+import { useSupportPageContext } from '~/composables/useSupportPageContext'
+import { SUPPORT_VIEW_NAMES } from '~/constants/supportViewNames'
+
+const { setSupportView, clearSupportView } = useSupportPageContext()
+onMounted(() => setSupportView(SUPPORT_VIEW_NAMES.BOOK_BROWSER))
+onUnmounted(() => clearSupportView())
+
 /** Minimal shape for category tree nodes used by CategoryAccordion */
 export interface CategoryNode {
   type?: string

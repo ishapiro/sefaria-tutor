@@ -229,6 +229,9 @@
 </template>
 
 <script setup lang="ts">
+import { useSupportPageContext } from '~/composables/useSupportPageContext'
+import { SUPPORT_VIEW_NAMES } from '~/constants/supportViewNames'
+
 export interface VerseSection {
   displayNumber: string | number
   en: string
@@ -267,6 +270,10 @@ defineProps<{
   phraseContainsWord: (phrase: string, word: string) => boolean
   getSectionDisplayTitle: (section: SectionRef) => string
 }>()
+
+const { setSupportView, clearSupportView } = useSupportPageContext()
+onMounted(() => setSupportView(SUPPORT_VIEW_NAMES.BOOK_READER))
+onUnmounted(() => clearSupportView())
 
 defineEmits<{
   'close-book': []

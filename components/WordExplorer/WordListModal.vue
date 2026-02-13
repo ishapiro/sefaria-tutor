@@ -199,6 +199,9 @@
 </template>
 
 <script setup lang="ts">
+import { useSupportPageContext } from '~/composables/useSupportPageContext'
+import { SUPPORT_VIEW_NAMES } from '~/constants/supportViewNames'
+
 export interface WordListEntry {
   id: number
   wordData: {
@@ -227,6 +230,12 @@ const props = defineProps<{
   wordListLoadingMore: boolean
   deletingWordId: number | null
 }>()
+
+const { setSupportView, clearSupportView } = useSupportPageContext()
+watch(() => props.open, (isOpen) => {
+  if (isOpen) setSupportView(SUPPORT_VIEW_NAMES.MY_WORD_LIST)
+  else clearSupportView()
+}, { immediate: true })
 
 defineEmits<{
   close: []

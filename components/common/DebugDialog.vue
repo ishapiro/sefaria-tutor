@@ -27,7 +27,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
+import { useSupportPageContext } from '~/composables/useSupportPageContext'
+import { SUPPORT_VIEW_NAMES } from '~/constants/supportViewNames'
 
 const props = defineProps<{
   open: boolean
@@ -37,6 +39,12 @@ const props = defineProps<{
   copyKey: string
   copiedStatus: string | null
 }>()
+
+const { setSupportView, clearSupportView } = useSupportPageContext()
+watch(() => props.open, (isOpen) => {
+  if (isOpen) setSupportView(SUPPORT_VIEW_NAMES.DEBUG)
+  else clearSupportView()
+}, { immediate: true })
 
 defineEmits<{
   close: []

@@ -131,9 +131,18 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
+import { useSupportPageContext } from '~/composables/useSupportPageContext'
+import { SUPPORT_VIEW_NAMES } from '~/constants/supportViewNames'
+
+const props = defineProps<{
   open: boolean
 }>()
+
+const { setSupportView, clearSupportView } = useSupportPageContext()
+watch(() => props.open, (isOpen) => {
+  if (isOpen) setSupportView(SUPPORT_VIEW_NAMES.HELP)
+  else clearSupportView()
+}, { immediate: true })
 
 defineEmits<{
   close: []

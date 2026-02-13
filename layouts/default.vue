@@ -1,10 +1,14 @@
 <script setup lang="ts">
+import SupportSupportModal from '~/components/Support/SupportModal.vue'
+
 const { loggedIn, user, logout } = useAuth()
 
 const displayName = computed(() => {
   const u = (user as any)?.value ?? user
   return u?.name || u?.email || ''
 })
+
+const supportModalOpen = ref(false)
 </script>
 
 <template>
@@ -32,15 +36,26 @@ const displayName = computed(() => {
         </NuxtLink>
       </div>
       <div class="flex items-center gap-2 sm:gap-4 shrink-0">
+        <button
+          type="button"
+          class="text-xs sm:text-sm font-medium text-blue-600 hover:text-blue-800 whitespace-nowrap px-1 sm:px-0"
+          @click="supportModalOpen = true"
+        >
+          Support
+        </button>
         <template v-if="loggedIn">
           <span class="text-gray-600 text-xs sm:text-sm truncate max-w-[80px] sm:max-w-[140px] md:max-w-none">{{ displayName }}</span>
-          <button @click="logout" class="text-xs sm:text-sm font-medium text-gray-700 hover:text-indigo-600 whitespace-nowrap px-1 sm:px-0">Logout</button>
+          <button @click="logout" class="text-xs sm:text-sm font-medium text-blue-600 hover:text-blue-800 whitespace-nowrap px-1 sm:px-0">Logout</button>
         </template>
         <template v-else>
-          <NuxtLink to="/login" class="text-xs sm:text-sm font-medium text-gray-700 hover:text-indigo-600 whitespace-nowrap px-1 sm:px-0">Login</NuxtLink>
+          <NuxtLink to="/login" class="text-xs sm:text-sm font-medium text-blue-600 hover:text-blue-800 whitespace-nowrap px-1 sm:px-0">Login</NuxtLink>
         </template>
       </div>
     </header>
+    <ClientOnly>
+      <SupportSupportModal v-model:open="supportModalOpen" />
+      <template #fallback />
+    </ClientOnly>
     <main>
       <slot />
     </main>

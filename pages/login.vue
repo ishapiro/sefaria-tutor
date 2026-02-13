@@ -1,7 +1,14 @@
 <script setup lang="ts">
+import { useSupportPageContext } from '~/composables/useSupportPageContext'
+import { SUPPORT_VIEW_NAMES } from '~/constants/supportViewNames'
+
 const { loginWithGoogle, loggedIn } = useAuth()
 const router = useRouter()
 const route = useRoute()
+const { setSupportView, clearSupportView } = useSupportPageContext()
+
+onMounted(() => setSupportView(SUPPORT_VIEW_NAMES.LOGIN))
+onUnmounted(() => clearSupportView())
 
 // If already logged in, redirect to home
 watchEffect(() => {

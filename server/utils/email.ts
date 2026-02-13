@@ -95,6 +95,7 @@ export async function sendVerificationEmail(event: H3Event, email: string, token
         <p>Please click the link below to verify your email address and activate your account:</p>
         <a href="${verificationUrl}">${verificationUrl}</a>
         <p>This link will expire in 24 hours.</p>
+        ${emailDoNotReplyFooter(siteUrl)}
       `
     })
   })
@@ -162,6 +163,7 @@ export async function sendPasswordResetEmail(event: H3Event, email: string, toke
         <p>You requested a password reset for your Shoresh account. Click the link below to choose a new password:</p>
         <a href="${resetUrl}">${resetUrl}</a>
         <p>This link will expire in 1 hour. If you did not request this, you can ignore this email.</p>
+        ${emailDoNotReplyFooter(siteUrl)}
       `
     })
   })
@@ -184,4 +186,167 @@ export async function sendPasswordResetEmail(event: H3Event, email: string, toke
       data: { debug: safeDebug }
     })
   }
+}
+
+export type SupportTicketForEmail = {
+  id: string
+  email: string
+  page_url: string | null
+  reference?: string | null
+  type_bug: number
+  type_suggestion: number
+  type_help: number
+  description: string
+  status: string
+  created_at: number
+}
+
+function getResendConfig(event: H3Event) {
+  const config = useRuntimeConfig(event)
+  const env = (globalThis as unknown as { process?: { env?: Record<string, string> } }).process?.env
+  const resendApiKey =
+    (config as any).resendApiKey || env?.NUXT_RESEND_API_KEY || env?.RESEND_API_KEY
+  if (!resendApiKey) return null
+  const siteUrl = getSiteUrl(event)
+  return { resendApiKey, siteUrl }
+}
+
+async function sendResendEmail(apiKey: string, to: string, subject: string, html: string) {
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      from: 'Shoresh <noreply@shoresh.cogitations.com>',
+      to,
+      subject,
+      html
+    })
+  })
+  if (!response.ok) {
+    let errorBody: any = null
+    try {
+      errorBody = await response.json()
+    } catch {}
+    throw new Error(errorBody?.message ?? `Resend rejected: ${response.status}`)
+  }
+}
+
+function formatTicketTypes(ticket: SupportTicketForEmail): string {
+  const types: string[] = []
+  if (ticket.type_bug) types.push('Bug')
+  if (ticket.type_suggestion) types.push('Suggestion')
+  if (ticket.type_help) types.push('Help')
+  return types.length ? types.join(', ') : 'General'
+}
+
+/**
+ * Send new ticket notifications to shoresh@cogitations.com and to the user.
+ */
+export async function sendNewTicketNotification(event: H3Event, ticket: SupportTicketForEmail) {
+  const cfg = getResendConfig(event)
+  if (!cfg) {
+    console.warn('RESEND_API_KEY not set. Skipping support ticket email notifications.')
+    return
+  }
+  const { resendApiKey, siteUrl } = cfg
+  const typesStr = formatTicketTypes(ticket)
+  const adminUrl = `${siteUrl}/admin`
+  const dateStr = new Date(ticket.created_at * 1000).toLocaleString()
+
+  const adminHtml = `
+    <h1>New Support Ticket #${ticket.id.slice(0, 8)}</h1>
+    <p><strong>From:</strong> ${escapeHtml(ticket.email)}</p>
+    <p><strong>Page:</strong> ${escapeHtml(ticket.page_url || 'N/A')}</p>
+    <p><strong>Reference:</strong> ${escapeHtml(ticket.reference || 'N/A')}</p>
+    <p><strong>Type:</strong> ${escapeHtml(typesStr)}</p>
+    <p><strong>Status:</strong> ${escapeHtml(ticket.status)}</p>
+    <p><strong>Created:</strong> ${escapeHtml(dateStr)}</p>
+    <h2>Description</h2>
+    <p>${escapeHtml(ticket.description).replace(/\n/g, '<br>')}</p>
+    <p><a href="${adminUrl}">View in Admin Panel</a></p>
+    ${emailDoNotReplyFooter(siteUrl)}
+  `
+
+  const userHtml = `
+    <h1>Support Ticket Received</h1>
+    <p>We have received your support request (ticket #${ticket.id.slice(0, 8)}).</p>
+    <p>Someone will respond shortly.</p>
+    <p><a href="${siteUrl}">Go to Shoresh</a></p>
+    <p>You will need to log in to see your tickets, then click <strong>Support</strong> in the top navigation and choose Existing tickets.</p>
+    ${emailDoNotReplyFooter(siteUrl)}
+  `
+
+  await sendResendEmail(
+    resendApiKey,
+    'shoresh@cogitations.com',
+    `[Shoresh] New ticket #${ticket.id.slice(0, 8)} from ${ticket.email}`,
+    adminHtml
+  )
+  await sendResendEmail(
+    resendApiKey,
+    ticket.email,
+    'Your Shoresh support ticket has been received',
+    userHtml
+  )
+}
+
+/**
+ * Send ticket update notification to the user (reply or status change).
+ */
+export async function sendTicketUpdateNotification(
+  event: H3Event,
+  ticket: SupportTicketForEmail,
+  options: { replyText?: string; newStatus?: string }
+) {
+  const cfg = getResendConfig(event)
+  if (!cfg) {
+    console.warn('RESEND_API_KEY not set. Skipping support ticket update email.')
+    return
+  }
+  const { resendApiKey, siteUrl } = cfg
+  const ticketShort = ticket.id.slice(0, 8)
+
+  let body = ''
+  if (options.replyText) {
+    body += `<h2>New reply</h2><p>${escapeHtml(options.replyText).replace(/\n/g, '<br>')}</p>`
+  }
+  if (options.newStatus) {
+    body += `<p><strong>Status:</strong> ${escapeHtml(options.newStatus)}</p>`
+  }
+  body += `<p><a href="${siteUrl}">View your tickets in Shoresh</a></p><p>You will need to log in to see your tickets, then click <strong>Support</strong> in the top navigation and choose Existing tickets.</p>`
+
+  const html = `
+    <h1>Support Ticket #${ticketShort} Updated</h1>
+    <p>Your support ticket has been updated.</p>
+    ${body}
+    ${emailDoNotReplyFooter(siteUrl)}
+  `
+
+  await sendResendEmail(
+    resendApiKey,
+    ticket.email,
+    `Your Shoresh support ticket #${ticketShort} has been updated`,
+    html
+  )
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
+/** Footer for all outgoing emails: do not reply; use the app to add comments. */
+function emailDoNotReplyFooter(siteUrl: string): string {
+  return `
+    <p style="margin-top: 1.5em; font-size: 0.9em; color: #666;">
+      Please do not reply to this email. Use the <a href="${escapeHtml(siteUrl)}">app</a> or website to add additional comments or follow up.
+    </p>
+  `
 }

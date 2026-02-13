@@ -239,6 +239,218 @@
         </p>
       </div>
 
+      <!-- Support Tickets Section -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">Support Tickets</h2>
+        <button
+          type="button"
+          @click="showSupportTickets = !showSupportTickets"
+          class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          {{ showSupportTickets ? 'Hide' : 'Manage Support Tickets' }}
+        </button>
+
+        <div v-if="showSupportTickets" class="mt-6 space-y-6">
+          <div class="flex flex-wrap gap-3 items-end">
+            <div class="w-48">
+              <label for="support-status-filter" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <select
+                id="support-status-filter"
+                v-model="supportStatusFilter"
+                class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg"
+                @change="supportOffset = 0; loadSupportTickets()"
+              >
+                <option value="">All tickets</option>
+                <option value="not-closed">Not closed</option>
+                <option value="new">New</option>
+                <option value="open">Open</option>
+                <option value="in-progress">In progress</option>
+                <option value="closed">Closed</option>
+                <option value="wish-list">Wish list</option>
+                <option value="dismissed">Dismissed</option>
+              </select>
+            </div>
+            <div class="w-28">
+              <label for="support-limit" class="block text-sm font-medium text-gray-700 mb-1">Per page</label>
+              <select
+                id="support-limit"
+                v-model.number="supportLimit"
+                class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg"
+                @change="supportOffset = 0; loadSupportTickets()"
+              >
+                <option :value="25">25</option>
+                <option :value="50">50</option>
+                <option :value="100">100</option>
+              </select>
+            </div>
+            <div class="flex-1 min-w-48">
+              <label for="support-search" class="block text-sm font-medium text-gray-700 mb-1">Search</label>
+              <input
+                id="support-search"
+                v-model="supportSearch"
+                type="text"
+                class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg"
+                placeholder="Email, description, or reference..."
+                @input="handleSupportSearchChange"
+              />
+            </div>
+          </div>
+
+          <div v-if="supportTicketsLoading" class="text-center py-8 text-gray-500">Loading tickets...</div>
+          <div v-else-if="supportTicketsError" class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">{{ supportTicketsError }}</div>
+          <div v-else>
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-100">
+                  <tr>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">ID</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Email</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Page</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Reference</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Type</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Status</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Created</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Actions</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                  <tr
+                    v-for="t in supportTickets"
+                    :key="t.id"
+                    class="hover:bg-gray-50 cursor-pointer"
+                    @click="loadSupportTicketDetail(t.id)"
+                  >
+                    <td class="px-4 py-2 text-sm font-mono">{{ t.id.slice(0, 8) }}</td>
+                    <td class="px-4 py-2 text-sm text-gray-900">{{ t.email }}</td>
+                    <td class="px-4 py-2 text-sm text-gray-600 max-w-[120px] truncate" :title="t.page_url || ''">{{ t.page_url || '—' }}</td>
+                    <td class="px-4 py-2 text-sm text-gray-600 max-w-[120px] truncate" :title="t.reference || ''">{{ t.reference || '—' }}</td>
+                    <td class="px-4 py-2 text-sm text-gray-600">{{ formatSupportTypes(t) }}</td>
+                    <td class="px-4 py-2 text-sm text-gray-600">{{ t.status }}</td>
+                    <td class="px-4 py-2 text-sm text-gray-600">{{ formatDate(t.created_at) }}</td>
+                    <td class="px-4 py-2 text-sm">
+                      <button
+                        type="button"
+                        class="text-blue-600 hover:text-blue-800"
+                        @click.stop="loadSupportTicketDetail(t.id)"
+                      >
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div v-if="supportTickets.length === 0" class="text-center py-8 text-gray-500">No tickets found</div>
+            <div class="flex items-center justify-between mt-4 text-xs text-gray-500">
+              <div>
+                <span v-if="supportTicketsTotal">
+                  Showing {{ supportTicketsFrom }}–{{ supportTicketsTo }} of {{ supportTicketsTotal }} tickets
+                </span>
+                <span v-else>No tickets found</span>
+              </div>
+              <div class="flex gap-2">
+                <button
+                  type="button"
+                  class="px-2 py-1 border border-gray-300 rounded disabled:opacity-40 text-xs"
+                  :disabled="!hasPrevSupportPage"
+                  @click="goToPrevSupportPage"
+                >
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  class="px-2 py-1 border border-gray-300 rounded disabled:opacity-40 text-xs"
+                  :disabled="!hasNextSupportPage"
+                  @click="goToNextSupportPage"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Ticket detail -->
+          <div v-if="selectedSupportTicket" class="bg-gray-50 rounded-lg p-4 space-y-4">
+            <div class="flex flex-wrap items-center gap-2">
+              <h3 class="text-lg font-semibold text-gray-800">Ticket #{{ selectedSupportTicket.ticket.id.slice(0, 8) }}</h3>
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-gray-200 text-gray-800">
+                {{ selectedSupportTicket.ticket.status }}
+              </span>
+            </div>
+            <div class="text-sm text-gray-700 space-y-1">
+              <p><strong>Email:</strong> {{ selectedSupportTicket.ticket.email }}</p>
+              <p><strong>Page:</strong> {{ selectedSupportTicket.ticket.page_url || '—' }}</p>
+              <p v-if="selectedSupportTicket.ticket.reference"><strong>Reference:</strong> {{ selectedSupportTicket.ticket.reference }}</p>
+              <p><strong>Type:</strong> {{ formatSupportTypes(selectedSupportTicket.ticket) }}</p>
+              <p><strong>Status:</strong> {{ selectedSupportTicket.ticket.status }}</p>
+              <p><strong>Created:</strong> {{ formatDate(selectedSupportTicket.ticket.created_at) }}</p>
+            </div>
+            <div>
+              <p class="text-sm font-medium text-gray-700 mb-1">Description</p>
+              <p class="text-gray-700 whitespace-pre-wrap">{{ selectedSupportTicket.ticket.description }}</p>
+            </div>
+            <div>
+              <p class="text-sm font-medium text-gray-700 mb-2">Thread</p>
+              <div class="space-y-3">
+                <div
+                  v-for="r in selectedSupportTicket.replies"
+                  :key="r.id"
+                  class="pl-4 border-l-2 border-gray-200"
+                >
+                  <p class="text-xs font-medium text-gray-500">{{ r.author_type === 'admin' ? 'Admin' : 'User' }}</p>
+                  <p class="text-gray-700 whitespace-pre-wrap">{{ r.message }}</p>
+                  <p class="text-xs text-gray-400">{{ formatDate(r.created_at) }}</p>
+                </div>
+              </div>
+            </div>
+            <div class="space-y-4 w-full max-w-4xl">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Add reply</label>
+                <textarea
+                  v-model="supportReplyText"
+                  rows="6"
+                  class="w-full min-w-0 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Your reply..."
+                />
+                <button
+                  type="button"
+                  :disabled="!supportReplyText.trim() || supportReplySending"
+                  class="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm"
+                  @click="sendSupportReply"
+                >
+                  {{ supportReplySending ? 'Sending...' : 'Send reply' }}
+                </button>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select
+                  v-model="supportTicketEditStatus"
+                  class="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  @change="updateSupportTicketStatus"
+                >
+                  <option value="new">New</option>
+                  <option value="open">Open</option>
+                  <option value="in-progress">In progress</option>
+                  <option value="closed">Closed</option>
+                  <option value="wish-list">Wish list</option>
+                  <option value="dismissed">Dismissed</option>
+                </select>
+              </div>
+            </div>
+            <div v-if="supportTicketMessage" class="p-3 rounded-lg" :class="supportTicketMessageType === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'">
+              {{ supportTicketMessage }}
+            </div>
+            <button
+              type="button"
+              class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-700"
+              @click="selectedSupportTicket = null; supportReplyText = ''; supportTicketMessage = ''"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Pronunciation Cache Management Section -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h2 class="text-xl font-semibold text-gray-800 mb-4">Pronunciation Cache Management</h2>
@@ -428,6 +640,13 @@
 <script setup lang="ts">
 const { isAdmin } = useAuth()
 const router = useRouter()
+import { useSupportPageContext } from '~/composables/useSupportPageContext'
+import { SUPPORT_VIEW_NAMES } from '~/constants/supportViewNames'
+
+const { setSupportView, clearSupportView } = useSupportPageContext()
+
+onMounted(() => setSupportView(SUPPORT_VIEW_NAMES.ADMIN))
+onUnmounted(() => clearSupportView())
 
 // Redirect if not admin
 watchEffect(() => {
@@ -437,6 +656,7 @@ watchEffect(() => {
 })
 
 const showUserManagement = ref(false)
+const showSupportTickets = ref(false)
 const users = ref<Array<{ id: string; email: string; name: string | null; role: string; deleted_at: number | null }>>(
   []
 )
@@ -690,6 +910,153 @@ watch(showUserManagement, (newVal) => {
   if (newVal && users.value.length === 0) {
     loadUsers()
   }
+})
+
+// Support Tickets
+type SupportTicket = {
+  id: string
+  user_id?: string
+  email: string
+  page_url: string | null
+  reference: string | null
+  type_bug: number
+  type_suggestion: number
+  type_help: number
+  description: string
+  status: string
+  created_at: number
+  updated_at: number
+}
+type SupportReply = { id: string; author_type: string; message: string; created_at: number }
+const supportTickets = ref<SupportTicket[]>([])
+const supportTicketsLoading = ref(false)
+const supportTicketsError = ref('')
+const supportStatusFilter = ref('')
+const supportSearch = ref('')
+const supportLimit = ref(50)
+const supportOffset = ref(0)
+const supportTicketsTotal = ref(0)
+const selectedSupportTicket = ref<{ ticket: SupportTicket; replies: SupportReply[] } | null>(null)
+const supportReplyText = ref('')
+const supportReplySending = ref(false)
+const supportTicketEditStatus = ref('')
+const supportTicketMessage = ref('')
+const supportTicketMessageType = ref<'success' | 'error'>('success')
+
+const formatSupportTypes = (t: { type_bug: number; type_suggestion: number; type_help: number }) => {
+  const parts: string[] = []
+  if (t.type_bug) parts.push('Bug')
+  if (t.type_suggestion) parts.push('Suggestion')
+  if (t.type_help) parts.push('Help')
+  return parts.length ? parts.join(', ') : 'General'
+}
+
+const loadSupportTickets = async () => {
+  supportTicketsLoading.value = true
+  supportTicketsError.value = ''
+  try {
+    const params = new URLSearchParams()
+    if (supportStatusFilter.value) params.set('status', supportStatusFilter.value)
+    if (supportSearch.value.trim()) params.set('search', supportSearch.value.trim())
+    params.set('limit', String(supportLimit.value))
+    params.set('offset', String(supportOffset.value))
+    const res = await $fetch<{ tickets: SupportTicket[]; total: number; limit: number; offset: number }>(
+      `/api/admin/support/tickets?${params}`
+    )
+    supportTickets.value = res.tickets || []
+    supportTicketsTotal.value = res.total
+    supportOffset.value = res.offset
+  } catch (e: any) {
+    supportTicketsError.value = e.data?.message || 'Failed to load tickets'
+  } finally {
+    supportTicketsLoading.value = false
+  }
+}
+
+const loadSupportTicketDetail = async (ticketId: string) => {
+  try {
+    const res = await $fetch<{ ticket: SupportTicket; replies: SupportReply[] }>(
+      `/api/admin/support/tickets/${ticketId}`
+    )
+    selectedSupportTicket.value = { ticket: res.ticket, replies: res.replies || [] }
+    supportTicketEditStatus.value = res.ticket.status
+    supportReplyText.value = ''
+    supportTicketMessage.value = ''
+  } catch (e: any) {
+    supportTicketMessage.value = e.data?.message || 'Failed to load ticket'
+    supportTicketMessageType.value = 'error'
+  }
+}
+
+const sendSupportReply = async () => {
+  if (!selectedSupportTicket.value || !supportReplyText.value.trim()) return
+  supportReplySending.value = true
+  supportTicketMessage.value = ''
+  try {
+    await $fetch(`/api/admin/support/tickets/${selectedSupportTicket.value.ticket.id}/reply`, {
+      method: 'POST',
+      body: { message: supportReplyText.value.trim() }
+    })
+    supportTicketMessage.value = 'Reply sent'
+    supportTicketMessageType.value = 'success'
+    supportReplyText.value = ''
+    await loadSupportTicketDetail(selectedSupportTicket.value.ticket.id)
+  } catch (e: any) {
+    supportTicketMessage.value = e.data?.message || 'Failed to send reply'
+    supportTicketMessageType.value = 'error'
+  } finally {
+    supportReplySending.value = false
+  }
+}
+
+const updateSupportTicketStatus = async () => {
+  if (!selectedSupportTicket.value || supportTicketEditStatus.value === selectedSupportTicket.value.ticket.status) return
+  supportTicketMessage.value = ''
+  try {
+    await $fetch(`/api/admin/support/tickets/${selectedSupportTicket.value.ticket.id}`, {
+      method: 'PUT',
+      body: { status: supportTicketEditStatus.value }
+    })
+    supportTicketMessage.value = 'Status updated'
+    supportTicketMessageType.value = 'success'
+    selectedSupportTicket.value = {
+      ...selectedSupportTicket.value,
+      ticket: { ...selectedSupportTicket.value.ticket, status: supportTicketEditStatus.value }
+    }
+  } catch (e: any) {
+    supportTicketMessage.value = e.data?.message || 'Failed to update status'
+    supportTicketMessageType.value = 'error'
+  }
+}
+
+const supportTicketsFrom = computed(() =>
+  supportTicketsTotal.value ? supportOffset.value + 1 : 0
+)
+const supportTicketsTo = computed(() =>
+  supportTicketsTotal.value ? Math.min(supportOffset.value + supportTickets.value.length, supportTicketsTotal.value) : 0
+)
+const hasPrevSupportPage = computed(() => supportOffset.value > 0)
+const hasNextSupportPage = computed(() => supportOffset.value + supportTickets.value.length < supportTicketsTotal.value)
+const goToPrevSupportPage = async () => {
+  if (!hasPrevSupportPage.value) return
+  supportOffset.value = Math.max(0, supportOffset.value - supportLimit.value)
+  await loadSupportTickets()
+}
+const goToNextSupportPage = async () => {
+  if (!hasNextSupportPage.value) return
+  supportOffset.value += supportLimit.value
+  await loadSupportTickets()
+}
+let supportSearchTimeout: ReturnType<typeof setTimeout> | null = null
+const handleSupportSearchChange = () => {
+  if (supportSearchTimeout) clearTimeout(supportSearchTimeout)
+  supportSearchTimeout = setTimeout(() => {
+    supportOffset.value = 0
+    loadSupportTickets()
+  }, 300)
+}
+watch(showSupportTickets, (newVal) => {
+  if (newVal) loadSupportTickets()
 })
 
 // Pronunciation Cache Management
