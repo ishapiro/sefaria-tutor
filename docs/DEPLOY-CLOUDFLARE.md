@@ -1,4 +1,4 @@
-# Deploy Sefaria Tutor to Cloudflare Workers
+# Deploy Soresh to Cloudflare Workers
 
 The app is configured for Cloudflare (Nitro preset `cloudflare_module`). Follow these steps to deploy.
 
@@ -47,7 +47,7 @@ The root **`wrangler.toml`** points to `.output/server/index.mjs` (worker entry)
 
 **First time:** Wrangler may prompt you to log in (`npx wrangler login`) and to create a new Worker. Accept the defaults if you want a `*.workers.dev` subdomain.
 
-On success, Wrangler prints the live URL (e.g. `https://sefaria-tutor.<your-subdomain>.workers.dev`).
+On success, Wrangler prints the live URL (e.g. `https://shoresh.<your-subdomain>.workers.dev`).
 
 ## 3. Set secrets (required for translation)
 
@@ -70,7 +70,7 @@ npx wrangler secret put OPENAI_API_KEY
 
 For the client token, use either:
 
-- **Dashboard (plain env var):** Left sidebar **Build** → **Compute & AI** (or [Workers & Pages](https://dash.cloudflare.com/?to=/:account/workers-and-pages)) → **Overview** → click **sefaria-tutor** → **Settings** → **Variables and Secrets** → **Add** → **Text**, name `NUXT_PUBLIC_API_AUTH_TOKEN`, value = same as `API_AUTH_TOKEN` → **Deploy**.
+- **Dashboard (plain env var):** Left sidebar **Build** → **Compute & AI** (or [Workers & Pages](https://dash.cloudflare.com/?to=/:account/workers-and-pages)) → **Overview** → click **shoresh** → **Settings** → **Variables and Secrets** → **Add** → **Text**, name `NUXT_PUBLIC_API_AUTH_TOKEN`, value = same as `API_AUTH_TOKEN` → **Deploy**.
 - **Build-time:** set `NUXT_PUBLIC_API_AUTH_TOKEN` in your environment when running `npm run build` (only if you need it baked into the client bundle).
 
 ### Option B – Set secrets from `.env` (non-interactive)
@@ -88,7 +88,7 @@ Then add `NUXT_PUBLIC_API_AUTH_TOKEN` in the dashboard (Workers & Pages → your
 ### Option C – Dashboard only
 
 1. In the Cloudflare dashboard left sidebar: **Build** → **Compute & AI** (Workers and Pages live here). Or open [Workers & Pages](https://dash.cloudflare.com/?to=/:account/workers-and-pages) directly.
-2. Under **Overview**, click your **sefaria-tutor** worker.
+2. Under **Overview**, click your **shoresh** worker.
 3. Go to **Settings** → **Variables and Secrets** → **Add**.
 4. Add **Secret** (encrypted): name `API_AUTH_TOKEN`, then value. Repeat for `OPENAI_API_KEY`.
 5. Add **Text** (plaintext env var): name `NUXT_PUBLIC_API_AUTH_TOKEN`, value = same as `API_AUTH_TOKEN`.
@@ -98,8 +98,8 @@ If **Variables and Secrets** isn’t visible, check under the worker’s **Setti
 
 ## 4. Custom domain (optional)
 
-1. **Workers & Pages** → **sefaria-tutor** → **Settings** → **Domains & Routes**.
-2. **Add** → **Custom domain** (e.g. `sefaria-tutor.yourdomain.com`).
+1. **Workers & Pages** → **shoresh** → **Settings** → **Domains & Routes**.
+2. **Add** → **Custom domain** (e.g. `shoresh.yourdomain.com`).
 3. Follow the DNS instructions (usually a CNAME to your worker).
 
 ## 5. Local preview

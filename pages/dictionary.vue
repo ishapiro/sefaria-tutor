@@ -60,6 +60,14 @@
       >
         <span :class="{ 'animate-spin': loading }">🔄</span> Refresh
       </button>
+      <button 
+        type="button"
+        @click="showClearCacheModal = true"
+        class="px-4 py-2 bg-white border border-red-200 text-red-700 rounded-lg hover:bg-red-50 flex items-center gap-2"
+        :disabled="loading"
+      >
+        Clear all cache
+      </button>
     </div>
 
     <!-- Entries Table -->
@@ -338,7 +346,7 @@
                 </div>
                 <div v-if="row.wordRoot && row.wordRoot !== '—'" class="text-lg text-gray-600">
                   <span class="text-xs text-gray-400 uppercase font-bold mr-1">Root:</span>
-                  {{ row.wordRoot }}
+                  {{ row.wordRoot }}<span v-if="row.wordRootTranslation" class="text-gray-500"> ({{ row.wordRootTranslation }})</span>
                 </div>
                 <div class="flex-grow"></div>
                 <div
@@ -453,6 +461,45 @@
         </div>
       </div>
     </div>
+
+    <!-- Clear all cache verification modal -->
+    <div v-if="showClearCacheModal" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" @click.self="showClearCacheModal = false">
+      <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+        <h3 class="text-lg font-bold text-gray-900 mb-2">Clear all cache?</h3>
+        <p class="text-gray-600 mb-4 text-sm">
+          This will delete all word-by-word translation entries and reset hit/miss statistics. This cannot be undone.
+        </p>
+        <p class="text-sm text-gray-500 mb-2">
+          Type <strong>clear</strong> below to confirm:
+        </p>
+        <input
+          v-model="clearCacheConfirmText"
+          type="text"
+          placeholder="clear"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 mb-6"
+          @keydown.enter.prevent="clearCacheConfirmText === 'clear' && clearAllCache()"
+        />
+        <div class="flex justify-end gap-3">
+          <button 
+            type="button"
+            @click="showClearCacheModal = false; clearCacheConfirmText = ''" 
+            class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button 
+            type="button"
+            @click="clearAllCache" 
+            class="px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            :class="clearCacheConfirmText === 'clear' ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-gray-200 text-gray-500 cursor-not-allowed'"
+            :disabled="clearCacheConfirmText !== 'clear' || clearCacheLoading"
+          >
+            <span v-if="clearCacheLoading" class="animate-spin">⏳</span>
+            <span v-else>Clear all cache</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -469,6 +516,9 @@ const offset = ref(0)
 const total = ref(0)
 const selectedEntry = ref<any>(null)
 const entryToDelete = ref<any>(null)
+const showClearCacheModal = ref(false)
+const clearCacheConfirmText = ref('')
+const clearCacheLoading = ref(false)
 
 const showTranslationDialog = ref(false)
 const translationLoading = ref(false)
@@ -480,6 +530,7 @@ const translationData = ref<{
     wordTranslation?: string
     hebrewAramaic?: string
     wordRoot?: string
+    wordRootTranslation?: string
     wordPartOfSpeech?: string
     wordGender?: string | null
     wordTense?: string | null
@@ -569,6 +620,27 @@ async function fetchEntries() {
 function refresh() {
   fetchStats()
   fetchEntries()
+}
+
+async function clearAllCache() {
+  if (clearCacheConfirmText.value !== 'clear') return
+  clearCacheLoading.value = true
+  const config = useRuntimeConfig()
+  const token = config.public.apiAuthToken as string
+  try {
+    await $fetch('/api/cache/clear', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    showClearCacheModal.value = false
+    clearCacheConfirmText.value = ''
+    refresh()
+  } catch (err: any) {
+    console.error('Failed to clear cache:', err)
+    alert(err?.data?.message || 'Failed to clear cache')
+  } finally {
+    clearCacheLoading.value = false
+  }
 }
 
 let searchTimeout: any = null
@@ -728,6 +800,7 @@ async function doTranslateApiCall(plainText: string, fullSentence: boolean) {
       wordTranslation?: string
       hebrewAramaic?: string
       wordRoot?: string
+      wordRootTranslation?: string
       wordPartOfSpeech?: string
       wordGender?: string | null
       wordTense?: string | null

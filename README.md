@@ -1,6 +1,10 @@
-# Sefaria Word Explorer (Sefaria Tutor)
+# Sefaria Word Explorer (Soresh)
 
 A web app for reading Jewish texts with AI-powered translation and text-to-speech. An independent project of [Cogitations](https://cogitations.com), **not** a Sefaria.org project.
+
+The project is hosted at: 
+
+https://shoresh.cogitations.com
 
 ## About this project
 

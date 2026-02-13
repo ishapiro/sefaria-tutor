@@ -52,11 +52,11 @@ export async function sendVerificationEmail(event: H3Event, email: string, token
       'Authorization': `Bearer ${resendApiKey}`
     },
     body: JSON.stringify({
-      from: 'Sefaria Tutor <noreply@sefaria-tutor.cogitations.com>', // Verified domain sender
+      from: 'Soresh <noreply@shoresh.cogitations.com>', // Verified domain sender
       to: email,
-      subject: 'Verify your email for Sefaria Tutor',
+      subject: 'Verify your email for Soresh',
       html: `
-        <h1>Welcome to Sefaria Tutor</h1>
+        <h1>Welcome to Soresh</h1>
         <p>Please click the link below to verify your email address and activate your account:</p>
         <a href="${verificationUrl}">${verificationUrl}</a>
         <p>This link will expire in 24 hours.</p>

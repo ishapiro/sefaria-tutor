@@ -95,7 +95,7 @@
               </div>
               <div v-if="row.wordRoot && row.wordRoot !== '—'" class="text-lg text-gray-600">
                 <span class="text-xs text-gray-400 uppercase font-bold mr-1">Root:</span>
-                {{ row.wordRoot }}
+                {{ row.wordRoot }}<span v-if="row.wordRootTranslation" class="text-gray-500"> ({{ row.wordRootTranslation }})</span>
               </div>
               <div class="flex-grow"></div>
               <div
@@ -159,6 +159,7 @@ export interface TranslationWordRow {
   wordTranslation?: string
   hebrewAramaic?: string
   wordRoot?: string
+  wordRootTranslation?: string
   wordPartOfSpeech?: string
   wordGender?: string | null
   wordTense?: string | null

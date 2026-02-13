@@ -117,7 +117,7 @@
             </div>
             <div v-if="word.wordData.wordEntry?.wordRoot && word.wordData.wordEntry.wordRoot !== '—'" class="text-lg text-gray-600">
               <span class="text-xs text-gray-400 uppercase font-bold mr-1">Root:</span>
-              {{ word.wordData.wordEntry.wordRoot }}
+              {{ word.wordData.wordEntry.wordRoot }}<span v-if="word.wordData.wordEntry.wordRootTranslation" class="text-gray-500"> ({{ word.wordData.wordEntry.wordRootTranslation }})</span>
             </div>
             <div class="flex-grow"></div>
             <div class="text-xs text-gray-500">

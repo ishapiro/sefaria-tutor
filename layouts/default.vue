@@ -28,7 +28,7 @@ const displayName = computed(() => {
           to="/"
           class="text-lg font-semibold tracking-tight text-center sm:text-left sm:text-2xl sm:whitespace-nowrap text-[#003c71] no-underline hover:underline"
         >
-          Sefaria-Tutor by Cogitations
+          Soresh by Cogitations
         </NuxtLink>
       </div>
       <div class="flex items-center gap-4 shrink-0">

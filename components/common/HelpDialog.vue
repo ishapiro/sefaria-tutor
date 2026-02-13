@@ -7,7 +7,7 @@
     <div class="bg-white rounded-2xl shadow-2xl max-w-2xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
       <!-- Header -->
       <div class="px-8 pt-8 pb-4">
-        <h2 class="text-2xl font-bold text-gray-900 tracking-tight">How to Use Sefaria Tutor</h2>
+        <h2 class="text-2xl font-bold text-gray-900 tracking-tight">How to Use Soresh</h2>
         <p class="text-gray-500 text-sm mt-1">Learn classical Jewish texts word by word</p>
       </div>
 
@@ -16,7 +16,7 @@
         <section class="rounded-xl bg-slate-50 p-5">
           <h3 class="font-semibold text-slate-900 mb-2 text-base">What This App Does</h3>
           <p class="text-slate-600 text-sm leading-relaxed">
-            Sefaria Tutor helps you build vocabulary and deepen your understanding of classical Jewish texts by exploring them word by word. Created by a learner for learners—free to use.
+            Soresh helps you build vocabulary and deepen your understanding of classical Jewish texts by exploring them word by word. Created by a learner for learners—free to use.
           </p>
         </section>
 
@@ -48,18 +48,56 @@
         <section>
           <h3 class="font-semibold text-slate-900 mb-3 text-base">Word Analysis Cards</h3>
           <p class="text-slate-600 text-sm mb-3">Each word appears in its own card. Here's what each field means:</p>
-          <div class="grid gap-2 text-sm sm:grid-cols-2">
-            <div class="flex gap-2 rounded-lg bg-slate-50 px-3 py-2"><span class="font-medium text-slate-700 shrink-0">Word</span><span class="text-slate-600">Hebrew form (click to hear pronunciation)</span></div>
-            <div class="flex gap-2 rounded-lg bg-slate-50 px-3 py-2"><span class="font-medium text-slate-700 shrink-0">Translation</span><span class="text-slate-600">English meaning</span></div>
-            <div class="flex gap-2 rounded-lg bg-slate-50 px-3 py-2"><span class="font-medium text-slate-700 shrink-0">Root</span><span class="text-slate-600">Lexical root (shoresh)</span></div>
-            <div class="flex gap-2 rounded-lg bg-slate-50 px-3 py-2"><span class="font-medium text-slate-700 shrink-0">Occurrences</span><span class="text-slate-600">Shown when the word appears more than once in the phrase</span></div>
-            <div class="flex gap-2 rounded-lg bg-slate-50 px-3 py-2"><span class="font-medium text-slate-700 shrink-0">Part of Speech</span><span class="text-slate-600">Noun, verb, adjective, etc.</span></div>
-            <div class="flex gap-2 rounded-lg bg-slate-50 px-3 py-2"><span class="font-medium text-slate-700 shrink-0">Gender</span><span class="text-slate-600">Masculine, feminine, or common</span></div>
-            <div class="flex gap-2 rounded-lg bg-slate-50 px-3 py-2"><span class="font-medium text-slate-700 shrink-0">Tense</span><span class="text-slate-600">Past, present, future, etc.</span></div>
-            <div class="flex gap-2 rounded-lg bg-slate-50 px-3 py-2"><span class="font-medium text-slate-700 shrink-0">Binyan</span><span class="text-slate-600">Verb pattern (Qal, Piel, Hiphil…)</span></div>
-            <div class="flex gap-2 rounded-lg bg-slate-50 px-3 py-2"><span class="font-medium text-slate-700 shrink-0">Language</span><span class="text-slate-600">Hebrew or Aramaic</span></div>
-            <div class="flex gap-2 rounded-lg bg-slate-50 px-3 py-2 sm:col-span-2"><span class="font-medium text-slate-700 shrink-0">Grammar Notes</span><span class="text-slate-600">Additional context or explanation</span></div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs border-collapse">
+              <tbody class="divide-y divide-slate-200">
+                <tr class="bg-slate-50"><td class="font-medium text-slate-700 px-2 py-1.5 w-28">Word</td><td class="text-slate-600 px-2 py-1.5">Hebrew form (click to hear pronunciation)</td></tr>
+                <tr><td class="font-medium text-slate-700 px-2 py-1.5">Translation</td><td class="text-slate-600 px-2 py-1.5">English meaning</td></tr>
+                <tr class="bg-slate-50"><td class="font-medium text-slate-700 px-2 py-1.5">Root</td><td class="text-slate-600 px-2 py-1.5">Lexical root (shoresh)</td></tr>
+                <tr><td class="font-medium text-slate-700 px-2 py-1.5">Occurrences</td><td class="text-slate-600 px-2 py-1.5">Shown when the word appears more than once</td></tr>
+                <tr class="bg-slate-50"><td class="font-medium text-slate-700 px-2 py-1.5">Part of Speech</td><td class="text-slate-600 px-2 py-1.5">Noun, verb, adjective, etc.</td></tr>
+                <tr><td class="font-medium text-slate-700 px-2 py-1.5">Gender</td><td class="text-slate-600 px-2 py-1.5">Masculine, feminine, or common</td></tr>
+                <tr class="bg-slate-50"><td class="font-medium text-slate-700 px-2 py-1.5">Tense</td><td class="text-slate-600 px-2 py-1.5">Past, present, future, etc.</td></tr>
+                <tr><td class="font-medium text-slate-700 px-2 py-1.5">Binyan</td><td class="text-slate-600 px-2 py-1.5">Verb pattern (Qal, Piel, Hiphil…)</td></tr>
+                <tr class="bg-slate-50"><td class="font-medium text-slate-700 px-2 py-1.5">Language</td><td class="text-slate-600 px-2 py-1.5">Hebrew or Aramaic</td></tr>
+                <tr><td class="font-medium text-slate-700 px-2 py-1.5">Grammar Notes</td><td class="text-slate-600 px-2 py-1.5">Additional context or explanation</td></tr>
+              </tbody>
+            </table>
           </div>
+        </section>
+
+        <section class="rounded-xl bg-green-50/60 p-5">
+          <h3 class="font-semibold text-slate-900 mb-2 text-base">My Word List</h3>
+          <p class="text-slate-600 text-sm leading-relaxed mb-2">
+            <strong class="text-slate-900">Requires a free account.</strong> Build your personal vocabulary by saving words from translations. Click the "Add to My Word List" button in any translation dialog to save words for later review.
+          </p>
+          <ul class="space-y-1.5 text-slate-600 text-sm list-disc list-inside">
+            <li>Access your saved words from the "My Word List" button at the top of any book</li>
+            <li>Search through your words to quickly find what you're looking for</li>
+            <li>Click any word to navigate back to its source text</li>
+            <li>Organize and review your vocabulary as you study</li>
+          </ul>
+        </section>
+
+        <section class="rounded-xl bg-purple-50/60 p-5">
+          <h3 class="font-semibold text-slate-900 mb-2 text-base">My Notes</h3>
+          <p class="text-slate-600 text-sm leading-relaxed mb-2">
+            <strong class="text-slate-900">Requires a free account.</strong> Add personal notes to phrases as you study. Click the 📝 icon next to any Hebrew phrase to add or edit a note with your thoughts, questions, or insights.
+          </p>
+          <ul class="space-y-1.5 text-slate-600 text-sm list-disc list-inside">
+            <li>View all your notes organized by book in the "My Notes" page</li>
+            <li>Edit or delete notes anytime</li>
+            <li>Select multiple notes to print or copy to your clipboard</li>
+            <li>Click reference links to navigate back to the source text</li>
+            <li>Notes are private to your account and sync across devices</li>
+          </ul>
+        </section>
+
+        <section class="rounded-xl border-2 border-blue-200 bg-blue-50/80 p-5">
+          <h3 class="font-semibold text-slate-900 mb-2 text-base">Free Account Required</h3>
+          <p class="text-slate-600 text-sm leading-relaxed">
+            <strong class="text-slate-900">Accounts are completely free—no credit card required.</strong> Create an account to use My Word List and My Notes features. Your data is private and syncs across all your devices. Click "Login" in the header to get started.
+          </p>
         </section>
 
         <section class="rounded-xl border border-slate-200 bg-slate-50/50 p-5">

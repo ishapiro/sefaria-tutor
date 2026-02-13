@@ -1,4 +1,4 @@
-# Sefaria Tutor → Nuxt + Tailwind on Cloudflare
+# Soresh → Nuxt + Tailwind on Cloudflare
 
 **Last updated:** January 2025 — aligned with current Nuxt, Tailwind, and Cloudflare docs.
 
@@ -101,8 +101,8 @@ export default defineNuxtConfig({
 ### Phase A — Nuxt project and Cloudflare config
 
 1. **Create Nuxt app** (new branch or new folder).  
-   - Either: `npm create nuxt@latest sefaria-tutor-nuxt` then add Tailwind and Cloudflare config.  
-   - Or: `npm create cloudflare@latest sefaria-tutor-nuxt --framework=nuxt` then add Tailwind and ensure Nitro config matches section 3.2.
+   - Either: `npm create nuxt@latest shoresh-nuxt` then add Tailwind and Cloudflare config.  
+   - Or: `npm create cloudflare@latest shoresh-nuxt --framework=nuxt` then add Tailwind and ensure Nitro config matches section 3.2.
 
 2. **Configure Cloudflare in `nuxt.config.ts`**  
    - Set `compatibilityDate: '2024-09-19'`.  
@@ -202,7 +202,7 @@ export default defineNuxtConfig({
 ## 6. Suggested File Layout (After Migration)
 
 ```
-sefaria-tutor/
+shoresh/
 ├── app.vue                          # or default layout + page (Nuxt 4 may use app/)
 ├── nuxt.config.ts                    # Tailwind module + Nitro cloudflare_module
 ├── pages/

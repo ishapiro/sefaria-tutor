@@ -25,3 +25,11 @@ NUXT_PUBLIC_TURNSTILE_SITE_KEY = "0x4AAAAAACZzAyzFuLdSmQhT"
 [observability.logs]
 enabled = true
 invocation_logs = true
+
+[[routes]]
+pattern = "sefaria-tutor.cogitations.com"
+custom_domain = true
+
+[[routes]]
+pattern = "shoresh.cogitations.com"
+custom_domain = true

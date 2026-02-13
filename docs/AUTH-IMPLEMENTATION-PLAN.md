@@ -1,6 +1,6 @@
 # Authentication and Authorization Implementation Plan
 
-This document outlines the design for implementing a robust authentication and authorization system for the Sefaria Tutor application using NuxtHub, Cloudflare, and Resend.
+This document outlines the design for implementing a robust authentication and authorization system for the Soresh application using NuxtHub, Cloudflare, and Resend.
 
 ## 1. User Roles and Capabilities
 
