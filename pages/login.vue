@@ -218,13 +218,15 @@ const handleAuth = async () => {
         return
       }
       
+      const linkBaseUrl = import.meta.client ? window.location.origin : ''
       const response = await $fetch('/api/auth/register', {
         method: 'POST',
         body: { 
           email: email.value, 
           password: password.value,
           name: name.value || email.value.split('@')[0],
-          turnstileToken: turnstileToken.value
+          turnstileToken: turnstileToken.value,
+          linkBaseUrl: linkBaseUrl || undefined
         }
       })
       message.value = response.message
@@ -308,6 +310,9 @@ const onEmailBlur = async () => {
         </p>
       </div>
 
+      <div v-if="route.query.reset === 'success'" class="bg-green-50 text-green-700 p-3 rounded-md text-sm">
+        Your password has been reset. You can now sign in with your new password.
+      </div>
       <div v-if="message && !showSuccessDialog" class="bg-green-50 text-green-700 p-3 rounded-md text-sm">
         {{ message }}
       </div>
@@ -425,6 +430,11 @@ const onEmailBlur = async () => {
                 Password must be at least 8 characters with uppercase, lowercase, and numbers
               </p>
             </div>
+            <p v-if="!isRegistering && emailEnabled" class="mt-2 text-sm">
+              <NuxtLink to="/reset-password" class="font-medium text-indigo-600 hover:text-indigo-500">
+                Forgot password?
+              </NuxtLink>
+            </p>
           </div>
 
           <!-- Password confirmation (registration only) -->

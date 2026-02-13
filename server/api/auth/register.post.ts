@@ -1,11 +1,12 @@
 import { createError, getHeader } from 'h3'
 import { randomUUID } from 'uncrypto'
-import { sendVerificationEmail } from '../../utils/email'
+import { sendVerificationEmail, validateLinkBaseUrl } from '../../utils/email'
 import { hashPasswordWorkers } from '../../utils/password'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
   const { email, password, name, turnstileToken } = body
+  const linkBaseUrl = validateLinkBaseUrl(event, body?.linkBaseUrl) ?? undefined
 
   if (!email || !password) {
     throw createError({
@@ -91,8 +92,8 @@ export default defineEventHandler(async (event) => {
     .bind(userId, email, userName, hashedPassword, verificationToken, tokenExpiresAt, 'general', 0)
     .run()
 
-  // Send verification email
-  await sendVerificationEmail(event, email, verificationToken)
+  // Send verification email (linkBaseUrl so the link matches where the user is running the app)
+  await sendVerificationEmail(event, email, verificationToken, linkBaseUrl)
 
   return {
     message: 'Registration successful. Please check your email for verification instructions.'
