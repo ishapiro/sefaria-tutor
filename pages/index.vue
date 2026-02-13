@@ -1,14 +1,16 @@
 <template>
-  <div class="container mx-auto p-4 relative">
+  <div class="container mx-auto p-3 sm:p-4 relative">
     <!-- API loading spinner overlay -->
     <CommonLoadingOverlay :open="apiLoading" :message="apiLoadingMessage" />
-    <h1 class="text-xl font-bold mb-2">
-      Word Explorer
-      <span class="pl-2 text-base font-normal text-gray-600">(Using OpenAI Model: {{ openaiModel }})</span>
-    </h1>
-    <p class="text-sm text-gray-600 mb-4">
-      (Source text from the <a href="https://www.sefaria.org/" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline">Sefaria</a> API; word-by-word translation by <a href="https://openai.com/" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline">OpenAI</a>)
-    </p>
+    <div class="mb-3 sm:mb-4">
+      <h1 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">
+        Word Explorer
+        <span class="pl-2 text-sm sm:text-base font-normal text-gray-600 hidden sm:inline">(Using OpenAI Model: {{ openaiModel }})</span>
+      </h1>
+      <p class="text-xs sm:text-sm text-gray-600 leading-tight">
+        Source text from <a href="https://www.sefaria.org/" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline">Sefaria</a> API; translation by <a href="https://openai.com/" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline">OpenAI</a>
+      </p>
+    </div>
 
     <!-- Loading index -->
     <div v-if="loading && (!categories || categories.length === 0)" class="flex justify-center items-center py-12">
@@ -258,7 +260,7 @@
       <div class="bg-white rounded-lg shadow-xl p-6 max-w-4xl w-[80vw] max-h-[80vh] overflow-auto space-y-4">
         <div class="flex justify-between items-center">
           <h2 class="text-xl font-bold">Raw Translation Data</h2>
-          <button type="button" class="min-h-[44px] px-4 py-2.5 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 active:bg-gray-100 touch-manipulation" @click="showRawData = false">Close</button>
+          <button type="button" class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400" @click="showRawData = false">Close</button>
         </div>
         <pre class="bg-gray-50 p-4 rounded-lg overflow-auto text-sm">{{ JSON.stringify(rawTranslationData, null, 2) }}</pre>
         <div v-if="translationData" class="border-t border-gray-200 pt-4">

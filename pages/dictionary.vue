@@ -55,7 +55,7 @@
       </div>
       <button 
         @click="refresh"
-        class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2"
+        class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center gap-2 min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
         :disabled="loading"
       >
         <span :class="{ 'animate-spin': loading }">🔄</span> Refresh
@@ -63,7 +63,7 @@
       <button 
         type="button"
         @click="showClearCacheModal = true"
-        class="px-4 py-2 bg-white border border-red-200 text-red-700 rounded-lg hover:bg-red-50 flex items-center gap-2"
+        class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center gap-2 min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
         :disabled="loading"
       >
         Clear all cache
@@ -112,7 +112,7 @@
                   </button>
                   <button
                     type="button"
-                    class="inline-flex items-center px-2 py-1 text-xs border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                    class="inline-flex items-center px-2 py-1 text-xs font-medium border border-gray-300 rounded-lg transition-all duration-150 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
                     title="View details"
                     @click="showDetail(entry)"
                   >
@@ -159,14 +159,14 @@
           <button 
             @click="prevPage" 
             :disabled="offset === 0"
-            class="px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="px-3 py-1 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Previous
           </button>
           <button 
             @click="nextPage" 
             :disabled="offset + limit >= total"
-            class="px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="px-3 py-1 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Next
           </button>
@@ -184,7 +184,7 @@
       <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         <div class="p-6 border-b border-gray-100 flex justify-between items-center">
           <h2 class="text-xl font-bold text-gray-800">Entry Details</h2>
-          <button type="button" @click="selectedEntry = null" class="min-h-[44px] px-4 py-2.5 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 active:bg-gray-100 touch-manipulation">Close</button>
+          <button type="button" @click="selectedEntry = null" class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400">Close</button>
         </div>
         <div class="p-6 overflow-y-auto space-y-6">
           <div>
@@ -227,7 +227,7 @@
           <button
             type="button"
             @click="selectedEntry = null"
-            class="min-h-[44px] px-4 py-2.5 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 active:bg-gray-100 touch-manipulation"
+            class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
           >
             Close
           </button>
@@ -246,7 +246,7 @@
           <h2 class="text-2xl font-bold">Word-by-word translation</h2>
           <button
             type="button"
-            class="min-h-[44px] px-4 py-2.5 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 active:bg-gray-100 touch-manipulation"
+            class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
             @click="showTranslationDialog = false"
           >
             Close
@@ -262,8 +262,8 @@
           <div class="flex flex-wrap items-center gap-3">
             <button
               type="button"
-              class="px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-all duration-200 shadow-sm"
-              :class="copiedStatus === 'he' ? 'bg-green-600 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'"
+              class="px-4 py-2 text-sm font-medium border rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center gap-2 min-h-[36px]"
+              :class="copiedStatus === 'he' ? 'border-green-500 bg-green-50 text-green-700 shadow-sm' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400'"
               @click="handleCopy(translationData.originalPhrase || '', 'he')"
             >
               <span>{{ copiedStatus === 'he' ? '✅' : '📋' }}</span>
@@ -271,8 +271,8 @@
             </button>
             <button
               type="button"
-              class="px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-all duration-200 shadow-sm"
-              :class="copiedStatus === 'en' ? 'bg-green-600 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'"
+              class="px-4 py-2 text-sm font-medium border rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center gap-2 min-h-[36px]"
+              :class="copiedStatus === 'en' ? 'border-green-500 bg-green-50 text-green-700 shadow-sm' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400'"
               @click="handleCopy(translationData.translatedPhrase || '', 'en')"
             >
               <span>{{ copiedStatus === 'en' ? '✅' : '📋' }}</span>
@@ -309,7 +309,7 @@
           <div class="flex justify-end mb-2">
             <button
               type="button"
-              class="px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100 text-base"
+              class="px-3 py-1.5 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
               @click="showRawData = true"
             >
               View Raw Data
@@ -395,14 +395,14 @@
         <div class="flex gap-3 justify-end">
           <button
             type="button"
-            class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
+            class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
             @click="cancelMultiSentenceConfirm"
           >
             Cancel
           </button>
           <button
             type="button"
-            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
             @click="confirmMultiSentenceContinue"
           >
             Continue
@@ -422,7 +422,7 @@
           <h2 class="text-xl font-bold">Raw Translation Data</h2>
           <button
             type="button"
-            class="min-h-[44px] px-4 py-2.5 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 active:bg-gray-100 touch-manipulation"
+            class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
             @click="showRawData = false"
           >
             Close
@@ -448,13 +448,13 @@
         <div class="flex justify-end gap-3">
           <button 
             @click="entryToDelete = null" 
-            class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+            class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
           >
             Cancel
           </button>
           <button 
             @click="deleteEntry" 
-            class="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+            class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
           >
             Delete
           </button>
@@ -483,15 +483,15 @@
           <button 
             type="button"
             @click="showClearCacheModal = false; clearCacheConfirmText = ''" 
-            class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+            class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
           >
             Cancel
           </button>
           <button 
             type="button"
             @click="clearAllCache" 
-            class="px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            :class="clearCacheConfirmText === 'clear' ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-gray-200 text-gray-500 cursor-not-allowed'"
+            class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px] disabled:opacity-50 disabled:cursor-not-allowed"
+            :class="clearCacheConfirmText === 'clear' ? 'bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400' : 'bg-gray-200 text-gray-500 cursor-not-allowed border-gray-200'"
             :disabled="clearCacheConfirmText !== 'clear' || clearCacheLoading"
           >
             <span v-if="clearCacheLoading" class="animate-spin">⏳</span>

@@ -124,7 +124,7 @@
 
       <!-- Footer -->
       <div class="px-8 py-4 bg-slate-50 border-t border-slate-100 rounded-b-2xl">
-        <button type="button" class="w-full sm:w-auto px-6 py-2.5 bg-slate-900 text-white rounded-xl hover:bg-slate-800 font-medium transition-colors" @click="$emit('close')">Got it</button>
+        <button type="button" class="w-full sm:w-auto px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center justify-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400" @click="$emit('close')">Got it</button>
       </div>
     </div>
   </div>

@@ -13,7 +13,7 @@
       </span>
       <button
         type="button"
-        class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 whitespace-nowrap"
+        class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
         :disabled="loading"
         @click="$emit('refresh-index')"
       >
@@ -21,7 +21,7 @@
       </button>
       <button
         type="button"
-        class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 whitespace-nowrap"
+        class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
         @click="$emit('open-help')"
       >
         Help
@@ -29,7 +29,7 @@
       <button
         v-if="loggedIn"
         type="button"
-        class="px-4 py-2 text-sm font-medium border rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center gap-2"
+        class="px-4 py-2 text-sm font-medium border rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center gap-2 min-h-[36px]"
         :class="showWordListModal
           ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm'
           : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400'"
@@ -41,7 +41,7 @@
       <button
         v-if="loggedIn"
         type="button"
-        class="px-4 py-2 text-sm font-medium border rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center gap-2"
+        class="px-4 py-2 text-sm font-medium border rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center gap-2 min-h-[36px]"
         :class="showNotesListModal
           ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm'
           : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400'"
@@ -53,7 +53,7 @@
       <NuxtLink
         v-if="isAdmin"
         to="/admin"
-        class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 whitespace-nowrap inline-flex items-center"
+        class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
       >
         Admin
       </NuxtLink>
@@ -72,7 +72,7 @@
     >
       <div class="bg-white rounded-lg shadow-xl p-6 max-w-sm mx-4 text-center">
         <p class="font-semibold text-gray-800 mb-2">Please select a book, not a category.</p>
-        <button type="button" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700" @click="$emit('close-category-dialog')">OK</button>
+        <button type="button" class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400" @click="$emit('close-category-dialog')">OK</button>
       </div>
     </div>
     <!-- API error -->
@@ -87,12 +87,12 @@
           <button
             v-if="errorDetails"
             type="button"
-            class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-700"
+            class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
             @click="$emit('open-error-debug')"
           >
             Debug Info
           </button>
-          <button type="button" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700" @click="$emit('close-error-dialog')">OK</button>
+          <button type="button" class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400" @click="$emit('close-error-dialog')">OK</button>
         </div>
       </div>
     </div>

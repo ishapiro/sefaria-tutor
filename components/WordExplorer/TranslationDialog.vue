@@ -9,7 +9,7 @@
         <h2 class="text-2xl font-bold">Word-by-word translation</h2>
         <button
           type="button"
-          class="min-h-[44px] px-4 py-2.5 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 active:bg-gray-100 touch-manipulation"
+          class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
           @click="$emit('close')"
         >
           Close
@@ -21,8 +21,8 @@
         <div class="flex flex-wrap items-center gap-3">
           <button
             type="button"
-            class="px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-all duration-200 shadow-sm"
-            :class="copiedStatus === 'he' ? 'bg-green-600 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'"
+            class="px-4 py-2 text-sm font-medium border rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center gap-2 min-h-[36px]"
+            :class="copiedStatus === 'he' ? 'border-green-500 bg-green-50 text-green-700 shadow-sm' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400'"
             @click="$emit('copy', translationData.originalPhrase || '', 'he')"
           >
             <span>{{ copiedStatus === 'he' ? '✅' : '📋' }}</span>
@@ -30,8 +30,8 @@
           </button>
           <button
             type="button"
-            class="px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-all duration-200 shadow-sm"
-            :class="copiedStatus === 'en' ? 'bg-green-600 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'"
+            class="px-4 py-2 text-sm font-medium border rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center gap-2 min-h-[36px]"
+            :class="copiedStatus === 'en' ? 'border-green-500 bg-green-50 text-green-700 shadow-sm' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400'"
             @click="$emit('copy', translationData.translatedPhrase || '', 'en')"
           >
             <span>{{ copiedStatus === 'en' ? '✅' : '📋' }}</span>
@@ -65,7 +65,7 @@
           <div class="text-2xl text-gray-900">{{ translationData.translatedPhrase }}</div>
         </div>
         <div class="flex justify-end mb-2">
-          <button type="button" class="px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100 text-base" @click="$emit('view-raw')">View Raw Data</button>
+          <button type="button" class="px-3 py-1.5 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400" @click="$emit('view-raw')">View Raw Data</button>
         </div>
         <div
           v-if="translationWordTableIncomplete"
@@ -142,7 +142,7 @@
         <div class="mt-6 flex justify-end">
           <button
             type="button"
-            class="min-h-[44px] px-4 py-2.5 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 active:bg-gray-100 touch-manipulation"
+            class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
             @click="$emit('close')"
           >
             Close

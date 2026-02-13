@@ -9,35 +9,35 @@ const displayName = computed(() => {
 
 <template>
   <div class="min-h-screen bg-gray-50 select-none">
-    <header class="bg-white shadow-sm border-b px-4 py-3 flex flex-col items-center gap-3 sm:flex-row sm:justify-between sm:items-center">
-      <div class="flex flex-col items-center gap-1 sm:flex-row sm:items-center sm:gap-3">
+    <header class="bg-white shadow-sm border-b px-3 py-2 sm:px-4 sm:py-3 flex flex-row items-center justify-between gap-2">
+      <div class="flex items-center gap-2 min-w-0 flex-1">
         <a
           href="https://cogitations.com"
           target="_blank"
           rel="noopener noreferrer"
-          class="inline-flex items-center"
+          class="inline-flex items-center shrink-0"
         >
           <img
             src="/cogitations-logo-only.svg"
             alt="Cogitations logo"
-            class="h-9 w-auto sm:h-10 md:h-12"
+            class="h-7 w-auto sm:h-10 md:h-12"
             loading="lazy"
           />
         </a>
         <NuxtLink
           to="/"
-          class="text-lg font-semibold tracking-tight text-center sm:text-left sm:text-2xl sm:whitespace-nowrap text-[#003c71] no-underline hover:underline"
+          class="text-base sm:text-lg md:text-2xl font-semibold tracking-tight text-[#003c71] no-underline hover:underline truncate"
         >
-          Soresh by Cogitations
+          Soresh
         </NuxtLink>
       </div>
-      <div class="flex items-center gap-4 shrink-0">
+      <div class="flex items-center gap-2 sm:gap-4 shrink-0">
         <template v-if="loggedIn">
-          <span class="text-gray-600 text-sm truncate max-w-[140px] sm:max-w-none">Hello, {{ displayName }}</span>
-          <button @click="logout" class="text-sm font-medium text-gray-700 hover:text-indigo-600">Logout</button>
+          <span class="text-gray-600 text-xs sm:text-sm truncate max-w-[80px] sm:max-w-[140px] md:max-w-none">{{ displayName }}</span>
+          <button @click="logout" class="text-xs sm:text-sm font-medium text-gray-700 hover:text-indigo-600 whitespace-nowrap px-1 sm:px-0">Logout</button>
         </template>
         <template v-else>
-          <NuxtLink to="/login" class="text-sm font-medium text-gray-700 hover:text-indigo-600">Login</NuxtLink>
+          <NuxtLink to="/login" class="text-xs sm:text-sm font-medium text-gray-700 hover:text-indigo-600 whitespace-nowrap px-1 sm:px-0">Login</NuxtLink>
         </template>
       </div>
     </header>

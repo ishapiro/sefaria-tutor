@@ -72,10 +72,10 @@
             <div
               v-for="word in filteredWordList"
               :key="word.id"
-              class="border border-gray-200 rounded-lg p-4 bg-white shadow-sm hover:border-blue-200 transition-colors"
+              class="border border-gray-200 rounded-lg p-4 bg-white shadow-sm hover:border-blue-200 transition-colors relative"
             >
           <!-- Source text reference (clickable) -->
-          <div v-if="word.wordData.sourceText || word.wordData.bookTitle" class="mb-2 text-xs text-blue-600 font-medium border-b border-gray-100 pb-2">
+          <div v-if="word.wordData.sourceText || word.wordData.bookTitle" class="mb-2 text-xs text-blue-600 font-medium border-b border-gray-100 pb-2 pr-8 sm:pr-0 sm:flex sm:justify-between sm:items-center">
             <button
               v-if="word.wordData.sourceText || word.wordData.bookTitle"
               type="button"
@@ -91,10 +91,30 @@
                 <span v-if="word.wordData.bookPath" class="text-gray-500 font-normal">({{ word.wordData.bookPath }})</span>
               </span>
             </button>
+            <div class="hidden sm:block text-xs text-gray-500 font-normal">
+              Saved: {{ formatDate(word.createdAt) }}
+            </div>
+          </div>
+          <!-- Saved date row (when no source text reference) -->
+          <div v-else class="mb-2 hidden sm:flex sm:justify-end border-b border-gray-100 pb-2">
+            <div class="text-xs text-gray-500 font-normal">
+              Saved: {{ formatDate(word.createdAt) }}
+            </div>
           </div>
 
+          <!-- Delete button - Mobile: top-right absolute -->
+          <button
+            type="button"
+            class="sm:hidden absolute top-4 right-4 px-2 py-1.5 text-sm border border-gray-300 rounded hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-colors shrink-0"
+            :disabled="deletingWordId === word.id"
+            @click="$emit('confirm-delete-word', word.id)"
+          >
+            <span v-if="deletingWordId === word.id" class="animate-pulse">…</span>
+            <span v-else aria-label="Delete">🗑️</span>
+          </button>
+
           <!-- Context phrase (smaller, at top) -->
-          <div v-if="word.wordData.originalPhrase || word.wordData.translatedPhrase" class="mb-2 text-xs text-gray-500 border-b border-gray-100 pb-2">
+          <div v-if="word.wordData.originalPhrase || word.wordData.translatedPhrase" class="mb-2 text-xs text-gray-500 border-b border-gray-100 pb-2 pr-8 sm:pr-0">
             <div v-if="word.wordData.originalPhrase" class="text-right" style="direction: rtl">
               {{ word.wordData.originalPhrase }}
             </div>
@@ -119,23 +139,23 @@
               <span class="text-xs text-gray-400 uppercase font-bold mr-1">Root:</span>
               {{ word.wordData.wordEntry.wordRoot }}<span v-if="word.wordData.wordEntry.wordRootTranslation" class="text-gray-500"> ({{ word.wordData.wordEntry.wordRootTranslation }})</span>
             </div>
-            <div class="flex-grow"></div>
-            <div class="text-xs text-gray-500">
-              Saved: {{ formatDate(word.createdAt) }}
-            </div>
+          </div>
+
+          <!-- Delete button (desktop) -->
+          <div class="mt-2 hidden sm:flex sm:justify-end">
             <button
               type="button"
-              class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-colors"
+              class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-colors shrink-0"
               :disabled="deletingWordId === word.id"
               @click="$emit('confirm-delete-word', word.id)"
             >
-              <span v-if="deletingWordId === word.id">Deleting...</span>
-              <span v-else>🗑️ Delete</span>
+              <span v-if="deletingWordId === word.id" class="animate-pulse">…</span>
+              <span v-else aria-label="Delete">🗑️</span>
             </button>
           </div>
 
           <!-- Metadata -->
-          <div v-if="word.wordData.wordEntry?.wordPartOfSpeech || word.wordData.wordEntry?.wordGender || word.wordData.wordEntry?.wordTense || word.wordData.wordEntry?.wordBinyan" class="ml-4 mt-1.5 flex flex-wrap gap-x-3 text-sm text-gray-500 font-medium">
+          <div v-if="word.wordData.wordEntry?.wordPartOfSpeech || word.wordData.wordEntry?.wordGender || word.wordData.wordEntry?.wordTense || word.wordData.wordEntry?.wordBinyan" class="mt-1.5 flex flex-wrap gap-x-3 text-sm text-gray-500 font-medium">
             <span v-if="word.wordData.wordEntry.wordPartOfSpeech && word.wordData.wordEntry.wordPartOfSpeech !== '—'">{{ word.wordData.wordEntry.wordPartOfSpeech }}</span>
             <span v-if="word.wordData.wordEntry.wordGender && word.wordData.wordEntry.wordGender !== '—'">{{ word.wordData.wordEntry.wordGender }}</span>
             <span v-if="word.wordData.wordEntry.wordTense && word.wordData.wordEntry.wordTense !== '—'">{{ word.wordData.wordEntry.wordTense }}</span>
@@ -168,7 +188,7 @@
       <div class="mt-6 flex justify-end">
         <button
           type="button"
-          class="min-h-[44px] px-4 py-2.5 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 active:bg-gray-100 touch-manipulation"
+          class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
           @click="$emit('close')"
         >
           Close

@@ -1,39 +1,79 @@
 <template>
   <div class="border border-gray-200 rounded-lg bg-white overflow-hidden">
-    <div class="flex justify-between items-center p-4 border-b border-gray-200 bg-gray-50">
-      <span class="font-semibold text-gray-900">{{ selectedBookTitle }}{{ currentChapter ? ` (${currentChapter})` : '' }}</span>
-      <div class="flex items-center gap-3">
-        <button
-          v-if="loggedIn"
-          type="button"
-          class="px-3 py-1.5 text-sm font-medium border rounded-md transition-all duration-150 whitespace-nowrap inline-flex items-center gap-1.5"
-          :class="showWordListModal
-            ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm'
-            : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400'"
-          @click="$emit('open-word-list')"
-        >
-          <span class="text-base leading-none">📚</span>
-          <span>My Word List</span>
-        </button>
-        <button
-          v-if="loggedIn"
-          type="button"
-          class="px-3 py-1.5 text-sm font-medium border rounded-md transition-all duration-150 whitespace-nowrap inline-flex items-center gap-1.5"
-          :class="showNotesListModal
-            ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm'
-            : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400'"
-          @click="$emit('open-notes-list')"
-        >
-          <span class="text-base leading-none">📝</span>
-          <span>My Notes</span>
-        </button>
-        <button
-          type="button"
-          class="text-blue-600 hover:text-blue-700 hover:underline font-medium transition-colors duration-150"
-          @click="$emit('close-book')"
-        >
-          ← Back
-        </button>
+    <div class="border-b border-gray-200 bg-gray-50">
+      <!-- Mobile: Stacked layout -->
+      <div class="flex flex-col sm:hidden p-3 gap-2">
+        <div class="flex items-center justify-between gap-2">
+          <span class="font-semibold text-sm text-gray-900 truncate flex-1 min-w-0">{{ selectedBookTitle }}{{ currentChapter ? ` (${currentChapter})` : '' }}</span>
+          <button
+            type="button"
+            class="px-3 py-1.5 text-xs font-medium border border-gray-300 rounded-lg transition-all duration-150 shrink-0 inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
+            @click="$emit('close-book')"
+          >
+            ← Back
+          </button>
+        </div>
+        <div v-if="loggedIn" class="flex items-center gap-2">
+          <button
+            type="button"
+            class="flex-1 px-2 py-1.5 text-xs font-medium border rounded-lg transition-all duration-150 inline-flex items-center justify-center gap-1 min-h-[36px]"
+            :class="showWordListModal
+              ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm'
+              : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400'"
+            @click="$emit('open-word-list')"
+          >
+            <span class="text-sm leading-none">📚</span>
+            <span>Word List</span>
+          </button>
+          <button
+            type="button"
+            class="flex-1 px-2 py-1.5 text-xs font-medium border rounded-lg transition-all duration-150 inline-flex items-center justify-center gap-1 min-h-[36px]"
+            :class="showNotesListModal
+              ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm'
+              : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400'"
+            @click="$emit('open-notes-list')"
+          >
+            <span class="text-sm leading-none">📝</span>
+            <span>Notes</span>
+          </button>
+        </div>
+      </div>
+      <!-- Desktop: Horizontal layout -->
+      <div class="hidden sm:flex justify-between items-center p-4">
+        <span class="font-semibold text-gray-900">{{ selectedBookTitle }}{{ currentChapter ? ` (${currentChapter})` : '' }}</span>
+        <div class="flex items-center gap-3">
+          <button
+            v-if="loggedIn"
+            type="button"
+            class="px-4 py-2 text-sm font-medium border rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center gap-2 min-h-[36px]"
+            :class="showWordListModal
+              ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm'
+              : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400'"
+            @click="$emit('open-word-list')"
+          >
+            <span class="text-base leading-none">📚</span>
+            <span>My Word List</span>
+          </button>
+          <button
+            v-if="loggedIn"
+            type="button"
+            class="px-4 py-2 text-sm font-medium border rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center gap-2 min-h-[36px]"
+            :class="showNotesListModal
+              ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm'
+              : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400'"
+            @click="$emit('open-notes-list')"
+          >
+            <span class="text-base leading-none">📝</span>
+            <span>My Notes</span>
+          </button>
+          <button
+            type="button"
+            class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
+            @click="$emit('close-book')"
+          >
+            ← Back
+          </button>
+        </div>
       </div>
     </div>
     <div class="p-4">
@@ -44,7 +84,7 @@
           <button
             v-if="sectionStackLength > 0"
             type="button"
-            class="px-2 py-1 bg-gray-100 rounded-md hover:bg-gray-200 text-xs font-medium text-gray-700 border border-gray-200"
+            class="px-2 py-1 text-xs font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
             @click="$emit('go-back-section')"
           >
             ← Back
@@ -52,7 +92,7 @@
           <span class="font-semibold text-sm text-gray-800">Select a section:</span>
           <button
             type="button"
-            class="ml-2 px-2 py-1 text-xs border border-gray-300 rounded-md hover:bg-gray-100 text-gray-600"
+            class="ml-2 px-2 py-1 text-xs font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
             @click="$emit('open-section-list-debug')"
           >
             Debug
@@ -100,7 +140,7 @@
         <p class="mb-4">This book is not available via the API, or you need to select a section. Try another book or section.</p>
         <button
           type="button"
-          class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100 text-gray-600"
+          class="px-3 py-1.5 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
           @click="$emit('open-book-load-debug')"
         >
           Show debug info
@@ -113,7 +153,7 @@
           </p>
           <button
             type="button"
-            class="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100 text-gray-600"
+            class="px-2 py-1 text-xs font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
             @click="$emit('open-content-debug')"
           >
             Debug
@@ -165,7 +205,7 @@
         <div v-if="totalRecords > rowsPerPage" class="flex items-center justify-between pt-4 border-t border-gray-200">
           <button
             type="button"
-            class="px-3 py-1 border border-gray-300 rounded disabled:opacity-50"
+            class="px-3 py-1 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
             :disabled="first === 0"
             @click="$emit('update:first', Math.max(0, first - rowsPerPage))"
           >
@@ -176,7 +216,7 @@
           </span>
           <button
             type="button"
-            class="px-3 py-1 border border-gray-300 rounded disabled:opacity-50"
+            class="px-3 py-1 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
             :disabled="first + rowsPerPage >= totalRecords"
             @click="$emit('update:first', Math.min(first + rowsPerPage, totalRecords - 1))"
           >

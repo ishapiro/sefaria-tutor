@@ -10,14 +10,14 @@
         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
           <div class="min-w-0">
             <h2 class="text-xl font-bold text-gray-900 tracking-tight">My Notes</h2>
-            <p class="mt-1.5 text-sm text-gray-500 leading-snug">
+            <p class="mt-1.5 text-sm text-gray-500 leading-snug hidden sm:block">
               Check the notes you want to print or copy, then use the buttons below.
             </p>
           </div>
           <div class="flex flex-wrap items-center gap-2 shrink-0 pt-1 sm:pt-0 justify-end">
             <button
               type="button"
-              class="min-h-[44px] px-4 py-2.5 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 active:bg-gray-100 touch-manipulation"
+              class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
               aria-label="Close"
               @click="$emit('close')"
             >
@@ -25,7 +25,7 @@
             </button>
             <button
               type="button"
-              class="min-h-[44px] px-4 py-2.5 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 active:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
+              class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
               :disabled="selectedIds.length === 0"
               @click="printSelected"
             >
@@ -33,7 +33,8 @@
             </button>
             <button
               type="button"
-              class="min-h-[44px] px-4 py-2.5 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 active:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 touch-manipulation"
+              class="px-4 py-2 text-sm font-medium border rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center gap-2 min-h-[36px] disabled:opacity-50 disabled:cursor-not-allowed"
+              :class="copySuccess ? 'border-green-500 bg-green-50 text-green-700 shadow-sm' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400'"
               :disabled="selectedIds.length === 0"
               @click="copySelected"
             >
@@ -176,7 +177,7 @@
             <div class="flex items-center justify-between gap-3 px-4 py-3 border-t border-gray-200 bg-gray-50/80 shrink-0">
               <button
                 type="button"
-                class="min-h-[44px] px-4 py-2.5 text-sm font-medium border border-red-200 text-red-600 rounded-lg hover:bg-red-50 active:bg-red-100 touch-manipulation"
+                class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
                 :disabled="deletingNoteId === selectedNote.id"
                 @click="confirmDelete(selectedNote)"
               >
@@ -184,7 +185,7 @@
               </button>
               <button
                 type="button"
-                class="min-h-[44px] px-4 py-2.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 touch-manipulation"
+                class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
                 :disabled="saveLoading"
                 @click="saveNote"
               >
@@ -210,14 +211,14 @@
         <div class="flex flex-col-reverse sm:flex-row justify-end gap-3">
           <button
             type="button"
-            class="min-h-[44px] px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 active:bg-gray-200 touch-manipulation"
+            class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
             @click="noteToDelete = null"
           >
             Cancel
           </button>
           <button
             type="button"
-            class="min-h-[44px] px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 active:bg-red-800 disabled:opacity-50 touch-manipulation"
+            class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
             :disabled="deletingNoteId !== null"
             @click="doDeleteNote"
           >

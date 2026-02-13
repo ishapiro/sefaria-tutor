@@ -7,20 +7,20 @@
     <div class="bg-white rounded-lg shadow-xl p-6 w-[90vw] max-w-3xl max-h-[90vh] overflow-auto text-sm">
       <div class="flex justify-between items-center mb-4">
         <h2 class="text-xl font-bold">{{ title }}</h2>
-        <button type="button" class="min-h-[44px] px-4 py-2.5 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 active:bg-gray-100 touch-manipulation" @click="$emit('close')">Close</button>
+        <button type="button" class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400" @click="$emit('close')">Close</button>
       </div>
       <p class="text-gray-600 text-xs mb-4">{{ description }}</p>
       <pre class="bg-gray-100 p-4 rounded text-xs overflow-x-auto whitespace-pre-wrap font-mono max-h-[70vh] overflow-y-auto">{{ jsonPayload }}</pre>
       <div class="mt-4 flex gap-2">
         <button
           type="button"
-          class="px-4 py-2 rounded transition-all duration-200"
-          :class="isCopied ? 'bg-green-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'"
+          class="px-4 py-2 text-sm font-medium border rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px]"
+          :class="isCopied ? 'border-green-500 bg-green-50 text-green-700 shadow-sm' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400'"
           @click="$emit('copy', jsonPayload, copyKey)"
         >
           {{ isCopied ? '✅ Copied!' : 'Copy to clipboard' }}
         </button>
-        <button type="button" class="min-h-[44px] px-4 py-2.5 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 active:bg-gray-100 touch-manipulation" @click="$emit('close')">Close</button>
+        <button type="button" class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400" @click="$emit('close')">Close</button>
       </div>
     </div>
   </div>
