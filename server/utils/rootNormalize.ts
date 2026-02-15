@@ -27,14 +27,16 @@ const VAV = '\u05D5'
 const HEBREW_NIQQUD = /[\u0591-\u05BD\u05BF-\u05C7]/
 
 /**
- * If input contains maqaf (e.g. אֶל־מֹשֶׁה), return the word after the maqaf (מֹשֶׁה) so we search the substantive word.
+ * If input is "prefix־word" (exactly two segments, e.g. אֶל־מֹשֶׁה), return the word after the maqaf (מֹשֶׁה).
+ * Do not apply for roots written with maqafs (e.g. ר־ע־ש has three segments; we keep the full root).
  */
 function takeWordAfterMaqaf (input: string): string {
   const parts = input.split(MAQAF).map(s => s.trim()).filter(Boolean)
-  if (parts.length > 1) return parts[parts.length - 1]!
+  if (parts.length === 2) return parts[1]!
+  if (parts.length > 2) return input
   if (input.includes('-') || input.includes('־')) {
     const byHyphen = input.split(/-|־/).map(s => s.trim()).filter(Boolean)
-    if (byHyphen.length > 1) return byHyphen[byHyphen.length - 1]!
+    if (byHyphen.length === 2) return byHyphen[1]!
   }
   return input
 }

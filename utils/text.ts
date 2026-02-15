@@ -23,18 +23,18 @@ export function stripLeadingVav (token: string): string {
 }
 
 /**
- * For a token that may be "prefix־main" (e.g. אֶל־מֹשֶׁה), return the main word after the maqaf (מֹשֶׁה).
- * Use this when the full combination is not found or when we want the substantive word for concordance/lookup.
- * If there is no maqaf, returns the trimmed token unchanged.
+ * For a token that is "prefix־main" (exactly two segments, e.g. אֶל־מֹשֶׁה), return the main word after the maqaf (מֹשֶׁה).
+ * Do not apply for roots with maqafs between letters (e.g. ר־ע־ש); returns trimmed token unchanged in that case.
  */
 export function wordAfterMaqaf (token: string): string {
   if (!token?.trim()) return token || ''
   const trimmed = token.trim()
   const parts = trimmed.split(MAQAF).map(s => s.trim()).filter(Boolean)
-  if (parts.length > 1) return parts[parts.length - 1]!
+  if (parts.length === 2) return parts[1]!
+  if (parts.length > 2) return trimmed
   if (trimmed.includes('-') || trimmed.includes('־')) {
     const byHyphen = trimmed.split(/-|־/).map(s => s.trim()).filter(Boolean)
-    if (byHyphen.length > 1) return byHyphen[byHyphen.length - 1]!
+    if (byHyphen.length === 2) return byHyphen[1]!
   }
   return trimmed
 }
