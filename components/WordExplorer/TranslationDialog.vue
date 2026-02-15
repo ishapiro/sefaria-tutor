@@ -98,6 +98,17 @@
                 {{ row.wordRoot }}<span v-if="row.wordRootTranslation" class="text-gray-500"> ({{ row.wordRootTranslation }})</span>
               </div>
               <div class="flex-grow"></div>
+              <NuxtLink
+                v-if="concordanceRootOrWord(row)"
+                :to="rootExplorerLink(concordanceRootOrWord(row)!)"
+                class="inline-flex items-center justify-center w-8 h-8 rounded text-gray-500 hover:text-green-700 hover:bg-green-50 transition-colors shrink-0"
+                :aria-label="row.wordRoot && row.wordRoot !== '—' ? 'Open concordance for this root' : 'Open concordance for this word'"
+                title="Concordance"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 20V12M12 12V8M12 8c-2 0-3.5-1.5-3.5-3.5S10 1 12 1s3.5 1.5 3.5 3.5S14 8 12 8zM8 5l2 3M16 5l-2 3" />
+                </svg>
+              </NuxtLink>
               <div
                 v-if="countWordInPhrase(translationData?.originalPhrase ?? '', row.word ?? '') > 1"
                 class="text-xs font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full tabular-nums"
@@ -154,6 +165,7 @@
 </template>
 
 <script setup lang="ts">
+import { substantiveWord } from '~/utils/text'
 import { useSupportPageContext } from '~/composables/useSupportPageContext'
 import { SUPPORT_VIEW_NAMES } from '~/constants/supportViewNames'
 
@@ -197,6 +209,20 @@ watch(() => props.open, (isOpen) => {
   if (isOpen) setSupportView(SUPPORT_VIEW_NAMES.TRANSLATION)
   else clearSupportView()
 }, { immediate: true })
+
+/** Use root when present and not "—", otherwise the substantive word (after maqaf, leading vav stripped; e.g. אֶל־מֹשֶׁה or וּמֹשֶׁה → מֹשֶׁה). */
+function concordanceRootOrWord (row: TranslationWordRow): string | null {
+  if (row.wordRoot && row.wordRoot.trim() && row.wordRoot !== '—') return row.wordRoot.trim()
+  if (row.word?.trim()) return substantiveWord(row.word).trim() || row.word.trim()
+  return null
+}
+
+function rootExplorerLink (rootOrWord: string) {
+  return {
+    path: '/root-explorer',
+    query: { root: rootOrWord },
+  }
+}
 
 defineEmits<{
   close: []

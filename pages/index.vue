@@ -353,6 +353,7 @@ const longPhraseWordSelected = ref<boolean[]>([])
 const showRawData = ref(false)
 const rawTranslationData = ref<unknown>(null)
 const { isAdmin, fetch: fetchSession, user, loggedIn } = useAuth()
+const route = useRoute()
 const openaiModel = ref('gpt-4o')
 
 // Word List state
@@ -2383,7 +2384,23 @@ onMounted(async () => {
   
   fetchAndCacheFullIndex()
   fetchLatestModel()
-  
+
+  // Support navigation from Concordance Word Explorer "Open in text" link (/?navigateRef=...&highlightWord=...)
+  const navigateRef = route.query.navigateRef as string | undefined
+  const highlightWord = route.query.highlightWord as string | undefined
+  if (navigateRef && typeof navigateRef === 'string') {
+    await navigateToReference({
+      sefariaRef: navigateRef,
+      highlightWord: highlightWord && typeof highlightWord === 'string' ? highlightWord : undefined,
+    })
+    if (import.meta.client && typeof window !== 'undefined' && window.history?.replaceState) {
+      const url = new URL(window.location.href)
+      url.searchParams.delete('navigateRef')
+      url.searchParams.delete('highlightWord')
+      window.history.replaceState({}, '', url.pathname + (url.search || ''))
+    }
+  }
+
   // Expose debug helper to window for console access
   if (import.meta.client) {
     ;(window as { getCategoryLoadError?: () => string | undefined }).getCategoryLoadError = () => {

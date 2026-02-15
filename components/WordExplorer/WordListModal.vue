@@ -139,6 +139,17 @@
               <span class="text-xs text-gray-400 uppercase font-bold mr-1">Root:</span>
               {{ word.wordData.wordEntry.wordRoot }}<span v-if="word.wordData.wordEntry.wordRootTranslation" class="text-gray-500"> ({{ word.wordData.wordEntry.wordRootTranslation }})</span>
             </div>
+            <NuxtLink
+              v-if="concordanceRootOrWord(word)"
+              :to="rootExplorerLink(concordanceRootOrWord(word)!)"
+              class="inline-flex items-center justify-center w-8 h-8 rounded text-gray-500 hover:text-green-700 hover:bg-green-50 transition-colors shrink-0"
+              :aria-label="word.wordData.wordEntry?.wordRoot && word.wordData.wordEntry.wordRoot !== '—' ? 'Open concordance for this root' : 'Open concordance for this word'"
+              title="Concordance"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 20V12M12 12V8M12 8c-2 0-3.5-1.5-3.5-3.5S10 1 12 1s3.5 1.5 3.5 3.5S14 8 12 8zM8 5l2 3M16 5l-2 3" />
+              </svg>
+            </NuxtLink>
           </div>
 
           <!-- Delete button (desktop) -->
@@ -199,6 +210,7 @@
 </template>
 
 <script setup lang="ts">
+import { substantiveWord } from '~/utils/text'
 import { useSupportPageContext } from '~/composables/useSupportPageContext'
 import { SUPPORT_VIEW_NAMES } from '~/constants/supportViewNames'
 
@@ -249,5 +261,24 @@ const hasMore = computed(() => props.wordListLength < props.wordListTotal)
 
 function formatDate (unixSeconds: number) {
   return new Date(unixSeconds * 1000).toLocaleDateString()
+}
+
+/** Use root when present and not "—", otherwise the substantive word (after maqaf, leading vav stripped; e.g. אֶל־מֹשֶׁה or וּמֹשֶׁה → מֹשֶׁה). */
+function concordanceRootOrWord (word: WordListEntry): string | null {
+  const entry = word.wordData?.wordEntry
+  if (!entry) return null
+  if (entry.wordRoot && String(entry.wordRoot).trim() && entry.wordRoot !== '—') return String(entry.wordRoot).trim()
+  if (entry.word?.trim()) {
+    const w = String(entry.word).trim()
+    return (substantiveWord(w) || w).trim()
+  }
+  return null
+}
+
+function rootExplorerLink (rootOrWord: string) {
+  return {
+    path: '/root-explorer',
+    query: { root: rootOrWord },
+  }
 }
 </script>
