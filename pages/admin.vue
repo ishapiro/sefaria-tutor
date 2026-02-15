@@ -225,6 +225,181 @@
         </div>
       </div>
 
+      <!-- Study / Flashcards Section -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">Study / Flashcards</h2>
+        <button
+          type="button"
+          @click="showStudyFlashcards = !showStudyFlashcards"
+          class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          {{ showStudyFlashcards ? 'Hide' : 'Study / Flashcards' }}
+        </button>
+
+        <div v-if="showStudyFlashcards" class="mt-6 space-y-6">
+          <div class="p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
+            <strong>Note:</strong> All figures below are all-time and include progress for words that have been studied at least once, including words that are now archived.
+          </div>
+
+          <div v-if="studyStatsLoading" class="text-center py-6 text-gray-500">Loading aggregate stats...</div>
+          <div v-else-if="studyStatsError" class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">{{ studyStatsError }}</div>
+          <div v-else class="rounded-lg border border-gray-200 overflow-hidden">
+            <h3 class="text-lg font-semibold text-gray-800 px-4 py-3 bg-gray-50 border-b border-gray-200">Aggregate stats</h3>
+            <dl class="grid grid-cols-2 sm:grid-cols-5 gap-4 p-4">
+              <div>
+                <dt class="text-xs font-medium text-gray-500 uppercase">Users with progress</dt>
+                <dd class="text-xl font-semibold text-gray-900">{{ studyStats.distinctUsers }}</dd>
+              </div>
+              <div>
+                <dt class="text-xs font-medium text-gray-500 uppercase">Words studied</dt>
+                <dd class="text-xl font-semibold text-gray-900">{{ studyStats.totalProgressRecords }}</dd>
+              </div>
+              <div>
+                <dt class="text-xs font-medium text-gray-500 uppercase">Total times shown</dt>
+                <dd class="text-xl font-semibold text-gray-900">{{ studyStats.totalTimesShown }}</dd>
+              </div>
+              <div>
+                <dt class="text-xs font-medium text-gray-500 uppercase">Total times correct</dt>
+                <dd class="text-xl font-semibold text-gray-900">{{ studyStats.totalTimesCorrect }}</dd>
+              </div>
+              <div>
+                <dt class="text-xs font-medium text-gray-500 uppercase">Percent correct</dt>
+                <dd class="text-xl font-semibold text-gray-900">{{ studyStatsPercentCorrect }}</dd>
+              </div>
+            </dl>
+          </div>
+
+          <div>
+            <h3 class="text-lg font-semibold text-gray-800 mb-3">Per-user study data</h3>
+            <p class="text-sm text-gray-600 mb-2">Search and select a user to see their studied words and progress (includes archived words).</p>
+            <div class="flex flex-wrap gap-3 items-end mb-2">
+              <div class="min-w-[200px]">
+                <label for="study-user-search" class="block text-sm font-medium text-gray-700 mb-1">Search users</label>
+                <input
+                  id="study-user-search"
+                  v-model="studyUserSearch"
+                  type="text"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Email or name..."
+                  @keydown.enter="studyUserOffset = 0; loadStudyUsers()"
+                />
+              </div>
+              <button
+                type="button"
+                class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+                @click="studyUserOffset = 0; loadStudyUsers()"
+              >
+                Search
+              </button>
+            </div>
+            <div class="flex flex-wrap items-center gap-3 mb-2">
+              <select
+                v-model="selectedStudyUserId"
+                class="min-w-[280px] px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                :disabled="studyUsersLoading"
+                @change="studyWordsOffset = 0; loadStudyUserStats()"
+              >
+                <option value="">-- Select a user --</option>
+                <option v-for="u in studyUsers" :key="u.id" :value="u.id">
+                  {{ u.name || u.email }} ({{ u.email }})
+                </option>
+              </select>
+              <span v-if="!studyUsersLoading" class="text-sm text-gray-500">
+                Showing {{ studyUsersFrom }}–{{ studyUsersTo }} of {{ studyUserTotal }}
+              </span>
+              <span v-else class="text-sm text-gray-500">Loading users…</span>
+              <button
+                type="button"
+                class="px-2 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
+                :disabled="studyUsersLoading || studyUserOffset <= 0"
+                @click="studyUserOffset = Math.max(0, studyUserOffset - studyUserLimit); loadStudyUsers()"
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                class="px-2 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
+                :disabled="studyUsersLoading || studyUserOffset + studyUsers.length >= studyUserTotal"
+                @click="studyUserOffset += studyUserLimit; loadStudyUsers()"
+              >
+                Next
+              </button>
+            </div>
+
+            <div v-if="studyUserStatsLoading" class="mt-4 text-center py-6 text-gray-500">Loading user study data...</div>
+            <div v-else-if="studyUserStatsError" class="mt-4 bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">{{ studyUserStatsError }}</div>
+            <div v-else-if="studyUserStats" class="mt-4 space-y-4">
+              <dl class="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <div>
+                  <dt class="text-xs font-medium text-gray-500 uppercase">Words studied</dt>
+                  <dd class="text-lg font-semibold text-gray-900">{{ studyUserStats.summary.wordsStudied }}</dd>
+                </div>
+                <div>
+                  <dt class="text-xs font-medium text-gray-500 uppercase">Total shown</dt>
+                  <dd class="text-lg font-semibold text-gray-900">{{ studyUserStats.summary.totalShown }}</dd>
+                </div>
+                <div>
+                  <dt class="text-xs font-medium text-gray-500 uppercase">Total correct</dt>
+                  <dd class="text-lg font-semibold text-gray-900">{{ studyUserStats.summary.totalCorrect }}</dd>
+                </div>
+                <div>
+                  <dt class="text-xs font-medium text-gray-500 uppercase">Percent correct</dt>
+                  <dd class="text-lg font-semibold text-gray-900">{{ studyUserStatsPercentCorrect }}</dd>
+                </div>
+              </dl>
+              <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 border border-gray-200 rounded-lg">
+                  <thead class="bg-gray-100">
+                    <tr>
+                      <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Word</th>
+                      <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Translation</th>
+                      <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Shown</th>
+                      <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Correct</th>
+                      <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">First correct at</th>
+                      <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Archived</th>
+                    </tr>
+                  </thead>
+                  <tbody class="bg-white divide-y divide-gray-200">
+                    <tr v-for="w in studyUserStats.studiedWords" :key="w.wordListId" class="hover:bg-gray-50">
+                      <td class="px-4 py-2 text-sm" style="direction: rtl">{{ wordEntryWord(w.wordData) }}</td>
+                      <td class="px-4 py-2 text-sm text-gray-700">{{ wordEntryTranslation(w.wordData) }}</td>
+                      <td class="px-4 py-2 text-sm text-gray-700">{{ w.timesShown }}</td>
+                      <td class="px-4 py-2 text-sm text-gray-700">{{ w.timesCorrect }}</td>
+                      <td class="px-4 py-2 text-sm text-gray-600">{{ w.attemptsUntilFirstCorrect ?? '—' }}</td>
+                      <td class="px-4 py-2 text-sm">{{ w.archivedAt ? 'Yes' : 'No' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div v-if="studyUserStats.studiedWords.length > 0" class="mt-2 flex flex-wrap items-center justify-between gap-2 text-sm">
+                <span class="text-gray-600">
+                  Showing {{ studyWordsFrom }}–{{ studyWordsTo }} of {{ studyUserStats.total ?? 0 }} words
+                </span>
+                <div class="flex gap-2">
+                  <button
+                    type="button"
+                    class="px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50 text-sm font-medium"
+                    :disabled="studyWordsOffset <= 0"
+                    @click="studyWordsOffset = Math.max(0, studyWordsOffset - studyWordsLimit); loadStudyUserStats()"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    class="px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50 text-sm font-medium"
+                    :disabled="studyWordsOffset + studyUserStats.studiedWords.length >= (studyUserStats.total ?? 0)"
+                    @click="studyWordsOffset += studyWordsLimit; loadStudyUserStats()"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+              <p v-if="studyUserStats.studiedWords.length === 0 && !studyUserStatsLoading" class="text-gray-500 text-sm mt-2">No studied words for this user.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Manage Phrase Cache Section -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h2 class="text-xl font-semibold text-gray-800 mb-4">Phrase Cache Management</h2>
@@ -909,6 +1084,162 @@ const handleUserSearchChange = () => {
 watch(showUserManagement, (newVal) => {
   if (newVal && users.value.length === 0) {
     loadUsers()
+  }
+})
+
+// Study / Flashcards
+const showStudyFlashcards = ref(false)
+const studyStats = ref({
+  distinctUsers: 0,
+  totalProgressRecords: 0,
+  totalTimesShown: 0,
+  totalTimesCorrect: 0
+})
+const studyStatsLoading = ref(false)
+const studyStatsError = ref('')
+const selectedStudyUserId = ref('')
+const studyUsers = ref<Array<{ id: string; email: string; name: string | null }>>([])
+const studyUserSearch = ref('')
+const studyUserOffset = ref(0)
+const studyUserLimit = ref(25)
+const studyUserTotal = ref(0)
+const studyUsersLoading = ref(false)
+const studyWordsOffset = ref(0)
+const studyWordsLimit = ref(50)
+type StudyUserStats = {
+  summary: { wordsStudied: number; totalShown: number; totalCorrect: number }
+  studiedWords: Array<{
+    wordListId: number
+    wordData: unknown
+    archivedAt: number | null
+    timesShown: number
+    timesCorrect: number
+    attemptsUntilFirstCorrect: number | null
+  }>
+  total: number
+  limit: number
+  offset: number
+}
+const studyUserStats = ref<StudyUserStats | null>(null)
+const studyUserStatsLoading = ref(false)
+const studyUserStatsError = ref('')
+
+const studyUsersFrom = computed(() => {
+  if (studyUserTotal.value === 0 || studyUsers.value.length === 0) return 0
+  return studyUserOffset.value + 1
+})
+const studyUsersTo = computed(() => {
+  const end = studyUserOffset.value + studyUsers.value.length
+  return Math.min(end, studyUserTotal.value)
+})
+const studyWordsFrom = computed(() => {
+  const s = studyUserStats.value
+  if (!s || s.total === 0) return 0
+  return s.offset + 1
+})
+const studyWordsTo = computed(() => {
+  const s = studyUserStats.value
+  if (!s) return 0
+  return s.offset + s.studiedWords.length
+})
+
+const studyStatsPercentCorrect = computed(() => {
+  const shown = studyStats.value.totalTimesShown
+  if (shown <= 0) return '—'
+  return `${Math.round((studyStats.value.totalTimesCorrect / shown) * 100)}%`
+})
+
+const studyUserStatsPercentCorrect = computed(() => {
+  const s = studyUserStats.value?.summary
+  if (!s || s.totalShown <= 0) return '—'
+  return `${Math.round((s.totalCorrect / s.totalShown) * 100)}%`
+})
+
+const loadStudyStats = async () => {
+  studyStatsLoading.value = true
+  studyStatsError.value = ''
+  try {
+    const res = await $fetch<{
+      distinctUsers: number
+      totalProgressRecords: number
+      totalTimesShown: number
+      totalTimesCorrect: number
+    }>('/api/admin/study/stats')
+    studyStats.value = res
+  } catch (e: any) {
+    studyStatsError.value = e.data?.message || 'Failed to load study stats'
+  } finally {
+    studyStatsLoading.value = false
+  }
+}
+
+const loadStudyUsers = async () => {
+  studyUsersLoading.value = true
+  try {
+    const params = new URLSearchParams()
+    params.set('limit', String(studyUserLimit.value))
+    params.set('offset', String(studyUserOffset.value))
+    if (studyUserSearch.value.trim()) params.set('q', studyUserSearch.value.trim())
+    const res = await $fetch<{ users: Array<{ id: string; email: string; name: string | null }>; total: number }>(
+      `/api/admin/users?${params}`
+    )
+    studyUsers.value = res.users ?? []
+    studyUserTotal.value = res.total ?? 0
+  } catch (e: any) {
+    studyUsers.value = []
+    studyUserTotal.value = 0
+  } finally {
+    studyUsersLoading.value = false
+  }
+}
+
+const loadStudyUserStats = async () => {
+  if (!selectedStudyUserId.value) {
+    studyUserStats.value = null
+    studyUserStatsError.value = ''
+    return
+  }
+  studyUserStatsLoading.value = true
+  studyUserStatsError.value = ''
+  try {
+    const params = new URLSearchParams()
+    params.set('limit', String(studyWordsLimit.value))
+    params.set('offset', String(studyWordsOffset.value))
+    const res = await $fetch<StudyUserStats>(
+      `/api/admin/study/users/${selectedStudyUserId.value}?${params}`
+    )
+    studyUserStats.value = res
+  } catch (e: any) {
+    studyUserStatsError.value = e.data?.message || 'Failed to load user study data'
+    studyUserStats.value = null
+  } finally {
+    studyUserStatsLoading.value = false
+  }
+}
+
+function wordEntryWord (wd: unknown): string {
+  if (wd && typeof wd === 'object' && wd !== null && 'wordEntry' in wd) {
+    const we = (wd as { wordEntry?: { word?: string } }).wordEntry
+    if (we && typeof we === 'object' && typeof we.word === 'string') return we.word
+  }
+  return '—'
+}
+
+function wordEntryTranslation (wd: unknown): string {
+  if (wd && typeof wd === 'object' && wd !== null && 'wordEntry' in wd) {
+    const we = (wd as { wordEntry?: { wordTranslation?: string } }).wordEntry
+    if (we && typeof we === 'object' && typeof we.wordTranslation === 'string') return we.wordTranslation
+  }
+  return '—'
+}
+
+watch(showStudyFlashcards, (newVal) => {
+  if (newVal) {
+    loadStudyUsers()
+    loadStudyStats()
+  } else {
+    selectedStudyUserId.value = ''
+    studyUserStats.value = null
   }
 })
 

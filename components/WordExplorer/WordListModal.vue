@@ -16,6 +16,26 @@
         </button>
       </div>
 
+      <!-- Active / Archived tabs -->
+      <div class="flex gap-1 p-1 mb-4 rounded-lg bg-gray-100 border border-gray-200">
+        <button
+          type="button"
+          class="flex-1 min-h-[44px] px-3 py-2 text-sm font-medium rounded-md touch-manipulation transition-colors"
+          :class="viewMode === 'active' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'"
+          @click="$emit('update:viewMode', 'active')"
+        >
+          Active
+        </button>
+        <button
+          type="button"
+          class="flex-1 min-h-[44px] px-3 py-2 text-sm font-medium rounded-md touch-manipulation transition-colors"
+          :class="viewMode === 'archived' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'"
+          @click="$emit('update:viewMode', 'archived')"
+        >
+          Archived
+        </button>
+      </div>
+
       <!-- Search input -->
       <div class="mb-4">
         <div class="relative">
@@ -39,15 +59,27 @@
         </div>
       </div>
 
-      <!-- Word count -->
-      <div class="mb-4 text-sm text-gray-600">
-        <span v-if="searchQuery">
-          Showing {{ filteredWordList.length }} of {{ wordListLength }} words
+      <!-- Word count + Study (only when Active) -->
+      <div class="mb-4 flex flex-wrap items-center gap-3">
+        <span class="text-sm text-gray-600">
+          <span v-if="searchQuery">
+            Showing {{ filteredWordList.length }} of {{ wordListLength }} words
+          </span>
+          <span v-else>
+            {{ wordListTotal }} word{{ wordListTotal === 1 ? '' : 's' }}
+            <span v-if="viewMode === 'active' && hasMore" class="text-gray-400"> · showing {{ wordListLength }}</span>
+          </span>
         </span>
-        <span v-else>
-          {{ wordListTotal }} word{{ wordListTotal === 1 ? '' : 's' }}
-          <span v-if="hasMore" class="text-gray-400"> · showing {{ wordListLength }}</span>
-        </span>
+        <button
+          v-if="viewMode === 'active'"
+          type="button"
+          class="min-h-[44px] px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed text-sm touch-manipulation"
+          :disabled="wordListTotal === 0 || !!searchQuery"
+          :title="wordListTotal === 0 ? 'Add words to your list to study' : searchQuery ? 'Clear search to study' : 'Study first 20 words'"
+          @click="$emit('start-study')"
+        >
+          Study
+        </button>
       </div>
 
       <!-- Loading state -->
@@ -59,6 +91,9 @@
       <div v-else-if="filteredWordList.length === 0" class="text-center py-8">
         <p v-if="searchQuery" class="text-gray-600">
           No words found matching "{{ searchQuery }}"
+        </p>
+        <p v-else-if="viewMode === 'archived'" class="text-gray-600">
+          No archived words. Archive words from your active list to see them here.
         </p>
         <p v-else class="text-gray-600">
           You haven't saved any words yet. Use the "Add" button in the translation dialog to start building your collection.
@@ -102,16 +137,40 @@
             </div>
           </div>
 
-          <!-- Delete button - Mobile: top-right absolute -->
-          <button
-            type="button"
-            class="sm:hidden absolute top-4 right-4 px-2 py-1.5 text-sm border border-gray-300 rounded hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-colors shrink-0"
-            :disabled="deletingWordId === word.id"
-            @click="$emit('confirm-delete-word', word.id)"
-          >
-            <span v-if="deletingWordId === word.id" class="animate-pulse">…</span>
-            <span v-else aria-label="Delete">🗑️</span>
-          </button>
+          <!-- Archive / Restore / Reset - Mobile: top-right absolute -->
+          <div class="sm:hidden absolute top-4 right-4 flex flex-wrap gap-1 justify-end">
+            <template v-if="viewMode === 'active'">
+              <button
+                v-if="word.progress && (word.progress.timesShown > 0 || word.progress.timesCorrect > 0)"
+                type="button"
+                class="px-2 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100 text-gray-700 shrink-0"
+                :disabled="resettingProgressWordId === word.id"
+                @click="$emit('reset-stats', word.id)"
+              >
+                <span v-if="resettingProgressWordId === word.id" class="animate-pulse">…</span>
+                <span v-else>Reset stats</span>
+              </button>
+              <button
+                type="button"
+                class="px-2 py-1.5 text-sm border border-gray-300 rounded hover:bg-amber-50 hover:text-amber-700 hover:border-amber-300 transition-colors shrink-0"
+                :disabled="deletingWordId === word.id"
+                @click="$emit('confirm-delete-word', word.id)"
+              >
+                <span v-if="deletingWordId === word.id" class="animate-pulse">…</span>
+                <span v-else aria-label="Archive">Archive</span>
+              </button>
+            </template>
+            <button
+              v-else
+              type="button"
+              class="px-2 py-1.5 text-sm border border-green-300 rounded hover:bg-green-50 hover:text-green-700 shrink-0"
+              :disabled="restoringWordId === word.id"
+              @click="$emit('restore-word', word.id)"
+            >
+              <span v-if="restoringWordId === word.id" class="animate-pulse">…</span>
+              <span v-else>Restore</span>
+            </button>
+          </div>
 
           <!-- Context phrase (smaller, at top) -->
           <div v-if="word.wordData.originalPhrase || word.wordData.translatedPhrase" class="mb-2 text-xs text-gray-500 border-b border-gray-100 pb-2 pr-8 sm:pr-0">
@@ -152,16 +211,38 @@
             </NuxtLink>
           </div>
 
-          <!-- Delete button (desktop) -->
-          <div class="mt-2 hidden sm:flex sm:justify-end">
+          <!-- Archive / Restore / Reset (desktop) -->
+          <div class="mt-2 hidden sm:flex sm:flex-wrap sm:justify-end sm:gap-2">
+            <template v-if="viewMode === 'active'">
+              <button
+                v-if="word.progress && (word.progress.timesShown > 0 || word.progress.timesCorrect > 0)"
+                type="button"
+                class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 text-gray-700 shrink-0"
+                :disabled="resettingProgressWordId === word.id"
+                @click="$emit('reset-stats', word.id)"
+              >
+                <span v-if="resettingProgressWordId === word.id" class="animate-pulse">…</span>
+                <span v-else>Reset stats</span>
+              </button>
+              <button
+                type="button"
+                class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-amber-50 hover:text-amber-700 hover:border-amber-300 transition-colors shrink-0"
+                :disabled="deletingWordId === word.id"
+                @click="$emit('confirm-delete-word', word.id)"
+              >
+                <span v-if="deletingWordId === word.id" class="animate-pulse">…</span>
+                <span v-else aria-label="Archive">Archive</span>
+              </button>
+            </template>
             <button
+              v-else
               type="button"
-              class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-colors shrink-0"
-              :disabled="deletingWordId === word.id"
-              @click="$emit('confirm-delete-word', word.id)"
+              class="px-3 py-1 text-sm border border-green-300 rounded hover:bg-green-50 hover:text-green-700 shrink-0"
+              :disabled="restoringWordId === word.id"
+              @click="$emit('restore-word', word.id)"
             >
-              <span v-if="deletingWordId === word.id" class="animate-pulse">…</span>
-              <span v-else aria-label="Delete">🗑️</span>
+              <span v-if="restoringWordId === word.id" class="animate-pulse">…</span>
+              <span v-else>Restore</span>
             </button>
           </div>
 
@@ -183,7 +264,7 @@
             </div>
           </div>
         </div>
-        <div v-if="hasMore && !searchQuery" class="pt-2 border-t border-gray-200">
+        <div v-if="viewMode === 'active' && hasMore && !searchQuery" class="pt-2 border-t border-gray-200">
           <button
             type="button"
             class="w-full py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded disabled:opacity-50"
@@ -230,18 +311,25 @@ export interface WordListEntry {
     }
   }
   createdAt: number
+  progress?: { timesShown: number; timesCorrect: number; attemptsUntilFirstCorrect: number | null }
 }
 
-const props = defineProps<{
-  open: boolean
-  searchQuery: string
-  filteredWordList: WordListEntry[]
-  wordListLength: number
-  wordListTotal: number
-  wordListLoading: boolean
-  wordListLoadingMore: boolean
-  deletingWordId: number | null
-}>()
+const props = withDefaults(
+  defineProps<{
+    open: boolean
+    viewMode?: 'active' | 'archived'
+    searchQuery: string
+    filteredWordList: WordListEntry[]
+    wordListLength: number
+    wordListTotal: number
+    wordListLoading: boolean
+    wordListLoadingMore: boolean
+    deletingWordId: number | null
+    restoringWordId?: number | null
+    resettingProgressWordId?: number | null
+  }>(),
+  { viewMode: 'active', restoringWordId: null, resettingProgressWordId: null }
+)
 
 const { setSupportView, clearSupportView } = useSupportPageContext()
 watch(() => props.open, (isOpen) => {
@@ -251,10 +339,14 @@ watch(() => props.open, (isOpen) => {
 
 defineEmits<{
   close: []
+  'update:viewMode': [mode: 'active' | 'archived']
   'update:searchQuery': [value: string]
   'navigate-to-word': [word: WordListEntry]
   'confirm-delete-word': [wordId: number]
+  'restore-word': [wordId: number]
+  'reset-stats': [wordId: number]
   'load-more': []
+  'start-study': []
 }>()
 
 const hasMore = computed(() => props.wordListLength < props.wordListTotal)

@@ -16,7 +16,7 @@
         <section class="rounded-xl bg-slate-50 p-5">
           <h3 class="font-semibold text-slate-900 mb-2 text-base">What This App Does</h3>
           <p class="text-slate-600 text-sm leading-relaxed">
-            Shoresh helps you build vocabulary and deepen your understanding of classical Jewish texts by exploring them word by word. Created by a learner for learners—free to use.
+            <strong class="text-slate-900">Shoresh is provided free of charge.</strong> It helps you build vocabulary and deepen your understanding of classical Jewish texts by exploring them word by word. Created by a learner for learners.
           </p>
         </section>
 
@@ -75,7 +75,40 @@
             <li>Access your saved words from the "My Word List" button at the top of any book</li>
             <li>Search through your words to quickly find what you're looking for</li>
             <li>Click any word to navigate back to its source text</li>
-            <li>Organize and review your vocabulary as you study</li>
+            <li>Archive words you no longer need (or restore archived words from the Archived tab)</li>
+            <li>Reset study stats for a word to start fresh</li>
+          </ul>
+        </section>
+
+        <section class="rounded-xl bg-amber-50/60 p-5">
+          <h3 class="font-semibold text-slate-900 mb-2 text-base">Study / Flashcards</h3>
+          <p class="text-slate-600 text-sm leading-relaxed mb-2">
+            <strong class="text-slate-900">Requires a free account.</strong> From My Word List, click <strong>Study</strong> to start a flashcard session with your saved words (Hebrew → English). Cards show the word; tap "Show translation" to reveal the meaning, then choose "Need practice" or "Know it."
+          </p>
+          <ul class="space-y-1.5 text-slate-600 text-sm list-disc list-inside">
+            <li>Words you mark "Know it" are shown a few more times in the session (configurable in Settings)</li>
+            <li>Use the <strong>Play</strong> button to hear pronunciation; <strong>Copy to clipboard</strong> to copy the word or word → translation</li>
+            <li>Session size and max cards per session are set in Settings</li>
+            <li>View your study results (words studied, total shown, correct) on the Settings page</li>
+          </ul>
+        </section>
+
+        <section class="rounded-xl bg-teal-50/60 p-5">
+          <h3 class="font-semibold text-slate-900 mb-2 text-base">Concordance / Word Explorer</h3>
+          <p class="text-slate-600 text-sm leading-relaxed mb-2">
+            From a word card in the translation dialog or in My Word List, click the <strong>concordance (location) icon</strong> to open the Word Explorer. You can see how a root or word appears across Tanakh, Talmud, and other texts—with links to open each occurrence in the main reader.
+          </p>
+        </section>
+
+        <section class="rounded-xl bg-slate-100/80 p-5">
+          <h3 class="font-semibold text-slate-900 mb-2 text-base">Settings &amp; personalization</h3>
+          <p class="text-slate-600 text-sm leading-relaxed mb-2">
+            <strong class="text-slate-900">Requires a free account.</strong> Click <strong>Settings</strong> in the header (when logged in) to customize your experience:
+          </p>
+          <ul class="space-y-1.5 text-slate-600 text-sm list-disc list-inside">
+            <li><strong>Flashcards:</strong> How many times to repeat a word after "Know it," words per study session, and max cards per session</li>
+            <li><strong>Translation:</strong> Long phrase threshold—how many words trigger the word-picker instead of translating the whole selection</li>
+            <li><strong>Your study results:</strong> All-time stats and a paginated list of words you’ve studied (shown, correct, archived)</li>
           </ul>
         </section>
 
@@ -84,7 +117,7 @@
           <p class="text-slate-600 text-sm leading-relaxed mb-2">
             <strong class="text-slate-900">Requires a free account.</strong> Add personal notes to phrases as you study. Click the 📝 icon next to any Hebrew phrase to add or edit a note with your thoughts, questions, or insights.
           </p>
-          <ul class="space-y-1.5 text-slate-600 text-sm list-disc list-inside">
+          <ul class="space-y-1.5 text-slate-600 text-sm list-disc list-inside mb-0">
             <li>View all your notes organized by book in the "My Notes" page</li>
             <li>Edit or delete notes anytime</li>
             <li>Select multiple notes to print or copy to your clipboard</li>
@@ -96,7 +129,7 @@
         <section class="rounded-xl border-2 border-blue-200 bg-blue-50/80 p-5">
           <h3 class="font-semibold text-slate-900 mb-2 text-base">Free Account Required</h3>
           <p class="text-slate-600 text-sm leading-relaxed">
-            <strong class="text-slate-900">Accounts are completely free—no credit card required.</strong> Create an account to use My Word List and My Notes features. Your data is private and syncs across all your devices. Click "Login" in the header to get started.
+            <strong class="text-slate-900">Shoresh is free of charge—no credit card or payment required.</strong> Create a free account to use My Word List, My Notes, Study (flashcards), and Settings. Your data is private and syncs across all your devices. Click "Login" in the header to get started.
           </p>
         </section>
 

@@ -33,13 +33,13 @@
           :disabled="!rootInput.trim() || loading"
           @click="buildTree"
         >
-          {{ loading ? 'Loading…' : 'Build Tree' }}
+          {{ loading ? 'Loading…' : 'Search' }}
         </button>
         <button
           type="button"
           class="px-4 py-2 border border-gray-300 rounded-lg font-medium bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           :disabled="!rootInput.trim() || loading"
-          title="Build tree and include debug info (for pasting here)"
+          title="Search and include debug info (for pasting here)"
           @click="buildTreeWithDebug"
         >
           Debug

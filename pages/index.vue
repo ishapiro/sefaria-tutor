@@ -154,29 +154,48 @@
     <!-- Word List Modal -->
     <WordExplorerWordListModal
       :open="showWordListModal"
+      :view-mode="wordListViewMode"
       :search-query="wordListSearchQuery"
-      :filtered-word-list="filteredWordList"
-      :word-list-length="wordList.length"
-      :word-list-total="wordListTotal"
-      :word-list-loading="wordListLoading"
+      :filtered-word-list="wordListViewMode === 'active' ? filteredWordList : filteredArchivedWordList"
+      :word-list-length="wordListViewMode === 'active' ? wordList.length : archivedWordList.length"
+      :word-list-total="wordListViewMode === 'active' ? wordListTotal : archivedWordListTotal"
+      :word-list-loading="wordListViewMode === 'active' ? wordListLoading : archivedWordListLoading"
       :word-list-loading-more="wordListLoadingMore"
       :deleting-word-id="deletingWordId"
-      @close="showWordListModal = false"
+      :restoring-word-id="restoringWordId"
+      :resetting-progress-word-id="resettingProgressWordId"
+      @close="wordListViewMode = 'active'; showWordListModal = false"
+      @update:view-mode="onWordListViewModeChange"
       @update:search-query="wordListSearchQuery = $event"
       @navigate-to-word="navigateToWordReference($event)"
       @confirm-delete-word="confirmDeleteWord($event)"
+      @restore-word="restoreWord($event)"
+      @reset-stats="resetWordProgress($event)"
       @load-more="loadMoreWordList"
+      @start-study="startStudy"
     />
 
-    <!-- Delete confirmation dialog -->
+    <!-- Study Session Modal -->
+    <WordExplorerStudySessionModal
+      :open="showStudySession"
+      :deck="studyDeck"
+      :correct-repetitions="studyCorrectRepetitions"
+      :max-cards="studyMaxCards"
+      :on-record-show="recordStudyShow"
+      :on-record-correct="recordStudyCorrect"
+      :on-play-tts="playWordTts"
+      @close="showStudySession = false"
+    />
+
+    <!-- Archive confirmation dialog -->
     <CommonConfirmDialog
       :open="showDeleteConfirm"
-      title="Remove word from list?"
-      message="Are you sure you want to remove this word from your list? This action cannot be undone."
-      confirm-label="Delete"
+      title="Archive word?"
+      message="Archive this word? It will be removed from your list and study deck. You can restore it later from Archived."
+      confirm-label="Archive"
       cancel-label="Cancel"
       :loading="deletingWordId !== null"
-      @confirm="wordToDelete && deleteWord(wordToDelete)"
+      @confirm="wordToDelete && archiveWord(wordToDelete)"
       @cancel="cancelDeleteWord"
     />
 
@@ -341,7 +360,8 @@ const translationError = ref<string | null>(null)
 const lastTranslatedInputText = ref<string>('')
 const showMultiSentenceConfirmDialog = ref(false)
 const pendingTranslation = ref<{ plainText: string; fullSentence: boolean } | null>(null)
-const LONG_PHRASE_WORD_LIMIT = 10
+/** Long phrase threshold: when selection has more than this many words, show word-picker. Loaded from user settings; default 10. */
+const longPhraseWordLimit = ref(10)
 const showLongPhraseSelectionDialog = ref(false)
 const pendingLongPhrase = ref<{ plainText: string; fullSentence: boolean } | null>(null)
 /** Sefaria ref captured when long phrase or multi-sentence dialog is shown; used when translation is performed so add-to-word-list has the correct reference. */
@@ -359,7 +379,7 @@ const openaiModel = ref('gpt-4o')
 // Word List state
 const showWordListModal = ref(false)
 const showNotesListModal = ref(false)
-const wordList = ref<Array<{
+type WordListWord = {
   id: number
   wordData: {
     originalPhrase?: string
@@ -368,14 +388,12 @@ const wordList = ref<Array<{
     bookTitle?: string
     bookPath?: string
     sefariaRef?: string
-    wordEntry: {
-      word?: string
-      wordTranslation?: string
-      [key: string]: any
-    }
+    wordEntry: { word?: string; wordTranslation?: string; [key: string]: any }
   }
   createdAt: number
-}>>([])
+  progress?: { timesShown: number; timesCorrect: number; attemptsUntilFirstCorrect: number | null }
+}
+const wordList = ref<WordListWord[]>([])
 const wordListTotal = ref(0)
 const wordListLoading = ref(false)
 const wordListLoadingMore = ref(false)
@@ -384,7 +402,19 @@ const wordListButtonStates = ref<Record<number, 'default' | 'loading' | 'success
 const deletingWordId = ref<number | null>(null)
 const showDeleteConfirm = ref(false)
 const wordToDelete = ref<number | null>(null)
+const wordListViewMode = ref<'active' | 'archived'>('active')
+const archivedWordList = ref<WordListWord[]>([])
+const archivedWordListTotal = ref(0)
+const archivedWordListLoading = ref(false)
+const restoringWordId = ref<number | null>(null)
+const resettingProgressWordId = ref<number | null>(null)
 const wordToHighlight = ref<string | null>(null) // Hebrew word to highlight after navigation
+
+// Study session (flashcards)
+const showStudySession = ref(false)
+const studyDeck = ref<Array<{ id: number; wordData: { wordEntry: Record<string, unknown>; [key: string]: unknown }; createdAt?: number }>>([])
+const studyCorrectRepetitions = ref(2)
+const studyMaxCards = ref<number | null>(null)
 
 const showAddToWordList = computed(() => {
   if (!loggedIn.value) return false
@@ -1766,7 +1796,7 @@ async function translateWithOpenAI (text: string, fullSentence = false) {
     return
   }
 
-  if (countWords(plainText) > LONG_PHRASE_WORD_LIMIT) {
+  if (countWords(plainText) > longPhraseWordLimit.value) {
     pendingTranslationSefariaRef.value = lastSefariaRefAttempted.value
     pendingLongPhrase.value = { plainText, fullSentence }
     longPhraseWords.value = plainText.trim().split(/\s+/).filter(Boolean)
@@ -1949,76 +1979,87 @@ async function addWordToList(index: number) {
 
 const WORD_LIST_PAGE_SIZE = 100
 
-async function fetchWordList(offset = 0, append = false) {
+async function fetchWordList(offset = 0, append = false, archived = false) {
   if (!loggedIn.value) return
 
-  if (append) {
+  const isArchived = archived
+  if (isArchived) {
+    archivedWordListLoading.value = true
+  } else if (append) {
     wordListLoadingMore.value = true
   } else {
     wordListLoading.value = true
   }
   try {
+    const params: { limit: number; offset: number; archived?: string } = {
+      limit: WORD_LIST_PAGE_SIZE,
+      offset
+    }
+    if (isArchived) params.archived = '1'
+
     const response = await $fetch<{
-      words: Array<{
-        id: number
-        wordData: {
-          originalPhrase?: string
-          translatedPhrase?: string
-          sourceText?: string
-          bookTitle?: string
-          bookPath?: string
-          sefariaRef?: string
-          wordEntry: any
-        }
-        createdAt: number
-      }>
+      words: WordListWord[]
       total: number
       limit: number
       offset: number
-    }>('/api/word-list', {
-      params: { limit: WORD_LIST_PAGE_SIZE, offset }
-    })
+    }>('/api/word-list', { params })
 
     const words = response.words || []
-    wordListTotal.value = response.total ?? 0
-    if (append) {
-      wordList.value = [...wordList.value, ...words]
-    } else {
-      wordList.value = words
-    }
+    const total = response.total ?? 0
 
-    if (!append && translationData.value?.wordTable) {
-      translationData.value.wordTable.forEach((row, index) => {
-        const isInList = wordList.value.some(w => {
-          const entry = w.wordData.wordEntry
-          if (!entry?.word || !row.word) return false
-          return entry.word.trim() === row.word.trim()
+    if (isArchived) {
+      archivedWordList.value = words
+      archivedWordListTotal.value = total
+    } else {
+      wordListTotal.value = total
+      if (append) {
+        wordList.value = [...wordList.value, ...words]
+      } else {
+        wordList.value = words
+      }
+
+      if (!append && translationData.value?.wordTable) {
+        translationData.value.wordTable.forEach((row, index) => {
+          const isInList = wordList.value.some(w => {
+            const entry = w.wordData.wordEntry
+            if (!entry?.word || !row.word) return false
+            return entry.word.trim() === row.word.trim()
+          })
+          if (isInList && wordListButtonStates.value[index] !== 'success') {
+            wordListButtonStates.value[index] = 'in-list'
+          } else if (!isInList && wordListButtonStates.value[index] === 'in-list') {
+            wordListButtonStates.value[index] = 'default'
+          }
         })
-        if (isInList && wordListButtonStates.value[index] !== 'success') {
-          wordListButtonStates.value[index] = 'in-list'
-        } else if (!isInList && wordListButtonStates.value[index] === 'in-list') {
-          wordListButtonStates.value[index] = 'default'
-        }
-      })
+      }
     }
   } catch (err: any) {
     console.error('Failed to fetch word list:', err)
-    if (!append) alert('Failed to load word list. Please try again.')
+    if (!append && !isArchived) alert('Failed to load word list. Please try again.')
   } finally {
-    wordListLoading.value = false
-    wordListLoadingMore.value = false
+    if (!isArchived) {
+      wordListLoading.value = false
+      wordListLoadingMore.value = false
+    } else {
+      archivedWordListLoading.value = false
+    }
   }
+}
+
+function fetchArchivedWordList() {
+  fetchWordList(0, false, true)
 }
 
 function loadMoreWordList() {
   fetchWordList(wordList.value.length, true)
 }
 
-async function deleteWord(wordId: number) {
+async function archiveWord(wordId: number) {
   deletingWordId.value = wordId
   try {
     await $fetch(`/api/word-list/${wordId}`, {
-      method: 'DELETE'
+      method: 'PATCH',
+      body: { archived: true }
     })
 
     wordList.value = wordList.value.filter(w => w.id !== wordId)
@@ -2027,10 +2068,8 @@ async function deleteWord(wordId: number) {
     // Update button states in translation dialog
     if (translationData.value?.wordTable) {
       translationData.value.wordTable.forEach((row, index) => {
-        // Match only on exact Hebrew word (not translation, as same word may have different translations in different contexts)
         const isInList = wordList.value.some(w => {
           const entry = w.wordData.wordEntry
-          // Exact match on Hebrew word only - must be non-empty and exactly equal
           if (!entry?.word || !row.word) return false
           return entry.word.trim() === row.word.trim()
         })
@@ -2040,13 +2079,53 @@ async function deleteWord(wordId: number) {
       })
     }
   } catch (err: any) {
-    console.error('Failed to delete word:', err)
-    alert(err.data?.message || 'Failed to delete word. Please try again.')
+    console.error('Failed to archive word:', err)
+    alert(err.data?.message || 'Failed to archive word. Please try again.')
   } finally {
     deletingWordId.value = null
     showDeleteConfirm.value = false
     wordToDelete.value = null
   }
+}
+
+async function restoreWord(wordId: number) {
+  restoringWordId.value = wordId
+  try {
+    await $fetch(`/api/word-list/${wordId}`, {
+      method: 'PATCH',
+      body: { archived: false }
+    })
+    archivedWordList.value = archivedWordList.value.filter(w => w.id !== wordId)
+    archivedWordListTotal.value = Math.max(0, archivedWordListTotal.value - 1)
+    await fetchWordList(0, false)
+  } catch (err: any) {
+    console.error('Failed to restore word:', err)
+    alert(err?.data?.message || 'Failed to restore word. Please try again.')
+  } finally {
+    restoringWordId.value = null
+  }
+}
+
+async function resetWordProgress(wordId: number) {
+  resettingProgressWordId.value = wordId
+  try {
+    await $fetch(`/api/word-list/${wordId}/progress`, { method: 'DELETE' })
+    const w = wordList.value.find(x => x.id === wordId)
+    if (w && w.progress) {
+      w.progress = undefined
+    }
+    await fetchWordList(0, false)
+  } catch (err: any) {
+    console.error('Failed to reset stats:', err)
+    alert(err?.data?.message || 'Failed to reset stats. Please try again.')
+  } finally {
+    resettingProgressWordId.value = null
+  }
+}
+
+function onWordListViewModeChange(mode: 'active' | 'archived') {
+  wordListViewMode.value = mode
+  if (mode === 'archived') fetchArchivedWordList()
 }
 
 function confirmDeleteWord(wordId: number) {
@@ -2057,6 +2136,51 @@ function confirmDeleteWord(wordId: number) {
 function cancelDeleteWord() {
   showDeleteConfirm.value = false
   wordToDelete.value = null
+}
+
+async function startStudy() {
+  if (wordList.value.length === 0) return
+  let sessionSize = 20
+  let cardMultiplier = 2
+  try {
+    const settings = await $fetch<Record<string, string>>('/api/user/settings').catch(() => ({}))
+    const n = parseInt(settings?.flashcard_correct_repetitions ?? '2', 10)
+    studyCorrectRepetitions.value = Number.isFinite(n) && n >= 0 ? n : 2
+    const size = parseInt(settings?.flashcard_session_size ?? '20', 10)
+    sessionSize = Number.isFinite(size) && size >= 1 && size <= 200 ? size : 20
+    const mult = parseInt(settings?.flashcard_session_card_multiplier ?? '2', 10)
+    cardMultiplier = Number.isFinite(mult) && mult >= 1 && mult <= 5 ? mult : 2
+  } catch {
+    studyCorrectRepetitions.value = 2
+  }
+  const active = wordList.value.slice(0, sessionSize)
+  if (active.length === 0) return
+  studyDeck.value = active
+  studyMaxCards.value = sessionSize * cardMultiplier
+  showWordListModal.value = false
+  showStudySession.value = true
+}
+
+async function recordStudyShow(wordListId: number) {
+  try {
+    await $fetch('/api/word-list/progress', {
+      method: 'POST',
+      body: { wordListId, action: 'show' }
+    })
+  } catch (e) {
+    console.error('Failed to record study show:', e)
+  }
+}
+
+async function recordStudyCorrect(wordListId: number) {
+  try {
+    await $fetch('/api/word-list/progress', {
+      method: 'POST',
+      body: { wordListId, action: 'correct' }
+    })
+  } catch (e) {
+    console.error('Failed to record study correct:', e)
+  }
 }
 
 /**
@@ -2290,6 +2414,17 @@ function scrollToHighlightedWord(hebrewWord: string) {
   }
 }
 
+const filteredArchivedWordList = computed(() => {
+  const query = wordListSearchQuery.value.toLowerCase().trim()
+  if (!query) return archivedWordList.value
+  return archivedWordList.value.filter(w => {
+    const entry = w.wordData?.wordEntry
+    const word = (entry?.word ?? '').toLowerCase()
+    const trans = (entry?.wordTranslation ?? '').toLowerCase()
+    return word.includes(query) || trans.includes(query)
+  })
+})
+
 const filteredWordList = computed(() => {
   const query = wordListSearchQuery.value.toLowerCase().trim()
   if (!query) return wordList.value
@@ -2321,6 +2456,22 @@ watch(showWordListModal, async (isOpen) => {
     await fetchWordList()
   }
 })
+
+// Load user settings when logged in (e.g. long phrase threshold for translation)
+watch(loggedIn, async (isLoggedIn) => {
+  if (!isLoggedIn) {
+    longPhraseWordLimit.value = 10
+    return
+  }
+  try {
+    const settings = await $fetch<Record<string, string>>('/api/user/settings').catch(() => ({}))
+    const n = parseInt(settings?.long_phrase_word_limit ?? '10', 10)
+    const allowed = [5, 10, 15, 20, 50]
+    longPhraseWordLimit.value = Number.isFinite(n) && allowed.includes(n) ? n : 10
+  } catch {
+    longPhraseWordLimit.value = 10
+  }
+}, { immediate: true })
 
 async function fetchLatestModel () {
   const config = useRuntimeConfig()
