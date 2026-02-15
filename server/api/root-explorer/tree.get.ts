@@ -5,8 +5,10 @@ const SEFARIA_SEARCH_URL = 'https://www.sefaria.org/api/search-wrapper'
 const SEARCH_SIZE = 500
 /** Max branches (books/genres) returned — prevents unbounded list. */
 const MAX_BRANCHES = 40
-/** Max occurrences per branch — prevents one book from dominating and keeps payload small. */
+/** Max occurrences per branch (books) — prevents one book from dominating. */
 const MAX_OCCURRENCES_PER_BRANCH = 50
+/** When comparing by genres we have few branches (e.g. 3); use a higher cap so we show all hits. */
+const MAX_OCCURRENCES_PER_BRANCH_GENRES = 200
 const USER_AGENT = 'SefariaTutor/0.1.0 (Cogitations; educational Torah study app; https://cogitations.com)'
 
 export interface TreeOccurrence {
@@ -221,7 +223,7 @@ export default defineEventHandler(async (event): Promise<WordTreeResponse | { er
       }
 
       const titleVariants = src.titleVariants || []
-      const title = titleVariants[0] || branchKey
+      const title = scopeType === 'genres' ? branchKey : (titleVariants[0] || branchKey)
       if (!branchTitles.has(branchKey)) {
         branchTitles.set(branchKey, { title })
       }
@@ -244,6 +246,7 @@ export default defineEventHandler(async (event): Promise<WordTreeResponse | { er
     const branches: WordTreeBranch[] = []
     const entries = Array.from(branchMap.entries())
     const cappedEntries = entries.slice(0, MAX_BRANCHES)
+    const perBranchCap = scopeType === 'genres' ? MAX_OCCURRENCES_PER_BRANCH_GENRES : MAX_OCCURRENCES_PER_BRANCH
     for (const [key, occurrences] of cappedEntries) {
       const meta = branchTitles.get(key) || { title: key }
       branches.push({
@@ -251,7 +254,7 @@ export default defineEventHandler(async (event): Promise<WordTreeResponse | { er
         title: meta.title,
         heTitle: meta.heTitle,
         bookPath: scopeType === 'books' ? (branchPaths.get(key) ?? undefined) : undefined,
-        occurrences: occurrences.slice(0, MAX_OCCURRENCES_PER_BRANCH),
+        occurrences: occurrences.slice(0, perBranchCap),
       })
     }
     branches.sort((a, b) => a.title.localeCompare(b.title))

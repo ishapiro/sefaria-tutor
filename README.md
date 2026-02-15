@@ -158,6 +158,7 @@ Before testing locally, you need to:
    npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0011_password_reset.sql
    npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0012_support_tickets.sql
    npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0013_support_tickets_reference.sql
+   npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0014_root_translation_cache.sql
    ```
 
    **Note:** The local D1 database is stored in `.wrangler/state/v3/d1/`. If you encounter duplicate column errors, you can reset the local database by deleting this directory and re-running the migrations.

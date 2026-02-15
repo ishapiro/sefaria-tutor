@@ -101,7 +101,8 @@
     <div v-if="tree" class="bg-white rounded-lg border border-gray-200 overflow-hidden">
       <div class="px-4 py-3 border-b border-gray-200 bg-gray-50">
         <span class="text-xl font-semibold" style="direction: rtl">{{ tree.root }}</span>
-        <span v-if="tree.rootMeaning" class="text-gray-600 ml-2">({{ tree.rootMeaning }})</span>
+        <span v-if="rootMeaningFetched" class="text-gray-600 ml-2">({{ rootMeaningFetched }})</span>
+        <span v-else-if="rootMeaningLoading" class="text-gray-400 ml-2 text-sm">(loading meaning…)</span>
       </div>
       <div class="divide-y divide-gray-100">
         <div
@@ -339,6 +340,8 @@ const branchDisplayLimit = ref<Record<string, number>>({})
 const branchTotal = ref<Record<string, number>>({})
 /** Branch key currently loading more (for Loading… state). */
 const loadMoreBranchKey = ref<string | null>(null)
+const rootMeaningFetched = ref<string | null>(null)
+const rootMeaningLoading = ref(false)
 const showDebug = ref(false)
 const showDebugInfo = ref(true)
 const copyDebugStatus = ref<'idle' | 'copied'>('idle')
@@ -436,6 +439,20 @@ async function copyDebugInfo () {
   }
 }
 
+async function fetchRootMeaning (root: string) {
+  if (!root?.trim()) return
+  rootMeaningLoading.value = true
+  try {
+    const q = new URLSearchParams({ root: root.trim() })
+    const data = await $fetch<{ meaning?: string; error?: string }>(`/api/root-explorer/meaning?${q}`)
+    if (data?.meaning) rootMeaningFetched.value = data.meaning
+  } catch {
+    // Leave rootMeaningFetched null; user still has the tree
+  } finally {
+    rootMeaningLoading.value = false
+  }
+}
+
 function buildTreeWithDebug () {
   showDebug.value = true
   buildTree()
@@ -451,6 +468,7 @@ async function buildTree () {
   error.value = ''
   emptyMessage.value = ''
   tree.value = null
+  rootMeaningFetched.value = null
   branchDisplayLimit.value = {}
   branchTotal.value = {}
   try {
@@ -474,6 +492,7 @@ async function buildTree () {
     } else {
       expandedBranches.value = new Set(tree.value.branches.slice(0, 5).map(b => b.key))
     }
+    fetchRootMeaning(tree.value.root)
   } catch (e: unknown) {
     const err = e as { data?: { error?: string }; message?: string }
     error.value = err?.data?.error || err?.message || 'Failed to load concordance.'
