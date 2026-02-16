@@ -26,6 +26,10 @@ Your JSON must include:
     - hebrewAramaic: Either "Hebrew" or "Aramaic".
     - wordRoot: The root letters (שׁוֹרֶשׁ) if identifiable.
     - wordRootTranslation: A brief English translation of the root meaning (e.g., "say", "create", "bless"). Include this whenever wordRoot is provided.
+    - rootExamples: An optional array of additional examples of words with the same root. Each example should be an object with:
+        - word: The Hebrew/Aramaic word.
+        - translation: A brief English translation (1-3 words).
+      Include this field only when wordRoot is provided and there are other common words sharing the same root. Limit to 3-5 examples.
     - wordPartOfSpeech: "noun", "verb", "adjective", "preposition", etc.
     - wordGender: "masculine", "feminine", or null.
     - wordTense: "past", "present", "future", or null.
@@ -44,7 +48,7 @@ Special Instructions:
 - Verbs: Include all key conjugations (past/present/future/infinitive). Always provide presentTenseHebrew for verbs (the present tense form in Hebrew, e.g. masculine singular).
 
 Here is an example of correct output:
-{"originalPhrase":"הילד אכל תפוח","translatedPhrase":"The boy ate an apple","wordTable":[{"word":"הילד","wordTranslation":"boy","hebrewAramaic":"Hebrew","wordRoot":"י־ל־ד","wordRootTranslation":"bear, give birth","wordPartOfSpeech":"noun","wordGender":"masculine","wordTense":null,"wordBinyan":null,"presentTenseHebrew":null,"grammarNotes":"The prefix 'ה' is the definite article ('the')."},{"word":"אכל","wordTranslation":"ate","hebrewAramaic":"Hebrew","wordRoot":"א־כ־ל","wordRootTranslation":"eat","wordPartOfSpeech":"verb","wordGender":"masculine","wordTense":"past","wordBinyan":"Pa'al","presentTenseHebrew":"אוכל","grammarNotes":"Pa'al binyan, 3rd person masculine singular."},{"word":"תפוח","wordTranslation":"apple","hebrewAramaic":"Hebrew","wordRoot":"ת־פ־ח","wordRootTranslation":"blow, breathe","wordPartOfSpeech":"noun","wordGender":"masculine","wordTense":null,"wordBinyan":null,"presentTenseHebrew":null,"grammarNotes":"Masculine singular noun."}]}
+{"originalPhrase":"הילד אכל תפוח","translatedPhrase":"The boy ate an apple","wordTable":[{"word":"הילד","wordTranslation":"boy","hebrewAramaic":"Hebrew","wordRoot":"י־ל־ד","wordRootTranslation":"bear, give birth","rootExamples":[{"word":"ילדה","translation":"girl"},{"word":"ילוד","translation":"newborn"}],"wordPartOfSpeech":"noun","wordGender":"masculine","wordTense":null,"wordBinyan":null,"presentTenseHebrew":null,"grammarNotes":"The prefix 'ה' is the definite article ('the')."},{"word":"אכל","wordTranslation":"ate","hebrewAramaic":"Hebrew","wordRoot":"א־כ־ל","wordRootTranslation":"eat","rootExamples":[{"word":"אוכל","translation":"food"},{"word":"אכילה","translation":"eating"}],"wordPartOfSpeech":"verb","wordGender":"masculine","wordTense":"past","wordBinyan":"Pa'al","presentTenseHebrew":"אוכל","grammarNotes":"Pa'al binyan, 3rd person masculine singular."},{"word":"תפוח","wordTranslation":"apple","hebrewAramaic":"Hebrew","wordRoot":"ת־פ־ח","wordRootTranslation":"blow, breathe","wordPartOfSpeech":"noun","wordGender":"masculine","wordTense":null,"wordBinyan":null,"presentTenseHebrew":null,"grammarNotes":"Masculine singular noun."}]}
 `
 
 export default defineEventHandler(async (event) => {

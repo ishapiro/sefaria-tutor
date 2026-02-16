@@ -348,6 +348,7 @@ const translationData = ref<{
     hebrewAramaic?: string
     wordRoot?: string
     wordRootTranslation?: string
+    rootExamples?: Array<{ word: string; translation: string }>
     wordPartOfSpeech?: string
     wordGender?: string | null
     wordTense?: string | null
@@ -1709,6 +1710,7 @@ async function doTranslateApiCall (plainText: string, fullSentence: boolean, sef
       hebrewAramaic?: string
       wordRoot?: string
       wordRootTranslation?: string
+      rootExamples?: Array<{ word: string; translation: string }>
       wordPartOfSpeech?: string
       wordGender?: string | null
       wordTense?: string | null

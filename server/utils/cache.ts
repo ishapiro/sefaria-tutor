@@ -1,7 +1,7 @@
 // Increment this ONLY when the JSON structure of the OpenAI response changes 
 // (e.g., adding/removing fields in the wordTable). 
 // This triggers a "Hard Invalidation" of all cached entries.
-export const CURRENT_CACHE_VERSION = 1
+export const CURRENT_CACHE_VERSION = 2
 
 // Entries older than this will be refreshed to ensure content quality and 
 // pick up prompt improvements over time.
