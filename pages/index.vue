@@ -384,6 +384,7 @@ const showRawData = ref(false)
 const rawTranslationData = ref<unknown>(null)
 const { isAdmin, fetch: fetchSession, user, loggedIn } = useAuth()
 const route = useRoute()
+const router = useRouter()
 const openaiModel = ref('gpt-5.1-chat-latest')
 
 // Word List state
@@ -1668,9 +1669,27 @@ async function onBookSelect (event: { data: CategoryNode }) {
   bookLoadAttempted.value = true // Mark that we've attempted to load
 }
 
-function handleCloseBook () {
+/**
+ * Close the book view. By default, for complex books (e.g. Tanakh) this may only pop one level
+ * (clear current chapter). Pass forceCloseToBookList: true to always return to the main book list
+ * (e.g. when the user clicks the Home nav link).
+ */
+function handleCloseBook (options?: { forceCloseToBookList?: boolean }) {
+  const goHome = options?.forceCloseToBookList === true
   showWordListModal.value = false
   showNotesListModal.value = false
+  if (goHome) {
+    selectedBook.value = null
+    allVerseData.value = []
+    totalRecords.value = 0
+    first.value = 0
+    currentChapter.value = null
+    complexSections.value = null
+    sectionStack.value = []
+    isComplexBookFlag.value = false
+    bookLoadAttempted.value = false
+    return
+  }
   if (isComplexBookFlag.value) {
     if (allVerseData.value.length > 0) {
       allVerseData.value = []
@@ -2536,6 +2555,15 @@ watch([lastSefariaRefAttempted, selectedBook], () => {
   }
 }, { immediate: true })
 
+// When Home nav is clicked (/?home=1) while already on main page, return to book list and clean URL
+watch(() => ({ path: route.path, home: route.query.home }), async ({ path, home }) => {
+  if (path !== '/' || home !== '1') return
+  handleCloseBook({ forceCloseToBookList: true })
+  const q = { ...route.query }
+  delete q.home
+  await router.replace({ path: '/', query: Object.keys(q).length ? q : undefined })
+}, { immediate: false })
+
 onUnmounted(() => {
   clearSupportView()
 })
@@ -2581,6 +2609,14 @@ onMounted(async () => {
       url.searchParams.delete('highlightWord')
       window.history.replaceState({}, '', url.pathname + (url.search || ''))
     }
+  }
+
+  // Support "Home" nav link (/?home=1): return to book list and clean URL
+  if (route.path === '/' && route.query.home === '1') {
+    handleCloseBook({ forceCloseToBookList: true })
+    const q = { ...route.query }
+    delete q.home
+    await router.replace({ path: '/', query: Object.keys(q).length ? q : undefined })
   }
 
   // Expose debug helper to window for console access
