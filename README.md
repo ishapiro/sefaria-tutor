@@ -6,6 +6,10 @@ The project is hosted at:
 
 https://shoresh.cogitations.com
 
+## Recent changes
+
+See [CHANGELOG.md](CHANGELOG.md) for features and fixes added in recent releases, including admin-configurable default model, translation speed testing, and translation modal statistics.
+
 ## About this project
 
 This application is developed independently by Cogitations. It is not affiliated with, endorsed by, or operated by Sefaria.org.
@@ -37,8 +41,10 @@ Server routes run on Nitro and are proxied in production on Cloudflare Workers:
 |-------|---------|
 | `GET /api/sefaria/*` | Proxies requests to the Sefaria API (texts, index) |
 | `POST /api/openai/chat` | Translation via OpenAI Responses API |
-| `GET /api/openai/model` | Fetches preferred OpenAI model (instant/mini/turbo) |
+| `GET /api/openai/model` | Fetches preferred OpenAI model (admin-configurable default) |
 | `POST /api/openai/tts` | Text-to-speech via OpenAI Audio API |
+
+Admin routes (require admin role): `GET/PUT /api/admin/default-model`, `GET /api/admin/openai/models-list`, `POST /api/admin/openai/speed-test`.
 
 The client sends a Bearer token (`NUXT_PUBLIC_API_AUTH_TOKEN`) for OpenAI routes; the server validates it against `API_AUTH_TOKEN` and forwards requests with `OPENAI_API_KEY`.
 
@@ -160,6 +166,7 @@ Before testing locally, you need to:
    npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0013_support_tickets_reference.sql
    npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0014_root_translation_cache.sql
    npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0015_flashcard_archive_progress_settings.sql
+   npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0016_system_settings.sql
    ```
 
    **Note:** The local D1 database is stored in `.wrangler/state/v3/d1/`. If you encounter duplicate column errors, you can reset the local database by deleting this directory and re-running the migrations.

@@ -259,6 +259,10 @@ The admin panel shows:
 
 ### Admin Endpoints (require admin role)
 
+- `GET /api/admin/default-model` - Get configured default translation model
+- `PUT /api/admin/default-model` - Update default translation model
+- `GET /api/admin/openai/models-list` - List available OpenAI models
+- `POST /api/admin/openai/speed-test` - Test translation speed for a given model
 - `GET /api/admin/pronunciation-cache/stats` - Get cache statistics
 - `GET /api/admin/pronunciation-cache/entries` - List cache entries (paginated, searchable)
 - `POST /api/admin/pronunciation-cache/purge` - Trigger LRU purge

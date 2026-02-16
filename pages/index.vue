@@ -125,6 +125,7 @@
       :translation-loading="translationLoading"
       :translation-error="translationError"
       :translation-data="translationData"
+      :translation-metadata="translationMetadata"
       :translation-has-multiple-sentences="translationHasMultipleSentences"
       :translation-word-table-incomplete="translationWordTableIncomplete"
       :copied-status="copiedStatus"
@@ -358,6 +359,7 @@ const translationData = ref<{
   }>
 } | null>(null)
 const translationError = ref<string | null>(null)
+const translationMetadata = ref<{ model?: string; durationMs?: number; fromCache?: boolean } | null>(null)
 const lastTranslatedInputText = ref<string>('')
 const showMultiSentenceConfirmDialog = ref(false)
 const pendingTranslation = ref<{ plainText: string; fullSentence: boolean } | null>(null)
@@ -375,7 +377,7 @@ const showRawData = ref(false)
 const rawTranslationData = ref<unknown>(null)
 const { isAdmin, fetch: fetchSession, user, loggedIn } = useAuth()
 const route = useRoute()
-const openaiModel = ref('gpt-4o')
+const openaiModel = ref('gpt-5.1-chat-latest')
 
 // Word List state
 const showWordListModal = ref(false)
@@ -1686,10 +1688,13 @@ async function doTranslateApiCall (plainText: string, fullSentence: boolean, sef
   translationLoading.value = true
   translationData.value = null
   translationError.value = null
+  translationMetadata.value = null
   rawTranslationData.value = null
   lastTranslatedInputText.value = plainText
+  const startTime = Date.now()
   try {
     const response = await $fetch<{
+      model?: string
       output?: Array<{ type?: string; content?: Array<{ type?: string; text?: string }> }>
     }>('/api/openai/chat', {
       method: 'POST',
@@ -1721,6 +1726,10 @@ async function doTranslateApiCall (plainText: string, fullSentence: boolean, sef
     const parsed = JSON.parse(jsonStr) as { originalPhrase?: string; translatedPhrase?: string; wordTable?: WordRow[] }
     if (!parsed.originalPhrase || !parsed.translatedPhrase || !parsed.wordTable) throw new Error('Missing required fields')
     translationData.value = parsed
+    const durationMs = Date.now() - startTime
+    const model = (response as { model?: string })?.model
+    const fromCache = (response as { fromCache?: boolean })?.fromCache
+    translationMetadata.value = { model, durationMs, fromCache }
     if (import.meta.client) window.getSelection()?.removeAllRanges()
   } catch (err: unknown) {
     translationError.value = err instanceof Error ? err.message : 'Translation failed'

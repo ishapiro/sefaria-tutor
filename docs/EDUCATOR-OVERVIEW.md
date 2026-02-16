@@ -22,6 +22,7 @@ The following features are currently live and ready for use in the classroom or 
 *   **Pronunciation Cache (Performance & Cost Control):**
     *   Frequently used words and phrases are cached on the server, so audio playback is fast and responsive even on school Wi‑Fi.
     *   An admin‑only dashboard lets school IT or lead teachers monitor cache size and purge old items if needed.
+*   **Admin-Configurable Default Model:** Admins can select the GPT model used for translations system-wide (e.g., gpt-5.1-chat-latest for speed). A speed-test tool lets admins compare model response times.
 *   **Smart Translation Cache / Dictionary:** A community-driven "Dictionary" that remembers previously looked-up phrases, ensuring speed and consistency. Educators can encourage students to re-use “canonical” translations for key pesukim and sugyot.
 *   **Google & Email Authentication:** Secure accounts for students to manage their study sessions.
 *   **Role-Based Access (Student / Teacher / Admin):**

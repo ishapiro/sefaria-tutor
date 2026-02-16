@@ -261,6 +261,25 @@
           >
             {{ word.wordData.wordEntry.grammarNotes }}
           </div>
+
+          <!-- Example words with the same root -->
+          <div
+            v-if="word.wordData.wordEntry?.rootExamples && Array.isArray(word.wordData.wordEntry.rootExamples) && word.wordData.wordEntry.rootExamples.length > 0"
+            class="mt-3 pt-3 border-t border-gray-100"
+          >
+            <div class="text-xs font-semibold text-gray-500 uppercase mb-2">Additional examples with the same root</div>
+            <div class="flex flex-wrap gap-2">
+              <div
+                v-for="(example, idx) in word.wordData.wordEntry.rootExamples"
+                :key="idx"
+                class="inline-flex items-center gap-2 px-2 py-1 bg-blue-50 border border-blue-200 rounded text-sm"
+              >
+                <span class="text-base font-medium text-blue-900" style="direction: rtl">{{ example.word }}</span>
+                <span class="text-gray-600">—</span>
+                <span class="text-gray-700">{{ example.translation }}</span>
+              </div>
+            </div>
+          </div>
             </div>
           </div>
         </div>
@@ -307,6 +326,7 @@ export interface WordListEntry {
     wordEntry: {
       word?: string
       wordTranslation?: string
+      rootExamples?: Array<{ word: string; translation: string }>
       [key: string]: unknown
     }
   }

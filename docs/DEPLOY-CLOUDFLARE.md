@@ -24,8 +24,9 @@ Update your `wrangler.toml` with the `database_id` provided by the command above
 npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0001_initial_schema.sql
 # ... apply other migrations in order ...
 
-# Apply to production
+# Apply to production (run all migrations in order, including 0016_system_settings)
 npx wrangler d1 execute sefaria-tutor-db --remote --file=migrations/0001_initial_schema.sql --yes
+# ... continue through migrations/0016_system_settings.sql
 ```
 
 ## 3. Build and deploy

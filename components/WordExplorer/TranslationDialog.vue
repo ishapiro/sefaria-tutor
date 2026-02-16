@@ -168,6 +168,24 @@
           </div>
         </div>
 
+        <!-- Translation stats -->
+        <div
+          v-if="translationMetadata"
+          class="mt-4 pt-4 border-t border-gray-200 text-sm text-gray-500"
+        >
+          <span v-if="translationMetadata.fromCache" class="text-gray-600">Translation from cache</span>
+          <span v-else-if="translationMetadata.model || translationMetadata.durationMs != null" class="flex flex-wrap gap-x-4 gap-y-1">
+            <span v-if="translationMetadata.model">Model: <span class="font-mono font-medium text-gray-700">{{ translationMetadata.model }}</span></span>
+            <span v-if="(translationData?.wordTable ?? []).length > 0">Words: <span class="font-medium text-gray-700">{{ (translationData?.wordTable ?? []).length }}</span></span>
+            <span v-if="translationMetadata.durationMs != null">Total time: <span class="font-medium text-gray-700">{{ translationMetadata.durationMs }} ms</span></span>
+            <span
+              v-if="translationMetadata.durationMs != null && (translationData?.wordTable ?? []).length > 0"
+            >
+              Per word: <span class="font-medium text-gray-700">{{ Math.round(translationMetadata.durationMs / (translationData?.wordTable ?? []).length) }} ms</span>
+            </span>
+          </span>
+        </div>
+
         <!-- Bottom close button -->
         <div class="mt-6 flex justify-end">
           <button
@@ -219,6 +237,7 @@ const props = defineProps<{
   translationLoading: boolean
   translationError: string | null
   translationData: TranslationData | null
+  translationMetadata?: { model?: string; durationMs?: number; fromCache?: boolean } | null
   translationHasMultipleSentences: boolean
   translationWordTableIncomplete: boolean
   copiedStatus: string | null

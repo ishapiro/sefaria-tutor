@@ -808,6 +808,106 @@
           </div>
         </div>
       </div>
+
+      <!-- Default Translation Model Section -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">Default Translation Model</h2>
+        <p class="text-sm text-gray-600 mb-4">
+          Select the GPT model used for translations across the system. This affects the main Word Explorer and Dictionary.
+        </p>
+        <div class="flex flex-wrap items-end gap-3 mb-4">
+          <div class="min-w-[220px]">
+            <label for="default-model-select" class="block text-sm font-medium text-gray-700 mb-1">Model</label>
+            <select
+              id="default-model-select"
+              v-model="defaultModelSelected"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              :disabled="defaultModelModelsLoading"
+            >
+              <option value="">-- Select a model --</option>
+              <option v-for="m in defaultModelModels" :key="m" :value="m">{{ m }}</option>
+            </select>
+          </div>
+          <button
+            type="button"
+            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            :disabled="!defaultModelSelected || defaultModelSaving || defaultModelSelected === defaultModelCurrent"
+            @click="saveDefaultModel"
+          >
+            {{ defaultModelSaving ? 'Saving...' : 'Save' }}
+          </button>
+        </div>
+        <div v-if="defaultModelModelsLoading" class="text-sm text-gray-500 mb-2">Loading models...</div>
+        <div v-if="defaultModelError" class="text-sm text-red-600 mb-2">{{ defaultModelError }}</div>
+        <div v-if="defaultModelMessage" class="mb-2 p-3 rounded-lg" :class="defaultModelMessageType === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'">
+          {{ defaultModelMessage }}
+        </div>
+        <p v-if="defaultModelCurrent" class="text-sm text-gray-500">
+          Current default: <span class="font-mono font-medium text-gray-700">{{ defaultModelCurrent }}</span>
+        </p>
+      </div>
+
+      <!-- GPT Model Speed Test Section -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">GPT Model Speed Test</h2>
+        <p class="text-sm text-gray-600 mb-4">
+          Test translation speed by model. Uses the standard translation prompt with the phrase "הילד אכל תפוח" (The boy ate an apple).
+          Results are tracked so you can compare models.
+        </p>
+        <div class="flex flex-wrap items-end gap-3 mb-4">
+          <div class="min-w-[220px]">
+            <label for="speed-test-model" class="block text-sm font-medium text-gray-700 mb-1">Model</label>
+            <select
+              id="speed-test-model"
+              v-model="speedTestModel"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              :disabled="speedTestModelsLoading"
+            >
+              <option value="">-- Select a model --</option>
+              <option v-for="m in speedTestModels" :key="m" :value="m">{{ m }}</option>
+            </select>
+          </div>
+          <button
+            type="button"
+            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            :disabled="!speedTestModel || speedTestRunning"
+            @click="runSpeedTest"
+          >
+            {{ speedTestRunning ? 'Running...' : 'Run Test' }}
+          </button>
+        </div>
+        <div v-if="speedTestModelsLoading" class="text-sm text-gray-500 mb-2">Loading models...</div>
+        <div v-if="speedTestModelsError" class="text-sm text-red-600 mb-2">{{ speedTestModelsError }}</div>
+        <div v-if="speedTestMessage" class="mb-4 p-3 rounded-lg" :class="speedTestMessageType === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'">
+          {{ speedTestMessage }}
+        </div>
+        <div v-if="speedTestResults.length > 0" class="mt-4">
+          <h3 class="text-lg font-semibold text-gray-800 mb-2">Results (most recent first)</h3>
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 border border-gray-200 rounded-lg">
+              <thead class="bg-gray-100">
+                <tr>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Model</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Time (ms)</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Status</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Timestamp</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                <tr v-for="(r, i) in speedTestResults" :key="i" class="hover:bg-gray-50">
+                  <td class="px-4 py-2 text-sm font-mono text-gray-900">{{ r.model }}</td>
+                  <td class="px-4 py-2 text-sm text-gray-700">{{ r.durationMs }} ms</td>
+                  <td class="px-4 py-2 text-sm">
+                    <span v-if="r.success" class="text-green-600 font-medium">OK</span>
+                    <span v-else class="text-red-600" :title="r.error">Error</span>
+                  </td>
+                  <td class="px-4 py-2 text-sm text-gray-600">{{ formatSpeedTestTime(r.timestamp) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -1594,5 +1694,125 @@ watch(showPronunciationCache, (newVal) => {
     loadPronunciationStats()
     loadPronunciationEntries()
   }
+})
+
+// GPT Model Speed Test
+const speedTestModel = ref('')
+const speedTestModels = ref<string[]>([])
+const speedTestModelsLoading = ref(false)
+const speedTestModelsError = ref('')
+const speedTestRunning = ref(false)
+const speedTestMessage = ref('')
+const speedTestMessageType = ref<'success' | 'error'>('success')
+type SpeedTestResult = { model: string; durationMs: number; success: boolean; error?: string; timestamp: number }
+const speedTestResults = ref<SpeedTestResult[]>([])
+
+const loadSpeedTestModels = async () => {
+  speedTestModelsLoading.value = true
+  speedTestModelsError.value = ''
+  try {
+    const res = await $fetch<{ models: string[] }>('/api/admin/openai/models-list')
+    speedTestModels.value = res.models ?? []
+  } catch (e: any) {
+    speedTestModelsError.value = e.data?.message || 'Failed to load models'
+  } finally {
+    speedTestModelsLoading.value = false
+  }
+}
+
+const runSpeedTest = async () => {
+  if (!speedTestModel.value) return
+  speedTestRunning.value = true
+  speedTestMessage.value = ''
+  try {
+    const res = await $fetch<{ success: boolean; model: string; durationMs: number; error?: string }>('/api/admin/openai/speed-test', {
+      method: 'POST',
+      body: { model: speedTestModel.value },
+    })
+    const result: SpeedTestResult = {
+      model: res.model,
+      durationMs: res.durationMs,
+      success: res.success,
+      error: res.error,
+      timestamp: Date.now(),
+    }
+    speedTestResults.value = [result, ...speedTestResults.value]
+    if (res.success) {
+      speedTestMessage.value = `${res.model}: ${res.durationMs} ms`
+      speedTestMessageType.value = 'success'
+    } else {
+      speedTestMessage.value = res.error || 'Request failed'
+      speedTestMessageType.value = 'error'
+    }
+  } catch (e: any) {
+    speedTestMessage.value = e.data?.message || 'Request failed'
+    speedTestMessageType.value = 'error'
+  } finally {
+    speedTestRunning.value = false
+  }
+}
+
+const formatSpeedTestTime = (ts: number) => {
+  return new Date(ts).toLocaleTimeString()
+}
+
+// Default Translation Model
+const defaultModelSelected = ref('')
+const defaultModelCurrent = ref('')
+const defaultModelModels = ref<string[]>([])
+const defaultModelModelsLoading = ref(false)
+const defaultModelSaving = ref(false)
+const defaultModelError = ref('')
+const defaultModelMessage = ref('')
+const defaultModelMessageType = ref<'success' | 'error'>('success')
+
+const loadDefaultModel = async () => {
+  defaultModelError.value = ''
+  try {
+    const res = await $fetch<{ model: string }>('/api/admin/default-model')
+    defaultModelCurrent.value = res.model
+    defaultModelSelected.value = res.model
+  } catch (e: any) {
+    defaultModelError.value = e.data?.message || 'Failed to load default model'
+  }
+}
+
+const loadDefaultModelModels = async () => {
+  defaultModelModelsLoading.value = true
+  defaultModelError.value = ''
+  try {
+    const res = await $fetch<{ models: string[] }>('/api/admin/openai/models-list')
+    defaultModelModels.value = res.models ?? []
+  } catch (e: any) {
+    defaultModelError.value = e.data?.message || 'Failed to load models'
+  } finally {
+    defaultModelModelsLoading.value = false
+  }
+}
+
+const saveDefaultModel = async () => {
+  if (!defaultModelSelected.value) return
+  defaultModelSaving.value = true
+  defaultModelMessage.value = ''
+  try {
+    await $fetch('/api/admin/default-model', {
+      method: 'PUT',
+      body: { model: defaultModelSelected.value },
+    })
+    defaultModelCurrent.value = defaultModelSelected.value
+    defaultModelMessage.value = 'Default model updated'
+    defaultModelMessageType.value = 'success'
+  } catch (e: any) {
+    defaultModelMessage.value = e.data?.message || 'Failed to save'
+    defaultModelMessageType.value = 'error'
+  } finally {
+    defaultModelSaving.value = false
+  }
+}
+
+onMounted(() => {
+  loadSpeedTestModels()
+  loadDefaultModel()
+  loadDefaultModelModels()
 })
 </script>

@@ -373,6 +373,7 @@ The `wordData` stored in the database matches the `translationData` structure fr
     wordBinyan?: string | null // "Qal", "Piel", etc., null
     presentTenseHebrew?: string | null
     grammarNotes?: string      // Additional grammar notes
+    rootExamples?: Array<{ word: string; translation: string }>  // Additional words sharing the same root
     // ... all other columns/fields from that specific wordTable row
   }
 }
@@ -417,7 +418,7 @@ The `wordData` stored in the database matches the `translationData` structure fr
 1. User clicks "My Word List" button in top navigation
 2. Modal opens showing all saved words
 3. Words displayed in cards, newest first
-4. Each card shows Hebrew word, translation, metadata, and delete button
+4. Each card shows Hebrew word, translation, metadata (root, part of speech, etc.), and when available, **"Additional examples with the same root"** — other words sharing the same root with their translations (e.g., ילדה — girl, אוכל — food)
 
 ### 5.3 Deleting a Word
 

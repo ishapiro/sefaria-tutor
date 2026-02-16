@@ -1,7 +1,7 @@
-import { createError, defineEventHandler, getHeader } from 'h3'
+import { createError, defineEventHandler } from 'h3'
 import { useRuntimeConfig } from 'nitropack/runtime/internal/config'
 import { $fetch } from 'ofetch'
-import { getDefaultTranslationModel } from '~/server/utils/system-settings'
+import { requireUserRole } from '~/server/utils/auth'
 
 /** Model IDs that are general-purpose chat/completion models (excludes embeddings, TTS, etc.) */
 const GENERAL_PURPOSE_PREFIXES = ['gpt-3.5', 'gpt-4', 'gpt-5', 'o1', 'o3']
@@ -29,37 +29,21 @@ function getBaseModelId (id: string): string {
 
 /** Preference: chat-latest > instant > mini > turbo > base; codex excluded. Higher = better. */
 function modelPreferenceScore (id: string, baseId: string): number {
-  if (id.includes('-chat-latest')) return 5 // prefer for translation (no thinking, immediate response)
+  if (id.includes('-chat-latest')) return 5
   if (id.includes('-instant')) return 4
   if (id.includes('-mini')) return 3
   if (id.includes('-turbo')) return 2
   if (id === baseId) return 1
-  if (id.includes('-codex')) return -1 // never use codex
-  return 0 // other variants (pro, etc.) - skip
+  if (id.includes('-codex')) return -1
+  return 0
 }
 
 export default defineEventHandler(async (event) => {
+  await requireUserRole(event, ['admin'])
+
   const config = useRuntimeConfig(event)
   const env = (globalThis as unknown as { process?: { env?: Record<string, string> } }).process?.env
-  const apiAuthToken = config.apiAuthToken || env?.API_AUTH_TOKEN || ''
   const openaiApiKey = config.openaiApiKey || env?.OPENAI_API_KEY || ''
-
-  const authHeader = getHeader(event, 'authorization')
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    throw createError({
-      statusCode: 401,
-      statusMessage: 'Unauthorized',
-      message: 'Missing or invalid Authorization header',
-    })
-  }
-  const token = authHeader.slice(7)
-  if (apiAuthToken && token !== apiAuthToken) {
-    throw createError({
-      statusCode: 401,
-      statusMessage: 'Unauthorized',
-      message: 'Invalid token',
-    })
-  }
 
   if (!openaiApiKey) {
     throw createError({
@@ -81,16 +65,7 @@ export default defineEventHandler(async (event) => {
     const generalPurpose = (list.data ?? [])
       .filter(m => isGeneralPurposeModel(m.id))
 
-    // Prefer our configured primary model if available
-    // @ts-ignore
-    const db = event.context.cloudflare?.env?.DB
-    const primaryModel = await getDefaultTranslationModel(db)
-    const primaryAvailable = generalPurpose.some(m => m.id === primaryModel)
-    if (primaryAvailable) {
-      return { model: primaryModel }
-    }
-
-    // Group by base model id (e.g. gpt-5.2); pick newest family by created
+    // Group by base model id
     const byBase = new Map<string, typeof generalPurpose>()
     for (const m of generalPurpose) {
       const base = getBaseModelId(m.id)
@@ -98,17 +73,17 @@ export default defineEventHandler(async (event) => {
       byBase.get(base)!.push(m)
     }
 
-    // Newest family = max created among all models in that family
+    // Sort bases by newest family first
     const sortedBases = [...byBase.entries()].sort(([, a], [, b]) => {
       const maxA = Math.max(...a.map(m => m.created ?? 0))
       const maxB = Math.max(...b.map(m => m.created ?? 0))
       return maxB - maxA
     })
 
-    // Within each family: prefer instant, then mini, then turbo, then base; skip codex
+    // Flatten to sorted list of model IDs (prefer chat-latest, instant, mini, turbo; skip codex)
+    const modelIds: string[] = []
     for (const [baseId, family] of sortedBases) {
       if (!baseId || family.length === 0) continue
-
       const eligible = family
         .filter(m => modelPreferenceScore(m.id, baseId) >= 1)
         .sort((a, b) => {
@@ -117,12 +92,12 @@ export default defineEventHandler(async (event) => {
           if (scoreA !== scoreB) return scoreB - scoreA
           return (b.created ?? 0) - (a.created ?? 0)
         })
-
-      const best = eligible[0]
-
-      if (best) return { model: best.id }
+      for (const m of eligible) {
+        modelIds.push(m.id)
+      }
     }
-    return { model: 'gpt-4o' }
+
+    return { models: modelIds }
   } catch (err: unknown) {
     const status = (err as { statusCode?: number })?.statusCode ?? 500
     const data = (err as { data?: { error?: { message?: string } } })?.data

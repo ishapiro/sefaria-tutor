@@ -1,8 +1,10 @@
-import { createError, defineEventHandler, getHeader, readBody } from 'h3'
+import { createError, defineEventHandler, readBody } from 'h3'
 import { useRuntimeConfig } from 'nitropack/runtime/internal/config'
 import { $fetch } from 'ofetch'
 import { normalizePhrase, computePhraseHash, computeHash, CURRENT_CACHE_VERSION, CACHE_TTL_SECONDS, isValidTranslationStructure } from '~/server/utils/cache'
 import { validateAuth } from '~/server/utils/auth'
+import { getTranslationFallbackModel } from '~/server/utils/openai-models'
+import { getDefaultTranslationModel } from '~/server/utils/system-settings'
 
 /**
  * ATTENTION: If you modify the JSON structure (fields) in the SYSTEM_PROMPT below,
@@ -81,6 +83,7 @@ export default defineEventHandler(async (event) => {
 
   // @ts-ignore
   const db = event.context.cloudflare?.env?.DB
+  const primaryModel = await getDefaultTranslationModel(db)
 
   if (db) {
     try {
@@ -113,7 +116,7 @@ export default defineEventHandler(async (event) => {
             .bind(now)
             .run()
           
-          return parsed
+          return { ...parsed, fromCache: true }
         } else {
           // Malformed Hit - Treat as miss and track it
           await db.prepare('UPDATE cache_stats SET malformed_hits = malformed_hits + 1, updated_at = ? WHERE id = 1')
@@ -128,8 +131,9 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  try {
-    const response = await $fetch<{
+  async function callOpenAI (model: string) {
+    console.log('[openai/chat] Calling OpenAI with model:', model, 'promptLength:', body.prompt?.length ?? 0)
+    return $fetch<{
       id: string
       object: string
       created_at: number
@@ -147,23 +151,33 @@ export default defineEventHandler(async (event) => {
         Authorization: `Bearer ${openaiApiKey}`,
       },
       body: {
-        model: body.model || 'gpt-5.1',
+        model,
         instructions: SYSTEM_PROMPT,
         input: body.prompt,
         max_output_tokens: body.fullSentence ? 20000 : 4096,
-        reasoning: { effort: 'none' },
-        text: { verbosity: 'low' },
+        reasoning: { effort: 'medium' as const }, // gpt-5.2-chat-latest requires 'medium'; 'none' not supported
+        text: { verbosity: 'medium' as const }, // gpt-5.2-chat-latest requires 'medium'
+        // temperature not supported by gpt-5.2-chat-latest
       },
     })
+  }
 
+  function isModelError (err: unknown): boolean {
+    const status = (err as { statusCode?: number })?.statusCode
+    const message = ((err as { data?: { error?: { message?: string } } })?.data?.error?.message ?? (err instanceof Error ? err.message : '')).toLowerCase()
+    if (status === 404) return true
+    if (message.includes('model') && (message.includes('not found') || message.includes('does not exist') || message.includes('invalid'))) return true
+    return false
+  }
+
+  try {
+    let response = await callOpenAI(primaryModel)
     if (db) {
       try {
         const now = Math.floor(Date.now() / 1000)
-        // Cache Miss - Save to cache
         await db.prepare('INSERT OR REPLACE INTO translation_cache (phrase_hash, phrase, response, created_at, version, prompt_hash) VALUES (?, ?, ?, ?, ?, ?)')
           .bind(hash, normalized, JSON.stringify(response), now, CURRENT_CACHE_VERSION, promptHash)
           .run()
-        
         await db.prepare('UPDATE cache_stats SET misses = misses + 1, updated_at = ? WHERE id = 1')
           .bind(now)
           .run()
@@ -171,16 +185,54 @@ export default defineEventHandler(async (event) => {
         console.error('Cache write error:', dbWriteErr)
       }
     }
-
     return response
   } catch (err: unknown) {
+    console.error('[openai/chat] Primary model failed:', {
+      model: primaryModel,
+      status: (err as { statusCode?: number })?.statusCode,
+      message: ((err as { data?: { error?: { message?: string } } })?.data?.error?.message ?? (err instanceof Error ? err.message : '')),
+    })
+    if (isModelError(err)) {
+      try {
+        const fallbackModel = await getTranslationFallbackModel(openaiApiKey, primaryModel)
+        console.log('[openai/chat] Retrying with fallback model:', fallbackModel)
+        const response = await callOpenAI(fallbackModel)
+        if (db) {
+          try {
+            const now = Math.floor(Date.now() / 1000)
+            await db.prepare('INSERT OR REPLACE INTO translation_cache (phrase_hash, phrase, response, created_at, version, prompt_hash) VALUES (?, ?, ?, ?, ?, ?)')
+              .bind(hash, normalized, JSON.stringify(response), now, CURRENT_CACHE_VERSION, promptHash)
+              .run()
+            await db.prepare('UPDATE cache_stats SET misses = misses + 1, updated_at = ? WHERE id = 1')
+              .bind(now)
+              .run()
+          } catch (dbWriteErr) {
+            console.error('Cache write error:', dbWriteErr)
+          }
+        }
+        return response
+      } catch (fallbackErr) {
+        // Fallback failed; rethrow original error
+      }
+    }
     const status = (err as { statusCode?: number })?.statusCode ?? 500
-    const data = (err as { data?: { error?: { message?: string } } })?.data
-    const message = data?.error?.message ?? (err instanceof Error ? err.message : 'OpenAI request failed')
+    const data = (err as { data?: { error?: { message?: string; code?: string; type?: string } } })?.data
+    const errorDetail = data?.error
+    const message = errorDetail?.message ?? (err instanceof Error ? err.message : 'OpenAI request failed')
+
+    // Debug: log full error for diagnosis
+    console.error('[openai/chat] OpenAI request failed:', {
+      status,
+      model: primaryModel,
+      promptLength: body.prompt?.length ?? 0,
+      openaiError: errorDetail ? { message: errorDetail.message, code: errorDetail.code, type: errorDetail.type } : null,
+      fullErrorData: data,
+    })
+
     throw createError({
       statusCode: status >= 400 && status < 500 ? status : 502,
       statusMessage: status === 400 ? 'Bad Request' : 'Bad Gateway',
-      message,
+      message: `Translation failed: ${message}`,
     })
   }
 })
