@@ -165,13 +165,12 @@
         </div>
         <template v-for="(section, index) in currentPageText" :key="'v-' + index">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-b border-gray-100 pb-4 last:border-0">
-            <div class="select-none">
+            <div class="select-none verse-english-column">
               <span class="text-gray-500 mr-2 pointer-events-none cursor-default">{{ section.displayNumber }}</span>
               <span
-                v-for="(phrase, pIdx) in splitIntoPhrases(section.en)"
-                :key="pIdx"
-                class="cursor-default text-gray-700"
-              >{{ phrase }} </span>
+                class="cursor-default text-gray-700 verse-english-html"
+                v-html="sanitizeSefariaVerseHtml(section.en)"
+              />
             </div>
             <div class="text-right text-lg select-none" style="direction: rtl">
               <span class="text-gray-500 ml-2 text-sm pointer-events-none cursor-default">{{ section.displayNumber }}</span>
@@ -254,6 +253,7 @@
 import { computed } from 'vue'
 import { useSupportPageContext } from '~/composables/useSupportPageContext'
 import { SUPPORT_VIEW_NAMES } from '~/constants/supportViewNames'
+import { sanitizeSefariaVerseHtml } from '~/utils/text'
 
 export interface VerseSection {
   displayNumber: string | number
@@ -318,3 +318,53 @@ defineEmits<{
   'update:first': [value: number]
 }>()
 </script>
+
+<style scoped>
+.verse-english-column {
+  font-family: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+  font-size: 0.9375rem;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+.verse-english-html :deep(sup) {
+  font-size: 0.75em;
+  vertical-align: super;
+}
+.verse-english-html :deep(sup.footnote-marker) {
+  font-size: 0.7em;
+  vertical-align: super;
+  font-weight: 600;
+}
+.verse-english-html :deep(b) {
+  font-weight: 600;
+}
+.verse-english-html :deep(small) {
+  font-size: 0.85em;
+  font-variant: small-caps;
+}
+.verse-english-html :deep(i.footnote) {
+  font-size: 0.9em;
+  font-style: italic;
+  color: #555;
+}
+.verse-english-html :deep(span.poetry) {
+  display: block;
+  padding-left: 1.5em;
+  text-indent: -1.5em;
+  line-height: 1.15;
+  margin: 0;
+}
+.verse-english-html :deep(span.poetry.indentAll) {
+  padding-left: 1.5em;
+  text-indent: -1.5em;
+  line-height: 1.15;
+  margin: 0;
+}
+.verse-english-html :deep(a.refLink) {
+  color: #2563eb;
+  text-decoration: underline;
+}
+.verse-english-html :deep(a.refLink:hover) {
+  color: #1d4ed8;
+}
+</style>

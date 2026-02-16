@@ -58,7 +58,7 @@ export function extractTextArray (val: unknown): string[] {
     for (const k of keys) {
       const v = obj[k]
       if (typeof v === 'string') out.push(v)
-      else if (Array.isArray(v)) out.push(...v.filter((x): x is string => typeof x === 'string'))
+      else if (Array.isArray(v)) out.push(...extractTextArray(v))
       else if (v && typeof v === 'object') out.push(...extractTextArray(v))
     }
     return out

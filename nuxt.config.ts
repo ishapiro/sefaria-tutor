@@ -2,6 +2,15 @@
 export default defineNuxtConfig({
   compatibilityDate: '2024-09-19',
   devtools: { enabled: true },
+  app: {
+    head: {
+      link: [
+        { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
+        { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
+        { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&display=swap' },
+      ],
+    },
+  },
   modules: [
     '@nuxtjs/tailwindcss',
     '@nuxthub/core',

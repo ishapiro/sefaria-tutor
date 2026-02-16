@@ -13,7 +13,8 @@
         <span class="pl-2 text-sm sm:text-base font-normal text-gray-600 hidden sm:inline">(Using OpenAI Model: {{ openaiModel }})</span>
       </h1>
       <p class="text-xs sm:text-sm text-gray-600 leading-tight">
-        Source text from <a href="https://www.sefaria.org/" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline">Sefaria</a> API; translation by <a href="https://openai.com/" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline">OpenAI</a>
+        Source text from <a href="https://www.sefaria.org/" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline">Sefaria</a> API
+        <span v-if="sefariaEnglishVersion"> (English: {{ sefariaEnglishVersion }})</span>; Shoresh word-by-word translations generated via <a href="https://openai.com/" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline">OpenAI</a>
       </p>
     </div>
 
@@ -303,7 +304,7 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRuntimeConfig } from 'nuxt/app'
 import type { CategoryNode } from '~/components/WordExplorer/BookBrowser.vue'
-import { hasMultipleSentences, countWords, getPlainTextFromHtml, splitIntoPhrases, countWordInPhrase, phraseContainsWord } from '~/utils/text'
+import { hasMultipleSentences, countWords, getPlainTextFromHtml, splitIntoPhrases, countWordInPhrase, phraseContainsWord, normalizeEnglishSpacingForHtml } from '~/utils/text'
 import { parseStartChapterFromRef, buildTanakhDisplayNumbers, parseRangeFromRef, extractTextArray, extractTextAndSections } from '~/utils/sefaria'
 import { buildNoteContext } from '~/utils/notes'
 import { useClipboard } from '~/composables/useClipboard'
@@ -345,6 +346,8 @@ const showContentDebugDialog = ref(false)
 const lastSefariaRefAttempted = ref<string | null>(null)
 const lastSefariaResponse = ref<unknown>(null)
 const lastSefariaError = ref<string | null>(null)
+/** English translation version title from Sefaria (e.g. JPS 1917); set when book content loads */
+const sefariaEnglishVersion = ref<string | null>(null)
 const showTranslationDialog = ref(false)
 const translationLoading = ref(false)
 const translationData = ref<{
@@ -1347,6 +1350,7 @@ async function fetchComplexBookToc (book: CategoryNode) {
       complexSections.value = sections
     }
     allVerseData.value = []
+    sefariaEnglishVersion.value = null
     totalRecords.value = 0
     first.value = 0
   } catch {
@@ -1370,6 +1374,7 @@ function isLeafNode (section: { ref: string; isContainer?: boolean }): boolean {
 function goBackSection () {
   if (allVerseData.value.length > 0) {
     allVerseData.value = []
+    sefariaEnglishVersion.value = null
     totalRecords.value = 0
     first.value = 0
     nextSectionRef.value = null
@@ -1516,6 +1521,7 @@ async function fetchBookContent (refOverride?: string | null, displayLabel?: str
       ref?: string
       sectionRef?: string
       sections?: string[]
+      versionTitle?: string
     }>(`/api/sefaria/texts/${encodeURIComponent(sefariaRef)}`)
     const rawNext = response.next ?? response.firstAvailableSectionRef ?? null
     nextSectionRef.value = rawNext ? deduplicateTitleSegments(rawNext) : null
@@ -1524,6 +1530,7 @@ async function fetchBookContent (refOverride?: string | null, displayLabel?: str
       errorMessage.value = `API Error: ${response.error}`
       showErrorDialog.value = true
       allVerseData.value = []
+      sefariaEnglishVersion.value = null
       totalRecords.value = 0
       loading.value = false
       return
@@ -1535,7 +1542,7 @@ async function fetchBookContent (refOverride?: string | null, displayLabel?: str
       textData = heArr.map((he, idx) => ({
         number: idx + 1,
         displayNumber: `${idx + 1}`,
-        en: enArr[idx] ?? '',
+        en: normalizeEnglishSpacingForHtml(enArr[idx] ?? ''),
         he: he ?? ''
       }))
       if (textData.length === 0 && response.next) {
@@ -1584,7 +1591,7 @@ async function fetchBookContent (refOverride?: string | null, displayLabel?: str
       textData = useHeArr.map((he, idx) => ({
         number: verseNums[idx] ?? idx + 1,
         displayNumber: displayNumbers[idx] ?? String(idx + 1),
-        en: useEnArr[idx] ?? '',
+        en: normalizeEnglishSpacingForHtml(useEnArr[idx] ?? ''),
         he: he ?? ''
       }))
     } else if (enArr.length || heArr.length) {
@@ -1612,7 +1619,7 @@ async function fetchBookContent (refOverride?: string | null, displayLabel?: str
       textData = Array.from({ length: len }, (_, i) => ({
         number: verseNums[i],
         displayNumber: displayNumbers[i] ?? String(verseNums[i]),
-        en: enArr[i] ?? '',
+        en: normalizeEnglishSpacingForHtml(enArr[i] ?? ''),
         he: heArr[i] ?? ''
       }))
     }
@@ -1622,6 +1629,7 @@ async function fetchBookContent (refOverride?: string | null, displayLabel?: str
     }
     totalRecords.value = textData.length
     allVerseData.value = textData
+    sefariaEnglishVersion.value = response.versionTitle ?? null
     first.value = 0
   } catch (err: unknown) {
     const httpErr = err as { data?: { error?: string }; message?: string }
@@ -1652,6 +1660,7 @@ async function fetchBookContent (refOverride?: string | null, displayLabel?: str
 
     showErrorDialog.value = true
     allVerseData.value = []
+    sefariaEnglishVersion.value = null
     totalRecords.value = 0
     nextSectionRef.value = null
   } finally {
@@ -1697,6 +1706,7 @@ async function onBookSelect (event: { data: CategoryNode }) {
   selectedBook.value = bookWithPath
   
   allVerseData.value = []
+  sefariaEnglishVersion.value = null
   totalRecords.value = 0
   first.value = 0
   complexSections.value = null
@@ -1725,6 +1735,7 @@ function handleCloseBook (options?: { forceCloseToBookList?: boolean }) {
   if (goHome) {
     selectedBook.value = null
     allVerseData.value = []
+    sefariaEnglishVersion.value = null
     totalRecords.value = 0
     first.value = 0
     currentChapter.value = null
@@ -1737,12 +1748,14 @@ function handleCloseBook (options?: { forceCloseToBookList?: boolean }) {
   if (isComplexBookFlag.value) {
     if (allVerseData.value.length > 0) {
       allVerseData.value = []
+      sefariaEnglishVersion.value = null
       totalRecords.value = 0
       first.value = 0
       nextSectionRef.value = null
       complexSections.value = complexSections.value ? [...complexSections.value] : null
     } else {
       allVerseData.value = []
+      sefariaEnglishVersion.value = null
       totalRecords.value = 0
       complexSections.value = null
       sectionStack.value = []
@@ -1753,6 +1766,7 @@ function handleCloseBook (options?: { forceCloseToBookList?: boolean }) {
   } else {
     selectedBook.value = null
     allVerseData.value = []
+    sefariaEnglishVersion.value = null
     totalRecords.value = 0
     first.value = 0
     currentChapter.value = null
@@ -2237,7 +2251,7 @@ async function startStudy() {
   let sessionSize = 20
   let cardMultiplier = 2
   try {
-    const settings = await $fetch<Record<string, string>>('/api/user/settings').catch(() => ({}))
+    const settings = await $fetch<Record<string, string>>('/api/user/settings').catch(() => ({} as Record<string, string>))
     const n = parseInt(settings?.flashcard_correct_repetitions ?? '2', 10)
     studyCorrectRepetitions.value = Number.isFinite(n) && n >= 0 ? n : 2
     const size = parseInt(settings?.flashcard_session_size ?? '20', 10)
@@ -2558,7 +2572,7 @@ watch(loggedIn, async (isLoggedIn) => {
     return
   }
   try {
-    const settings = await $fetch<Record<string, string>>('/api/user/settings').catch(() => ({}))
+    const settings = await $fetch<Record<string, string>>('/api/user/settings').catch(() => ({} as Record<string, string>))
     const n = parseInt(settings?.long_phrase_word_limit ?? '8', 10)
     const allowed = [5, 8, 10, 15, 20, 50]
     longPhraseWordLimit.value = Number.isFinite(n) && allowed.includes(n) ? n : 8
