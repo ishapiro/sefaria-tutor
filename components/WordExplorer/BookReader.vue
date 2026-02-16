@@ -3,15 +3,27 @@
     <div class="border-b border-gray-200 bg-gray-50">
       <!-- Mobile: Stacked layout -->
       <div class="flex flex-col sm:hidden p-3 gap-2">
-        <div class="flex items-center justify-between gap-2">
-          <span class="font-semibold text-sm text-gray-900 truncate flex-1 min-w-0">{{ selectedBookTitle }}{{ currentChapter ? ` (${currentChapter})` : '' }}</span>
-          <button
-            type="button"
-            class="px-3 py-1.5 text-xs font-medium border border-gray-300 rounded-lg transition-all duration-150 shrink-0 inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
-            @click="$emit('close-book')"
-          >
-            ← Back
-          </button>
+        <div class="flex items-center justify-between gap-2 flex-wrap">
+          <span class="font-semibold text-sm text-gray-900 truncate flex-1 min-w-0 order-1">{{ selectedBookTitle }}{{ currentChapter ? ` (${currentChapter})` : '' }}</span>
+          <div class="flex items-center gap-1.5 shrink-0 order-2">
+            <button
+              type="button"
+              class="px-2 py-1.5 text-xs font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center gap-1 min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
+              :title="showEnglishColumn ? 'Hide English translation' : 'Show English translation'"
+              aria-label="Toggle English column"
+              @click="showEnglishColumn = !showEnglishColumn"
+            >
+              <span class="text-sm leading-none" aria-hidden="true">🔤</span>
+              <span>{{ showEnglishColumn ? 'Hide EN' : 'Show EN' }}</span>
+            </button>
+            <button
+              type="button"
+              class="px-3 py-1.5 text-xs font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
+              @click="$emit('close-book')"
+            >
+              ← Back
+            </button>
+          </div>
         </div>
         <div v-if="loggedIn" class="flex items-center gap-2">
           <button
@@ -42,6 +54,15 @@
       <div class="hidden sm:flex justify-between items-center p-4">
         <span class="font-semibold text-gray-900">{{ selectedBookTitle }}{{ currentChapter ? ` (${currentChapter})` : '' }}</span>
         <div class="flex items-center gap-3">
+          <button
+            type="button"
+            class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center gap-2 min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
+            :title="showEnglishColumn ? 'Hide English translation' : 'Show English translation'"
+            @click="showEnglishColumn = !showEnglishColumn"
+          >
+            <span class="text-base leading-none" aria-hidden="true">🔤</span>
+            <span>{{ showEnglishColumn ? 'Hide English' : 'Show English' }}</span>
+          </button>
           <button
             v-if="loggedIn"
             type="button"
@@ -159,13 +180,19 @@
             Debug
           </button>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-          <div class="font-medium text-gray-500">English</div>
+        <div
+          class="grid gap-4 text-sm"
+          :class="showEnglishColumn ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'"
+        >
+          <div v-if="showEnglishColumn" class="font-medium text-gray-500">English</div>
           <div class="font-medium text-gray-500 text-right" style="direction: rtl">Hebrew</div>
         </div>
         <template v-for="(section, index) in currentPageText" :key="'v-' + index">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-b border-gray-100 pb-4 last:border-0">
-            <div class="select-none verse-english-column">
+          <div
+            class="grid gap-4 border-b border-gray-100 pb-4 last:border-0"
+            :class="showEnglishColumn ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'"
+          >
+            <div v-if="showEnglishColumn" class="select-none verse-english-column">
               <span class="text-gray-500 mr-2 pointer-events-none cursor-default">{{ section.displayNumber }}</span>
               <span
                 class="cursor-default text-gray-700 verse-english-html"
@@ -250,10 +277,36 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useSupportPageContext } from '~/composables/useSupportPageContext'
 import { SUPPORT_VIEW_NAMES } from '~/constants/supportViewNames'
 import { sanitizeSefariaVerseHtml } from '~/utils/text'
+
+const STORAGE_KEY_SHOW_ENGLISH = 'book-reader-show-english'
+/** Default: show both English and Hebrew columns. Only hide English when user has chosen to. */
+const DEFAULT_SHOW_ENGLISH = true
+
+function getStoredShowEnglish (): boolean {
+  if (typeof window === 'undefined') return DEFAULT_SHOW_ENGLISH
+  try {
+    const v = localStorage.getItem(STORAGE_KEY_SHOW_ENGLISH)
+    if (v === null) return DEFAULT_SHOW_ENGLISH
+    return v === '1' || v === 'true'
+  } catch {
+    return DEFAULT_SHOW_ENGLISH
+  }
+}
+
+function setStoredShowEnglish (value: boolean) {
+  try {
+    localStorage.setItem(STORAGE_KEY_SHOW_ENGLISH, value ? '1' : '0')
+  } catch {
+    // ignore
+  }
+}
+
+const showEnglishColumn = ref(typeof window !== 'undefined' ? getStoredShowEnglish() : DEFAULT_SHOW_ENGLISH)
+watch(showEnglishColumn, (v) => setStoredShowEnglish(v))
 
 export interface VerseSection {
   displayNumber: string | number
