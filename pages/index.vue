@@ -1,7 +1,12 @@
 <template>
   <div class="container mx-auto p-3 sm:p-4 relative">
     <!-- API loading spinner overlay -->
-    <CommonLoadingOverlay :open="apiLoading" :message="apiLoadingMessage" />
+    <CommonLoadingOverlay
+      :open="apiLoading"
+      :message="apiLoadingMessage"
+      :rotating-messages="translationLoading ? translationLoadingRotatingMessages : undefined"
+      :estimated-word-count="translationLoading ? translationInProgressWordCount : 0"
+    />
     <div class="mb-3 sm:mb-4">
       <h1 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">
         Word Explorer
@@ -360,11 +365,13 @@ const translationData = ref<{
 } | null>(null)
 const translationError = ref<string | null>(null)
 const translationMetadata = ref<{ model?: string; durationMs?: number; fromCache?: boolean } | null>(null)
+/** Word count of phrase being translated; used for progress bar estimate (3 sec/word) */
+const translationInProgressWordCount = ref(0)
 const lastTranslatedInputText = ref<string>('')
 const showMultiSentenceConfirmDialog = ref(false)
 const pendingTranslation = ref<{ plainText: string; fullSentence: boolean } | null>(null)
-/** Long phrase threshold: when selection has more than this many words, show word-picker. Loaded from user settings; default 10. */
-const longPhraseWordLimit = ref(10)
+/** Long phrase threshold: when selection has more than this many words, show word-picker. Loaded from user settings; default 8. */
+const longPhraseWordLimit = ref(8)
 const showLongPhraseSelectionDialog = ref(false)
 const pendingLongPhrase = ref<{ plainText: string; fullSentence: boolean } | null>(null)
 /** Sefaria ref captured when long phrase or multi-sentence dialog is shown; used when translation is performed so add-to-word-list has the correct reference. */
@@ -456,10 +463,21 @@ const apiLoadingMessage = computed(() => {
   if (loading.value) return 'Calling Sefaria…'
   if (ttsLoading.value) return 'Generating audio pronunciation…'
   if (translationLoading.value) {
-    return 'Getting word-by-word translation from OpenAI.\n\nProcessing takes approximately 5 seconds per word—please be patient.\n\nResults are saved so future translations will be faster.'
+    return 'Getting word-by-word translation from OpenAI.\n\nProcessing takes approximately 3 seconds per word—please be patient.\n\nResults are saved so future translations will be faster.'
   }
   return 'Loading…'
 })
+
+/** Rotating messages shown during translation—reflect what the AI prompt is doing */
+const translationLoadingRotatingMessages = [
+  'Translating the full phrase…',
+  'Analyzing each word…',
+  'Identifying roots (shorashim)…',
+  'Looking up root meanings…',
+  'Determining part of speech and binyan…',
+  'Explaining prefixes, suffixes, and conjugations…',
+  'Finding related words with the same root…',
+]
 
 /** True if the wordTable has notably fewer entries than words in the original phrase (model truncation). */
 const translationWordTableIncomplete = computed(() => {
@@ -1686,6 +1704,7 @@ async function doTranslateApiCall (plainText: string, fullSentence: boolean, sef
   if (!token) return
   translationSefariaRef.value = sefariaRefOverride ?? lastSefariaRefAttempted.value
   translationLoading.value = true
+  translationInProgressWordCount.value = Math.max(1, plainText.trim().split(/\s+/).filter(Boolean).length)
   translationData.value = null
   translationError.value = null
   translationMetadata.value = null
@@ -1735,6 +1754,7 @@ async function doTranslateApiCall (plainText: string, fullSentence: boolean, sef
     translationError.value = err instanceof Error ? err.message : 'Translation failed'
   } finally {
     translationLoading.value = false
+    translationInProgressWordCount.value = 0
     showTranslationDialog.value = true
   }
 }
@@ -2471,16 +2491,16 @@ watch(showWordListModal, async (isOpen) => {
 // Load user settings when logged in (e.g. long phrase threshold for translation)
 watch(loggedIn, async (isLoggedIn) => {
   if (!isLoggedIn) {
-    longPhraseWordLimit.value = 10
+    longPhraseWordLimit.value = 8
     return
   }
   try {
     const settings = await $fetch<Record<string, string>>('/api/user/settings').catch(() => ({}))
-    const n = parseInt(settings?.long_phrase_word_limit ?? '10', 10)
-    const allowed = [5, 10, 15, 20, 50]
-    longPhraseWordLimit.value = Number.isFinite(n) && allowed.includes(n) ? n : 10
+    const n = parseInt(settings?.long_phrase_word_limit ?? '8', 10)
+    const allowed = [5, 8, 10, 15, 20, 50]
+    longPhraseWordLimit.value = Number.isFinite(n) && allowed.includes(n) ? n : 8
   } catch {
-    longPhraseWordLimit.value = 10
+    longPhraseWordLimit.value = 8
   }
 }, { immediate: true })
 

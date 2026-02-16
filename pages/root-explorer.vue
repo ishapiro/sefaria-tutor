@@ -61,8 +61,8 @@
             v-model="scopeValue"
             class="px-2 py-1 border border-gray-300 rounded"
           >
-            <option value="Tanakh">Tanakh</option>
             <option value="Torah">Torah</option>
+            <option value="Tanakh">Tanakh</option>
             <option value="Nevi'im">Nevi'im</option>
             <option value="Ketuvim">Ketuvim</option>
             <option value="Talmud">Talmud</option>
@@ -323,7 +323,7 @@ const SCOPE_BOOKS: Record<string, Array<{ title: string; path: string }>> = {
 const route = useRoute()
 const rootInput = ref('')
 const scope = ref<'books' | 'genres'>('genres')
-const scopeValue = ref('Tanakh')
+const scopeValue = ref('Torah')
 const selectedBookPath = ref('')
 
 const scopeBooks = computed(() => SCOPE_BOOKS[scopeValue.value] ?? [])

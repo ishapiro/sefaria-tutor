@@ -100,7 +100,8 @@
               @change="saveSettings"
             >
             <option :value="5">5 words</option>
-            <option :value="10">10 words (default)</option>
+            <option :value="8">8 words (default)</option>
+            <option :value="10">10 words</option>
             <option :value="15">15 words</option>
             <option :value="20">20 words</option>
             <option :value="50">50 words</option>
@@ -223,7 +224,7 @@ const { loggedIn } = useAuth()
 const flashcardCorrectRepetitions = ref(2)
 const flashcardSessionSize = ref(20)
 const flashcardSessionCardMultiplier = ref(2)
-const longPhraseWordLimit = ref(10)
+const longPhraseWordLimit = ref(8)
 const saving = ref(false)
 const saveMessage = ref('')
 const saveMessageType = ref<'success' | 'error'>('success')
@@ -317,14 +318,14 @@ async function loadSettings () {
     flashcardSessionSize.value = Number.isFinite(size) && allowed.includes(size) ? size : 20
     const mult = parseInt(data?.flashcard_session_card_multiplier ?? '2', 10)
     flashcardSessionCardMultiplier.value = Number.isFinite(mult) && mult >= 1 && mult <= 5 ? mult : 2
-    const limit = parseInt(data?.long_phrase_word_limit ?? '10', 10)
-    const limitAllowed = [5, 10, 15, 20, 50]
-    longPhraseWordLimit.value = Number.isFinite(limit) && limitAllowed.includes(limit) ? limit : 10
+    const limit = parseInt(data?.long_phrase_word_limit ?? '8', 10)
+    const limitAllowed = [5, 8, 10, 15, 20, 50]
+    longPhraseWordLimit.value = Number.isFinite(limit) && limitAllowed.includes(limit) ? limit : 8
   } catch {
     flashcardCorrectRepetitions.value = 2
     flashcardSessionSize.value = 20
     flashcardSessionCardMultiplier.value = 2
-    longPhraseWordLimit.value = 10
+    longPhraseWordLimit.value = 8
   }
 }
 
