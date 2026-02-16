@@ -68,6 +68,8 @@
       :total-records="totalRecords"
       :rows-per-page="rowsPerPage"
       :first="first"
+      :next-section-ref="nextSectionRef"
+      :next-section-title="nextSectionDisplayTitle"
       :word-to-highlight="wordToHighlight"
       :logged-in="loggedIn"
       :show-word-list-modal="showWordListModal"
@@ -682,6 +684,29 @@ const currentPageText = computed(() => {
 
 const showSectionList = computed(() => (complexSections.value?.length ?? 0) > 0 && allVerseData.value.length === 0)
 const showBookNotAvailable = computed(() => bookLoadAttempted.value && !loading.value && currentPageText.value.length === 0 && !complexSections.value)
+
+/** Remove duplicate segments from a comma-separated section title (e.g. "Siddur Ashkenaz, Siddur Ashkenaz, Weekday" -> "Siddur Ashkenaz, Weekday"). */
+function deduplicateTitleSegments (title: string): string {
+  const segments = title.split(',').map(s => s.trim()).filter(Boolean)
+  const seen = new Set<string>()
+  const kept: string[] = []
+  for (const seg of segments) {
+    if (!seen.has(seg)) {
+      seen.add(seg)
+      kept.push(seg)
+    }
+  }
+  return kept.join(', ')
+}
+
+/** Display title for the next chapter/section (for "Next Chapter" button). */
+const nextSectionDisplayTitle = computed(() => {
+  const ref = nextSectionRef.value
+  if (!ref) return null
+  const section = complexSections.value?.find(s => s.ref === ref)
+  const raw = section?.title ?? buildSefariaRefForSection(ref)
+  return deduplicateTitleSegments(raw)
+})
 
 const filteredCategories = computed(() => {
   const q = searchQuery.value.toLowerCase()
@@ -1406,15 +1431,33 @@ async function fetchBookContent (refOverride?: string | null, displayLabel?: str
           ? `${displayLabel} – ${cleanOverride}`
           : cleanOverride
       } else {
-        const parts = refOverride
-          .split('/')
-          .map(p => p.replace(/\s*\([^)]*\)/, '').trim())
-        if (parts.length === 1 && /^\d+$/.test(parts[0])) {
-          sefariaRef = `${bookTitle} ${parts[0]}`.replace(/\s+/g, '_')
-          currentChapter.value = displayLabel ?? parts[0]
+        // refOverride can be: a path (e.g. "Weekday/Shacharit/..."), a full comma-separated ref from API,
+        // or "BookTitle ChapterNum" (e.g. "Genesis 23" from response.next for Tanakh). For Tanakh single-chapter
+        // refs we must use "Genesis_23" not "Genesis,_Genesis_23" or the API may return a different structure (TOC).
+        const bookTitleThenChapter = cleanOverride.match(/^(.+?) (\d+)$/)
+        const isSingleChapterRef = bookTitleThenChapter && bookTitleThenChapter[1].trim() === bookTitle
+        if (isSingleChapterRef) {
+          sefariaRef = `${bookTitle} ${bookTitleThenChapter![2]}`.replace(/\s+/g, '_')
+          currentChapter.value = displayLabel ?? bookTitleThenChapter![2]
         } else {
-          sefariaRef = `${bookTitle}, ${parts.join(', ')}`
-          currentChapter.value = displayLabel ?? parts.join(' ')
+          const commaParts = cleanOverride.split(',').map(p => p.trim()).filter(Boolean)
+          const isFullSefariaRef = commaParts.length > 1 && commaParts[0] === bookTitle
+          if (isFullSefariaRef) {
+            // Already a full ref (e.g. from response.next); deduplicate and use as-is so we don't double the book title.
+            sefariaRef = deduplicateTitleSegments(cleanOverride).replace(/\s+/g, '_').replace(/;/g, '_')
+            currentChapter.value = displayLabel ?? commaParts.slice(1).join(', ')
+          } else {
+            const parts = refOverride
+              .split('/')
+              .map(p => p.replace(/\s*\([^)]*\)/, '').trim())
+            if (parts.length === 1 && /^\d+$/.test(parts[0])) {
+              sefariaRef = `${bookTitle} ${parts[0]}`.replace(/\s+/g, '_')
+              currentChapter.value = displayLabel ?? parts[0]
+            } else {
+              sefariaRef = `${bookTitle}, ${parts.join(', ')}`.replace(/\s+/g, '_')
+              currentChapter.value = displayLabel ?? parts.join(' ')
+            }
+          }
         }
       }
     } else {
@@ -1474,7 +1517,8 @@ async function fetchBookContent (refOverride?: string | null, displayLabel?: str
       sectionRef?: string
       sections?: string[]
     }>(`/api/sefaria/texts/${encodeURIComponent(sefariaRef)}`)
-    nextSectionRef.value = response.next ?? response.firstAvailableSectionRef ?? null
+    const rawNext = response.next ?? response.firstAvailableSectionRef ?? null
+    nextSectionRef.value = rawNext ? deduplicateTitleSegments(rawNext) : null
     lastSefariaResponse.value = response
     if (response.error) {
       errorMessage.value = `API Error: ${response.error}`

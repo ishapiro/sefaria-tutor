@@ -201,26 +201,48 @@
             </div>
           </div>
         </template>
-        <!-- Pagination -->
-        <div v-if="totalRecords > rowsPerPage" class="flex items-center justify-between pt-4 border-t border-gray-200">
+        <!-- Pagination (multiple pages) -->
+        <div v-if="totalRecords > rowsPerPage" class="flex flex-wrap items-center justify-between gap-2 pt-4 border-t border-gray-200">
           <button
             type="button"
-            class="px-3 py-1 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="px-3 py-1 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
             :disabled="first === 0"
             @click="$emit('update:first', Math.max(0, first - rowsPerPage))"
           >
             Prev
           </button>
-          <span class="text-sm text-gray-600">
+          <span class="text-sm text-gray-600 min-w-0">
             {{ first + 1 }}–{{ Math.min(first + rowsPerPage, totalRecords) }} of {{ totalRecords }}
           </span>
+          <!-- Next page (same chapter) or Next Chapter when on last page -->
           <button
+            v-if="isOnLastPage && nextSectionRef"
             type="button"
-            class="px-3 py-1 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="px-3 py-1 text-sm font-medium border border-blue-300 rounded-lg transition-all duration-150 inline-flex items-center bg-blue-50 text-blue-800 hover:bg-blue-100 hover:border-blue-400 shrink-0"
+            :title="nextSectionTitle ? `Go to ${nextSectionTitle}` : 'Go to next chapter'"
+            @click="$emit('select-section', nextSectionRef, nextSectionTitle ?? '')"
+          >
+            Next Chapter<span v-if="nextSectionTitle" class="ml-1 inline-block min-w-0 max-w-[min(140px,calc(100vw-14rem))] truncate align-middle sm:max-w-none" :title="nextSectionTitle">({{ nextSectionTitle }})</span>
+          </button>
+          <button
+            v-else
+            type="button"
+            class="px-3 py-1 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
             :disabled="first + rowsPerPage >= totalRecords"
             @click="$emit('update:first', Math.min(first + rowsPerPage, totalRecords - 1))"
           >
             Next
+          </button>
+        </div>
+        <!-- Single page: show Next Section when there is a following section -->
+        <div v-else-if="totalRecords > 0 && nextSectionRef" class="flex flex-wrap items-center justify-end gap-2 pt-4 border-t border-gray-200">
+          <button
+            type="button"
+            class="px-3 py-1 text-sm font-medium border border-blue-300 rounded-lg transition-all duration-150 inline-flex items-center bg-blue-50 text-blue-800 hover:bg-blue-100 hover:border-blue-400 shrink-0"
+            :title="nextSectionTitle ? `Go to ${nextSectionTitle}` : 'Go to next section'"
+            @click="$emit('select-section', nextSectionRef, nextSectionTitle ?? '')"
+          >
+            Next Section<span v-if="nextSectionTitle" class="ml-1 inline-block min-w-0 max-w-[min(140px,calc(100vw-14rem))] truncate align-middle sm:max-w-none" :title="nextSectionTitle">({{ nextSectionTitle }})</span>
           </button>
         </div>
       </div>
@@ -229,6 +251,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useSupportPageContext } from '~/composables/useSupportPageContext'
 import { SUPPORT_VIEW_NAMES } from '~/constants/supportViewNames'
 
@@ -250,7 +273,7 @@ export interface ComplexSectionGroup {
   items: SectionRef[]
 }
 
-defineProps<{
+const props = defineProps<{
   selectedBookTitle: string
   currentChapter: string | number | null
   loading: boolean
@@ -262,6 +285,8 @@ defineProps<{
   totalRecords: number
   rowsPerPage: number
   first: number
+  nextSectionRef: string | null
+  nextSectionTitle: string | null
   wordToHighlight: string | null
   loggedIn: boolean
   showWordListModal: boolean
@@ -270,6 +295,10 @@ defineProps<{
   phraseContainsWord: (phrase: string, word: string) => boolean
   getSectionDisplayTitle: (section: SectionRef) => string
 }>()
+
+const isOnLastPage = computed(() =>
+  props.first + props.rowsPerPage >= props.totalRecords
+)
 
 const { setSupportView, clearSupportView } = useSupportPageContext()
 onMounted(() => setSupportView(SUPPORT_VIEW_NAMES.BOOK_READER))
