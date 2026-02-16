@@ -8,12 +8,18 @@
         ← Back to Word Explorer
       </NuxtLink>
     </div>
-    <h1 class="text-2xl font-bold text-gray-900 mb-2">
-      Concordance Word Explorer
-    </h1>
-    <p class="text-gray-600 text-sm mb-6">
-      See every occurrence of a Hebrew root (shoresh) in the text—like a concordance—across books or genres. Roots apply to both verbs and nouns (e.g. ק־ד־שׁ or K-D-Sh). Enter a root and choose scope.
-    </p>
+    <div class="flex flex-wrap items-center gap-2 mb-6">
+      <h1 class="text-2xl font-bold text-gray-900 mb-0">
+        Concordance Word Explorer
+      </h1>
+      <button
+        type="button"
+        class="px-2 py-1 text-xs font-medium border border-green-500 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-green-50 hover:border-green-600"
+        @click="showUsageModal = true"
+      >
+        Usage
+      </button>
+    </div>
 
     <div class="bg-white rounded-lg border border-gray-200 p-4 mb-6">
       <div class="flex flex-wrap items-center gap-3 mb-3">
@@ -191,6 +197,38 @@
       </div>
       <pre v-show="showDebugInfo" class="whitespace-pre-wrap break-words">{{ debugJson }}</pre>
     </div>
+
+    <!-- Usage modal -->
+    <div
+      v-if="showUsageModal"
+      class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50"
+      @click.self="showUsageModal = false"
+    >
+      <div class="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[85vh] overflow-hidden flex flex-col">
+        <div class="flex items-center justify-between p-4 border-b border-gray-200">
+          <h3 class="text-sm font-semibold text-gray-900">Usage</h3>
+          <button
+            type="button"
+            class="p-1.5 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+            aria-label="Close"
+            @click="showUsageModal = false"
+          >
+            <span class="text-lg leading-none">×</span>
+          </button>
+        </div>
+        <div class="p-4 overflow-y-auto text-sm text-gray-600 space-y-3">
+          <p>
+            <strong>What this tool does:</strong> Concordance Word Explorer shows you every place a Hebrew root (shoresh) appears in the text—like a concordance. You enter a root (e.g. ק־ד־שׁ or K-D-Sh) and choose a scope (Torah, Tanakh, Talmud, etc.), and the app lists every occurrence grouped by book or genre.
+          </p>
+          <p>
+            <strong>What is a root?</strong> In Hebrew, most words are built from a three-letter root. The same root can appear as a verb, noun, or other form. For example, the root ק־ד־שׁ (K-D-Sh) appears in words meaning “holy,” “sanctify,” “sanctuary,” and so on. This tool finds all of those occurrences so you can compare how the root is used across the text.
+          </p>
+          <p>
+            <strong>How to use it:</strong> Type the root in the input (you can use Hebrew letters or Latin transliteration). Choose “Compare by: Genres” to see results grouped by Torah, Nevi’im, Ketuvim, Talmud, etc., or “Compare by: Books” to see each book separately. Use the Scope dropdown to limit to Torah, full Tanakh, Talmud, and so on. Click “Search” to build the tree. You can then expand each branch to see references and snippets.
+          </p>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -344,6 +382,7 @@ const rootMeaningFetched = ref<string | null>(null)
 const rootMeaningLoading = ref(false)
 const showDebug = ref(false)
 const showDebugInfo = ref(true)
+const showUsageModal = ref(false)
 const copyDebugStatus = ref<'idle' | 'copied'>('idle')
 
 function getDisplayLimit (branchKey: string): number {

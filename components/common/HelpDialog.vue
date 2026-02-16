@@ -96,7 +96,13 @@
         <section class="rounded-xl bg-teal-50/60 p-5">
           <h3 class="font-semibold text-slate-900 mb-2 text-base">Concordance / Word Explorer</h3>
           <p class="text-slate-600 text-sm leading-relaxed mb-2">
-            From a word card in the translation dialog or in My Word List, click the <strong>concordance (location) icon</strong> to open the Word Explorer. You can see how a root or word appears across Tanakh, Talmud, and other texts—with links to open each occurrence in the main reader.
+            From a word card in the translation dialog or in My Word List, click the <strong>concordance icon</strong>
+            <span class="inline-flex items-center justify-center w-5 h-5 align-middle mx-0.5 text-slate-500">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 20V12M12 12V8M12 8c-2 0-3.5-1.5-3.5-3.5S10 1 12 1s3.5 1.5 3.5 3.5S14 8 12 8zM8 5l2 3M16 5l-2 3" />
+              </svg>
+            </span>
+            (looks like a lollipop) to open the Concordance Word Explorer. You can see how a root or word appears across Tanakh, Talmud, and other texts—with links to open each occurrence in the main reader.
           </p>
         </section>
 

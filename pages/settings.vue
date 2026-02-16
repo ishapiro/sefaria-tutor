@@ -1,7 +1,17 @@
 <template>
   <div class="container mx-auto p-3 sm:p-4 max-w-2xl">
     <div class="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 mb-6">
-      <h1 class="text-2xl sm:text-3xl font-bold text-gray-800">Settings</h1>
+      <div class="flex flex-wrap items-center gap-2">
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-800">Settings</h1>
+        <button
+          v-if="loggedIn"
+          type="button"
+          class="px-2 py-1 text-xs font-medium border border-green-500 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-green-50 hover:border-green-600"
+          @click="showUsageModal = true"
+        >
+          Usage
+        </button>
+      </div>
       <NuxtLink to="/" class="text-blue-600 hover:underline flex items-center gap-1 shrink-0 min-h-[44px] items-center">
         ← Back to Explorer
       </NuxtLink>
@@ -17,10 +27,7 @@
 
     <div v-else class="space-y-6">
       <section class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
-        <h2 class="text-lg sm:text-xl font-semibold text-gray-800 mb-1">Flashcards / Study</h2>
-        <p class="text-sm text-gray-600 mb-4">
-          When you mark a word as “Know it” during a study session, you can have it shown a few more times before it’s retired for that session.
-        </p>
+        <h2 class="text-lg sm:text-xl font-semibold text-gray-800 mb-4">Flashcards / Study</h2>
         <div class="space-y-4">
           <div class="flex flex-wrap items-center gap-3">
             <label for="flashcard-repetitions" class="text-sm font-medium text-gray-700">
@@ -84,10 +91,7 @@
       </section>
 
       <section class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
-        <h2 class="text-lg sm:text-xl font-semibold text-gray-800 mb-2">Translation: long phrase threshold</h2>
-        <p class="text-sm text-gray-600 mb-4">
-          If your selection has <strong>more than</strong> this many words, the app shows a word picker so you can choose which words to translate; otherwise it translates the whole selection. Each word takes about 5 seconds, so a higher number means longer wait times.
-        </p>
+        <h2 class="text-lg sm:text-xl font-semibold text-gray-800 mb-4">Translation: long phrase threshold</h2>
         <div class="flex flex-wrap items-center gap-3">
           <label for="long-phrase-limit" class="text-sm font-medium text-gray-700">
             Show word picker when selection has more than:
@@ -117,9 +121,6 @@
 
       <section class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
         <h2 class="text-lg sm:text-xl font-semibold text-gray-800 mb-2">Your study results</h2>
-        <p class="text-sm text-gray-600 mb-4">
-          All-time stats for words you’ve studied at least once (including words you’ve since archived).
-        </p>
         <div v-if="studyStatsLoading" class="text-center py-6 text-gray-500">Loading…</div>
         <div v-else-if="studyStatsError" class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm">{{ studyStatsError }}</div>
         <div v-else class="space-y-4">
@@ -215,11 +216,53 @@
         </div>
       </section>
     </div>
+
+    <!-- Usage modal (Settings) -->
+    <div
+      v-if="loggedIn && showUsageModal"
+      class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50"
+      @click.self="showUsageModal = false"
+    >
+      <div class="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[85vh] overflow-hidden flex flex-col">
+        <div class="flex items-center justify-between p-4 border-b border-gray-200">
+          <h3 class="text-sm font-semibold text-gray-900">Usage</h3>
+          <button
+            type="button"
+            class="p-1.5 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+            aria-label="Close"
+            @click="showUsageModal = false"
+          >
+            <span class="text-lg leading-none">×</span>
+          </button>
+        </div>
+        <div class="p-4 overflow-y-auto text-sm text-gray-600 space-y-4">
+          <div>
+            <h4 class="font-semibold text-gray-900 mb-1">Flashcards / Study</h4>
+            <p>
+              When you mark a word as “Know it” during a study session, you can have it shown a few more times before it’s retired for that session. “Repeat correct words” controls how many extra times. “Words per study session” is how many words are drawn from your list for one session. “Max cards per session” is the total number of card views (each time a word is shown counts as one); the session ends when you reach that number or run out of words.
+            </p>
+          </div>
+          <div>
+            <h4 class="font-semibold text-gray-900 mb-1">Translation: long phrase threshold</h4>
+            <p>
+              If your selection has <strong>more than</strong> this many words, the app shows a word picker so you can choose which words to translate; otherwise it translates the whole selection. Each word takes about 5 seconds, so a higher number means longer wait times. Choose a value that balances convenience with speed.
+            </p>
+          </div>
+          <div>
+            <h4 class="font-semibold text-gray-900 mb-1">Your study results</h4>
+            <p>
+              All-time stats for words you’ve studied at least once (including words you’ve since archived). Words studied is the number of distinct words; Total shown and Total correct are how many times cards were shown and how many times you answered “Know it.” The table below lists each word with its stats; you can archive or restore words from My Word List.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 const { loggedIn } = useAuth()
+const showUsageModal = ref(false)
 
 const flashcardCorrectRepetitions = ref(2)
 const flashcardSessionSize = ref(20)

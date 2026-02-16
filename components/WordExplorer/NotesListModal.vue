@@ -17,6 +17,13 @@
           <div class="flex flex-wrap items-center gap-2 shrink-0 pt-1 sm:pt-0 justify-end">
             <button
               type="button"
+              class="px-4 py-2 text-sm font-medium border border-green-500 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-green-50 hover:border-green-600"
+              @click="showUsageModal = true"
+            >
+              Usage
+            </button>
+            <button
+              type="button"
               class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
               aria-label="Close"
               @click="$emit('close')"
@@ -197,6 +204,35 @@
       </div>
     </div>
 
+    <!-- Usage modal -->
+    <div
+      v-if="showUsageModal"
+      class="absolute inset-0 z-[55] flex items-center justify-center p-4 bg-black/50 rounded-lg"
+      @click.self="showUsageModal = false"
+    >
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[85vh] overflow-hidden flex flex-col">
+        <div class="flex items-center justify-between p-4 border-b border-gray-200">
+          <h3 class="text-sm font-semibold text-gray-900">Usage</h3>
+          <button
+            type="button"
+            class="p-1.5 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+            aria-label="Close"
+            @click="showUsageModal = false"
+          >
+            <span class="text-lg leading-none">×</span>
+          </button>
+        </div>
+        <div class="p-4 overflow-y-auto text-sm text-gray-600 space-y-3">
+          <p>
+            <strong>Adding notes:</strong> When reading a book, click the 📝 icon next to any Hebrew phrase to add or edit a note. Your note is tied to that phrase and reference. You must be signed in to save notes.
+          </p>
+          <p>
+            <strong>This list:</strong> My Notes shows all your notes grouped by book. Click a note in the list to view or edit it. Use the checkboxes to select notes, then <strong>Print</strong> or <strong>Copy</strong> to export them. You can edit the note text in the panel and delete notes you no longer need.
+          </p>
+        </div>
+      </div>
+    </div>
+
     <!-- Delete confirmation -->
     <div
       v-if="noteToDelete"
@@ -240,6 +276,7 @@ const props = defineProps<{
   open: boolean
 }>()
 
+const showUsageModal = ref(false)
 const { setSupportView, clearSupportView } = useSupportPageContext()
 watch(() => props.open, (isOpen) => {
   if (isOpen) setSupportView(SUPPORT_VIEW_NAMES.MY_NOTES)

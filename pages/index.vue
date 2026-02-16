@@ -7,15 +7,19 @@
       :rotating-messages="translationLoading ? translationLoadingRotatingMessages : undefined"
       :estimated-word-count="translationLoading ? translationInProgressWordCount : 0"
     />
-    <div class="mb-3 sm:mb-4">
-      <h1 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">
+    <div class="mb-3 sm:mb-4 flex flex-wrap items-center gap-2">
+      <h1 class="text-lg sm:text-xl font-bold mb-0">
         Word Explorer
         <span class="pl-2 text-sm sm:text-base font-normal text-gray-600 hidden sm:inline">(Using OpenAI Model: {{ openaiModel }})</span>
       </h1>
-      <p class="text-xs sm:text-sm text-gray-600 leading-tight">
-        Source text from <a href="https://www.sefaria.org/" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline">Sefaria</a> API
-        <span v-if="sefariaEnglishVersion"> (English: {{ sefariaEnglishVersion }})</span>; Shoresh word-by-word translations generated via <a href="https://openai.com/" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline">OpenAI</a>
-      </p>
+      <button
+        v-if="!selectedBook"
+        type="button"
+        class="px-2 py-1 text-xs font-medium border border-green-500 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-green-50 hover:border-green-600"
+        @click="showUsageModal = true"
+      >
+        Usage
+      </button>
     </div>
 
     <!-- Loading index -->
@@ -279,6 +283,38 @@
       </div>
     </div>
 
+    <!-- Usage modal (Word Explorer) -->
+    <div
+      v-if="showUsageModal"
+      class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50"
+      @click.self="showUsageModal = false"
+    >
+      <div class="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[85vh] overflow-hidden flex flex-col">
+        <div class="flex items-center justify-between p-4 border-b border-gray-200">
+          <h3 class="text-sm font-semibold text-gray-900">Usage</h3>
+          <button
+            type="button"
+            class="p-1.5 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+            aria-label="Close"
+            @click="showUsageModal = false"
+          >
+            <span class="text-lg leading-none">×</span>
+          </button>
+        </div>
+        <div class="p-4 overflow-y-auto text-sm text-gray-600 space-y-3">
+          <p>
+            <strong>What this page does:</strong> Word Explorer lets you browse Jewish texts (Tanakh, Talmud, and more), read them in Hebrew and English side by side, and get word-by-word translations and grammar for any phrase. Tap a phrase to see each word’s meaning, root, and part of speech.
+          </p>
+          <p>
+            <strong>Where the content comes from:</strong> The Hebrew and English source texts are loaded from the <a href="https://www.sefaria.org/" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline">Sefaria</a> API. When you tap a phrase, Shoresh sends it to <a href="https://openai.com/" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline">OpenAI</a> to generate the word-by-word breakdown; that translation is not from Sefaria.
+          </p>
+          <p>
+            <strong>How to use it:</strong> Open a book from the list, then pick a section (e.g. a Torah portion or Talmud tractate). In the reader, tap any Hebrew phrase to open the translation popup. You can add words to “My Word List” for later study, add notes to phrases when signed in, and use the Study button to practice with flashcards.
+          </p>
+        </div>
+      </div>
+    </div>
+
     <!-- Raw translation data dialog -->
     <div
       v-if="showRawData"
@@ -335,6 +371,7 @@ const errorMessage = ref('')
 const errorDetails = ref<Record<string, unknown> | null>(null)
 const showErrorDebugDialog = ref(false)
 const showHelpDialog = ref(false)
+const showUsageModal = ref(false)
 const isComplexBookFlag = ref(false)
 const complexSections = ref<Array<{ ref: string; title: string; heTitle?: string; isContainer?: boolean }> | null>(null)
 const bookLoadAttempted = ref(false)
@@ -1704,7 +1741,8 @@ async function onBookSelect (event: { data: CategoryNode }) {
   // Ensure the book has a path before setting it
   const bookWithPath = await ensureBookPath(data)
   selectedBook.value = bookWithPath
-  
+  showUsageModal.value = false // Reader is now top content; close index usage if open
+
   allVerseData.value = []
   sefariaEnglishVersion.value = null
   totalRecords.value = 0

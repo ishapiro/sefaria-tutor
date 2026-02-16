@@ -5,15 +5,24 @@
     @click.self="$emit('close')"
   >
     <div class="bg-white rounded-lg shadow-xl p-6 w-[90vw] max-h-[90vh] overflow-auto text-base">
-      <div class="flex justify-between items-center mb-4">
+      <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
         <h2 class="text-2xl font-bold">Word-by-word translation</h2>
-        <button
-          type="button"
-          class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
-          @click="$emit('close')"
-        >
-          Close
-        </button>
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            class="px-4 py-2 text-sm font-medium border border-green-500 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-green-50 hover:border-green-600"
+            @click="showUsageModal = true"
+          >
+            Usage
+          </button>
+          <button
+            type="button"
+            class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
+            @click="$emit('close')"
+          >
+            Close
+          </button>
+        </div>
       </div>
       <div v-if="translationLoading" class="text-center py-8 text-gray-500 text-lg">Loading word-by-word translation from OpenAI…</div>
       <div v-else-if="translationError" class="text-center py-8 text-red-600 text-lg">{{ translationError }}</div>
@@ -198,10 +207,49 @@
         </div>
       </div>
     </div>
+
+    <!-- Usage modal (translation dialog) -->
+    <div
+      v-if="showUsageModal"
+      class="absolute inset-0 z-[55] flex items-center justify-center p-4 bg-black/50 rounded-lg"
+      @click.self="showUsageModal = false"
+    >
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[85vh] overflow-hidden flex flex-col">
+        <div class="flex items-center justify-between p-4 border-b border-gray-200">
+          <h3 class="text-sm font-semibold text-gray-900">Usage</h3>
+          <button
+            type="button"
+            class="p-1.5 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+            aria-label="Close"
+            @click="showUsageModal = false"
+          >
+            <span class="text-lg leading-none">×</span>
+          </button>
+        </div>
+        <div class="p-4 overflow-y-auto text-sm text-gray-600 space-y-3">
+          <p>
+            <strong>Concordance icon</strong>
+            <span class="inline-flex items-center justify-center w-6 h-6 align-middle mx-0.5 text-gray-500">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 20V12M12 12V8M12 8c-2 0-3.5-1.5-3.5-3.5S10 1 12 1s3.5 1.5 3.5 3.5S14 8 12 8zM8 5l2 3M16 5l-2 3" />
+              </svg>
+            </span>
+            (looks like a lollipop): Next to each word’s root you’ll see this icon. Click it to open the Concordance Word Explorer, where you can see every occurrence of that root (or word) across Tanakh, Talmud, and other texts—with links to open each occurrence in the main reader.
+          </p>
+          <p>
+            <strong>Add button (⭐ Add):</strong> When you’re signed in, the “Add” button next to a word saves that word to My Word List. You can then study saved words with flashcards from the Word List’s Study button.
+          </p>
+          <p>
+            <strong>Other tips:</strong> Click the Hebrew phrase at the top to hear it spoken; click any word in the table to hear its pronunciation. Use Copy Hebrew / Copy English to copy the phrase.
+          </p>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import { substantiveWord } from '~/utils/text'
 import { useSupportPageContext } from '~/composables/useSupportPageContext'
 import { SUPPORT_VIEW_NAMES } from '~/constants/supportViewNames'
@@ -248,6 +296,7 @@ const props = defineProps<{
   getWordListButtonText: (index: number) => string
 }>()
 
+const showUsageModal = ref(false)
 const { setSupportView, clearSupportView } = useSupportPageContext()
 watch(() => props.open, (isOpen) => {
   if (isOpen) setSupportView(SUPPORT_VIEW_NAMES.TRANSLATION)

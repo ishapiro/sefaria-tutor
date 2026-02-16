@@ -1,14 +1,22 @@
 <template>
   <div class="border border-gray-200 rounded-lg bg-white overflow-hidden">
     <div class="border-b border-gray-200 bg-gray-50">
-      <!-- Mobile: Stacked layout -->
-      <div class="flex flex-col sm:hidden p-3 gap-2">
-        <div class="flex items-center justify-between gap-2 flex-wrap">
+      <!-- Mobile: Stacked layout (compact) -->
+      <div class="flex flex-col sm:hidden p-2 gap-1.5">
+        <div class="flex items-center justify-between gap-1.5 flex-wrap">
           <span class="font-semibold text-sm text-gray-900 truncate flex-1 min-w-0 order-1">{{ selectedBookTitle }}{{ currentChapter ? ` (${currentChapter})` : '' }}</span>
-          <div class="flex items-center gap-1.5 shrink-0 order-2">
+          <div class="flex items-center gap-1 shrink-0 order-2">
             <button
               type="button"
-              class="px-2 py-1.5 text-xs font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center gap-1 min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
+              class="px-2 py-1 text-xs font-medium border border-green-500 rounded-md transition-all duration-150 inline-flex items-center gap-1 min-h-[32px] bg-white text-gray-700 hover:bg-green-50 hover:border-green-600"
+              title="Usage"
+              @click="showUsageModal = true"
+            >
+              Usage
+            </button>
+            <button
+              type="button"
+              class="px-2 py-1 text-xs font-medium border border-gray-300 rounded-md transition-all duration-150 inline-flex items-center gap-1 min-h-[32px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
               :title="showEnglishColumn ? 'Hide English translation' : 'Show English translation'"
               aria-label="Toggle English column"
               @click="showEnglishColumn = !showEnglishColumn"
@@ -18,17 +26,17 @@
             </button>
             <button
               type="button"
-              class="px-3 py-1.5 text-xs font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
+              class="px-2 py-1 text-xs font-medium border border-gray-300 rounded-md transition-all duration-150 inline-flex items-center min-h-[32px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
               @click="$emit('close-book')"
             >
               ← Back
             </button>
           </div>
         </div>
-        <div v-if="loggedIn" class="flex items-center gap-2">
+        <div v-if="loggedIn" class="flex items-center gap-1.5">
           <button
             type="button"
-            class="flex-1 px-2 py-1.5 text-xs font-medium border rounded-lg transition-all duration-150 inline-flex items-center justify-center gap-1 min-h-[36px]"
+            class="flex-1 px-2 py-1 text-xs font-medium border rounded-md transition-all duration-150 inline-flex items-center justify-center gap-1 min-h-[32px]"
             :class="showWordListModal
               ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm'
               : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400'"
@@ -39,7 +47,7 @@
           </button>
           <button
             type="button"
-            class="flex-1 px-2 py-1.5 text-xs font-medium border rounded-lg transition-all duration-150 inline-flex items-center justify-center gap-1 min-h-[36px]"
+            class="flex-1 px-2 py-1 text-xs font-medium border rounded-md transition-all duration-150 inline-flex items-center justify-center gap-1 min-h-[32px]"
             :class="showNotesListModal
               ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm'
               : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400'"
@@ -54,6 +62,14 @@
       <div class="hidden sm:flex justify-between items-center p-4">
         <span class="font-semibold text-gray-900">{{ selectedBookTitle }}{{ currentChapter ? ` (${currentChapter})` : '' }}</span>
         <div class="flex items-center gap-3">
+          <button
+            type="button"
+            class="px-4 py-2 text-sm font-medium border border-green-500 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center gap-2 min-h-[36px] bg-white text-gray-700 hover:bg-green-50 hover:border-green-600"
+            title="Usage"
+            @click="showUsageModal = true"
+          >
+            Usage
+          </button>
           <button
             type="button"
             class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center gap-2 min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
@@ -97,7 +113,7 @@
         </div>
       </div>
     </div>
-    <div class="p-4">
+    <div class="p-3 sm:p-4">
       <div v-if="loading" class="text-center py-8 text-gray-500">Loading…</div>
       <!-- Complex book: section list -->
       <div v-else-if="showSectionList" class="space-y-6">
@@ -168,10 +184,7 @@
         </button>
       </div>
       <div v-else class="space-y-4">
-        <div class="flex items-center justify-between mb-1">
-          <p class="text-xs text-gray-500">
-            Click on any Hebrew phrase to get a word-by-word translation from OpenAI with grammar explanations. Phrases are delimited by punctuation—clicking before a comma, period, or other punctuation will translate the phrase from the start up to that punctuation mark.
-          </p>
+        <div class="flex items-center gap-2 flex-wrap -mt-0.5">
           <button
             type="button"
             class="px-2 py-1 text-xs font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
@@ -273,6 +286,38 @@
         </div>
       </div>
     </div>
+
+    <!-- Usage modal -->
+    <div
+      v-if="showUsageModal"
+      class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50"
+      @click.self="showUsageModal = false"
+    >
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[85vh] overflow-hidden flex flex-col">
+        <div class="flex items-center justify-between p-4 border-b border-gray-200">
+          <h3 class="text-sm font-semibold text-gray-900">Usage</h3>
+          <button
+            type="button"
+            class="p-1.5 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+            aria-label="Close"
+            @click="showUsageModal = false"
+          >
+            <span class="text-lg leading-none">×</span>
+          </button>
+        </div>
+        <div class="p-4 overflow-y-auto text-sm text-gray-600 space-y-3">
+          <p>
+            <strong>How to get word-by-word translations:</strong> Tap or click any Hebrew or Aramaic phrase in the text. The app sends that phrase to OpenAI and shows you a breakdown with each word’s meaning, root, part of speech, and grammar notes.
+          </p>
+          <p>
+            <strong>What counts as a phrase?</strong> Phrases are split by punctuation. Everything from the start of the segment up to the next comma, period, semicolon, or similar mark is treated as one phrase. So clicking right before a comma translates from the beginning of that line or verse up to that comma.
+          </p>
+          <p>
+            <strong>Tips:</strong> Use “Hide English” to focus on the Hebrew only. Use the 📝 button next to a phrase to add a personal note (when signed in). From “My Word List” you can study saved words with flashcards.
+          </p>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -307,6 +352,8 @@ function setStoredShowEnglish (value: boolean) {
 
 const showEnglishColumn = ref(typeof window !== 'undefined' ? getStoredShowEnglish() : DEFAULT_SHOW_ENGLISH)
 watch(showEnglishColumn, (v) => setStoredShowEnglish(v))
+
+const showUsageModal = ref(false)
 
 export interface VerseSection {
   displayNumber: string | number

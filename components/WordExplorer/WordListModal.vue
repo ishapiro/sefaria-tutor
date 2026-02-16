@@ -5,15 +5,24 @@
     @click.self="$emit('close')"
   >
     <div class="bg-white rounded-lg shadow-xl p-6 w-[90vw] max-w-3xl max-h-[90vh] overflow-auto">
-      <div class="flex justify-between items-center mb-4">
+      <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
         <h2 class="text-2xl font-bold">My Word List</h2>
-        <button
-          type="button"
-          class="min-h-[44px] px-4 py-2.5 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 active:bg-gray-100 touch-manipulation"
-          @click="$emit('close')"
-        >
-          Close
-        </button>
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            class="min-h-[44px] px-4 py-2.5 text-sm font-medium border border-green-500 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-green-50 hover:border-green-600 touch-manipulation"
+            @click="showUsageModal = true"
+          >
+            Usage
+          </button>
+          <button
+            type="button"
+            class="min-h-[44px] px-4 py-2.5 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 active:bg-gray-100 touch-manipulation"
+            @click="$emit('close')"
+          >
+            Close
+          </button>
+        </div>
       </div>
 
       <!-- Active / Archived tabs -->
@@ -306,13 +315,54 @@
         </button>
       </div>
     </div>
+
+    <!-- Usage modal (My Word List) -->
+    <div
+      v-if="showUsageModal"
+      class="absolute inset-0 z-[55] flex items-center justify-center p-4 bg-black/50 rounded-lg"
+      @click.self="showUsageModal = false"
+    >
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[85vh] overflow-hidden flex flex-col">
+        <div class="flex items-center justify-between p-4 border-b border-gray-200">
+          <h3 class="text-sm font-semibold text-gray-900">Usage</h3>
+          <button
+            type="button"
+            class="p-1.5 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+            aria-label="Close"
+            @click="showUsageModal = false"
+          >
+            <span class="text-lg leading-none">×</span>
+          </button>
+        </div>
+        <div class="p-4 overflow-y-auto text-sm text-gray-600 space-y-3">
+          <p>
+            <strong>Add button:</strong> To add words to this list, open a book in the Word Explorer and tap a Hebrew phrase. In the word-by-word translation dialog that opens, click the <strong>“⭐ Add”</strong> button next to any word to save it here. You can add many words over time and then study them with flashcards.
+          </p>
+          <p>
+            <strong>Study:</strong> When you have words in your list, click <strong>Study</strong> to start a flashcard session. Cards show the Hebrew word; tap to reveal the translation, then choose “Need practice” or “Know it.” You can archive words you’ve mastered and restore them later from the Archived tab.
+          </p>
+          <p>
+            <strong>Concordance icon</strong>
+            <span class="inline-flex items-center justify-center w-6 h-6 align-middle mx-0.5 text-gray-500">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 20V12M12 12V8M12 8c-2 0-3.5-1.5-3.5-3.5S10 1 12 1s3.5 1.5 3.5 3.5S14 8 12 8zM8 5l2 3M16 5l-2 3" />
+              </svg>
+            </span>
+            (looks like a lollipop): Next to a word’s root, this icon opens the Concordance Word Explorer so you can see every occurrence of that root or word across the texts.
+          </p>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import { substantiveWord } from '~/utils/text'
 import { useSupportPageContext } from '~/composables/useSupportPageContext'
 import { SUPPORT_VIEW_NAMES } from '~/constants/supportViewNames'
+
+const showUsageModal = ref(false)
 
 export interface WordListEntry {
   id: number

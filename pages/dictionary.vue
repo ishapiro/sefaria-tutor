@@ -79,9 +79,15 @@
         No word-by-word translations found.
       </div>
       <div v-else>
-        <p class="px-6 py-2 text-sm text-gray-500 border-b border-gray-100">
-          Click any phrase to see the word-by-word translation and grammar from OpenAI.
-        </p>
+        <div class="px-6 py-2 border-b border-gray-100 flex items-center gap-2">
+          <button
+            type="button"
+            class="px-2 py-1 text-xs font-medium border border-green-500 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-green-50 hover:border-green-600"
+            @click="showUsageModal = true"
+          >
+            Usage
+          </button>
+        </div>
         <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse">
           <thead>
@@ -518,6 +524,38 @@
         </div>
       </div>
     </div>
+
+    <!-- Usage modal -->
+    <div
+      v-if="showUsageModal"
+      class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50"
+      @click.self="showUsageModal = false"
+    >
+      <div class="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[85vh] overflow-hidden flex flex-col">
+        <div class="flex items-center justify-between p-4 border-b border-gray-200">
+          <h3 class="text-sm font-semibold text-gray-900">Usage</h3>
+          <button
+            type="button"
+            class="p-1.5 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+            aria-label="Close"
+            @click="showUsageModal = false"
+          >
+            <span class="text-lg leading-none">×</span>
+          </button>
+        </div>
+        <div class="p-4 overflow-y-auto text-sm text-gray-600 space-y-3">
+          <p>
+            <strong>What this page shows:</strong> This is a cache of every phrase that has been translated with the word-by-word (Shoresh) tool. Each row is one Hebrew or Aramaic phrase. The table shows the phrase, a short snippet of the translation, when it was added, and cache stats.
+          </p>
+          <p>
+            <strong>How to view a full translation:</strong> Click any phrase in the table. A dialog opens with the complete word-by-word breakdown from OpenAI: each word’s meaning, root, part of speech, grammar notes, and optional pronunciation. You can listen to the phrase or individual words if your browser supports it.
+          </p>
+          <p>
+            <strong>Cache and refresh:</strong> Translations are stored so repeat lookups are fast. “Refresh” reloads the list from the server. “Clear all cache” removes every cached translation and resets hit/miss statistics—use it only if you need to wipe the cache.
+          </p>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -539,6 +577,7 @@ const total = ref(0)
 const selectedEntry = ref<any>(null)
 const entryToDelete = ref<any>(null)
 const showClearCacheModal = ref(false)
+const showUsageModal = ref(false)
 const clearCacheConfirmText = ref('')
 const clearCacheLoading = ref(false)
 
