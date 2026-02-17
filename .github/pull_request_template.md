@@ -12,7 +12,7 @@
 
 By submitting this pull request and having it merged, I confirm that:
 
-- I have the right to submit this contribution under the repository’s license (CPAL-1.0), **and**
+- I have the right to submit this contribution under the repository’s license (BSL 1.1, converting to CPAL-1.0 on the Change Date), **and**
 - I agree to the Contributor License Grant described in `CONTRIBUTING.md`, including that:
   - Cogitations, LLC and Irv Shapiro may use, modify, sublicense, and incorporate my contribution into
     - proprietary or closed-source add-ons for the hosted Shoresh service, and

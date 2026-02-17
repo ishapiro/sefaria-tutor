@@ -211,7 +211,7 @@ Before deploying, make sure the Worker has the required **secrets/variables** se
 
 ## License
 
-This project is open source under the [Common Public Attribution License (CPAL) Version 1.0](LICENSE).
+This project is licensed under the [Business Source License 1.1 (BSL 1.1)](LICENSE). Non-commercial use and production use for entities with less than $1M in revenue are permitted without a commercial license. For each released version, the **Change Date** is three years after the last modification to that version by the original author (Irv Shapiro / Cogitations, LLC). On the applicable Change Date, that version converts to the [Common Public Attribution License (CPAL) Version 1.0](LICENSE), with attribution required as of that date.
 
 ### Contributions and proprietary add-ons
 

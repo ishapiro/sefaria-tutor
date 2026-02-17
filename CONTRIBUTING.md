@@ -25,7 +25,7 @@ When submitting a pull request:
 
 ## License of the project
 
-The Shoresh codebase is licensed under the **Common Public Attribution License (CPAL) Version 1.0**.  
+The Shoresh codebase is licensed under the **Business Source License 1.1 (BSL 1.1)**. For each released version, the **Change Date** is three years after the last modification to that version by the original author (Irv Shapiro / Cogitations, LLC). On the applicable Change Date, that version converts to the **Common Public Attribution License (CPAL) Version 1.0**, with attribution required as of that date.  
 See the `LICENSE` file for full terms.
 
 ---
@@ -48,7 +48,7 @@ By submitting a contribution to this repository (for example, by opening a pull 
 
 3. **No additional permission required later**
    - Once your contribution is merged, the above license is sufficient for the maintainers to reuse your contribution in:
-     - the open‑source CPAL project,
+     - the BSL-licensed project and, after the Change Date, the CPAL-licensed project,
      - a hosted/managed service, and
      - proprietary add‑ons or mobile apps,
      without needing to ask you for any further permissions.
