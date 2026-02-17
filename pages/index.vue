@@ -75,6 +75,8 @@
       :first="first"
       :next-section-ref="nextSectionRef"
       :next-section-title="nextSectionDisplayTitle"
+      :prev-section-ref="prevSectionRef"
+      :prev-section-title="prevSectionDisplayTitle"
       :word-to-highlight="wordToHighlight"
       :logged-in="loggedIn"
       :show-word-list-modal="showWordListModal"
@@ -377,6 +379,7 @@ const complexSections = ref<Array<{ ref: string; title: string; heTitle?: string
 const bookLoadAttempted = ref(false)
 const sectionStack = ref<unknown[]>([])
 const nextSectionRef = ref<string | null>(null)
+const currentSectionRef = ref<string | null>(null)
 const showBookLoadDebugDialog = ref(false)
 const showSectionListDebugDialog = ref(false)
 const showContentDebugDialog = ref(false)
@@ -638,6 +641,95 @@ function buildSefariaRefForSection (sectionRef: string): string {
   return `${bookTitle}, ${parts.join(', ')}`
 }
 
+/**
+ * Normalize a ref string for comparison by collapsing punctuation and whitespace.
+ * This allows "Genesis 42", "Genesis, 42", and "Genesis,  42" to all match.
+ * Used when comparing API refs (which may have spaces) with display refs (which may have commas).
+ */
+function normalizeRefForComparison (s: string): string {
+  return deduplicateTitleSegments(s)
+    .replace(/[,;]/g, ' ')           // Replace commas/semicolons with spaces
+    .replace(/\s+/g, ' ')            // Collapse multiple spaces to one
+    .trim()
+    .toLowerCase()
+}
+
+/**
+ * Resolve an API-style ref (from response.next) to the ref format used in complexSections.
+ * 
+ * Problem: When navigating via "Next Chapter", the API returns refs like "Berakhot 14b" or "Genesis 42",
+ * but complexSections stores refs like "14b", "42", or "Chapter 1; MeEimatai/14b". We need to map
+ * the API ref back to the complexSections ref so prevSectionRef can find the current section.
+ * 
+ * Book types handled:
+ * - Talmud: API returns "Berakhot 14b", complexSections has "14b" or "Chapter/14b"
+ * - Tanakh: API returns "Genesis 42" or "Genesis, 42", complexSections has "42" or wholeRefs
+ * - Other complex: API returns various formats, complexSections has numbered refs or paths
+ * 
+ * @param refOverride - The ref from API (response.next) or user selection
+ * @param sections - The complexSections array for the current book
+ * @returns The matching ref from complexSections, or refOverride if no match found
+ */
+function resolveRefToComplexSectionRef (
+  refOverride: string,
+  sections: Array<{ ref: string; title: string; heTitle?: string; isContainer?: boolean }> | null
+): string {
+  if (!sections?.length) return refOverride
+  
+  // Remove parenthetical notes like "(14b)" that might appear in display refs
+  const cleanOverride = refOverride.replace(/\s*\([^)]*\)/, '').trim()
+  
+  // Try exact match first (fastest path)
+  if (sections.some(s => s.ref === cleanOverride)) return cleanOverride
+  
+  const book = selectedBook.value
+  const isTalmud = book?.categories?.includes('Talmud')
+  const isTanakh = book?.categories?.includes('Tanakh')
+  
+  if (isTalmud) {
+    // Talmud: Extract daf (e.g. "14b") from API ref "Berakhot 14b"
+    // complexSections may have "14b" or "Chapter 1; MeEimatai/14b"
+    const match = cleanOverride.match(/(\d+[ab])$/i)
+    const dafSide = match ? match[1].toLowerCase() : null
+    if (dafSide) {
+      const found = sections.find(s => 
+        !s.isContainer && (s.ref === dafSide || s.ref.endsWith('/' + dafSide))
+      )
+      if (found) return found.ref
+    }
+  } else {
+    // Tanakh and other complex books: Match by comparing normalized display refs
+    // API might return "Genesis 42" (space) but buildSefariaRefForSection("42") returns "Genesis, 42" (comma)
+    const target = normalizeRefForComparison(cleanOverride)
+    const found = sections.find(s => {
+      if (s.isContainer) return false
+      const sectionDisplayRef = buildSefariaRefForSection(s.ref)
+      return normalizeRefForComparison(sectionDisplayRef) === target
+    })
+    if (found) return found.ref
+    
+    // Fallback for Tanakh numbered chapters: Extract chapter number directly
+    // API returns "Genesis 42" -> extract "42" -> find section with ref "42"
+    if (isTanakh) {
+      const bookTitle = String(book?.title ?? '')
+      const bookThenNum = cleanOverride.match(new RegExp(`^${escapeRegex(bookTitle)}\\s*[,;]?\\s*(\\d+)$`, 'i'))
+      if (bookThenNum) {
+        const chapterNum = bookThenNum[1]
+        const byRef = sections.find(s => !s.isContainer && s.ref === chapterNum)
+        if (byRef) return byRef.ref
+      }
+    }
+  }
+  
+  // If no match found, return original (prevSectionRef will be null, which is acceptable)
+  return refOverride
+}
+
+/** Escape special regex characters in a string for use in RegExp constructor. */
+function escapeRegex (s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
 const sectionListDebugInfo = computed(() => {
   const list = complexSections.value ?? []
   const leafSections = list.filter(s => isLeafNode(s)).slice(0, 10)
@@ -799,13 +891,133 @@ function deduplicateTitleSegments (title: string): string {
   return kept.join(', ')
 }
 
-/** Display title for the next chapter/section (for "Next Chapter" button). */
+/** Clean section display label by removing prefix duplicates (e.g. "Joshua, Joshua-1" -> "Joshua-1") and repeated words (e.g. "Berakhot Berakhot 19b" -> "Berakhot 19b"). */
+function cleanSectionDisplayLabel (label: string): string {
+  if (!label) return label
+  
+  // First apply standard deduplication
+  let cleaned = deduplicateTitleSegments(label)
+  
+  // Remove consecutive duplicate words (e.g. "Berakhot Berakhot 19b" -> "Berakhot 19b")
+  // Use a loop to handle multiple consecutive duplicates
+  let previous = ''
+  do {
+    previous = cleaned
+    cleaned = cleaned.replace(/\b(\w+)\s+\1\b/gi, '$1')
+  } while (cleaned !== previous)
+  
+  // Split into segments and remove segments that are prefixes of other segments
+  const segments = cleaned.split(',').map(s => s.trim()).filter(Boolean)
+  if (segments.length <= 1) return cleaned.trim()
+  
+  const kept: string[] = []
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i]
+    // Check if this segment is a prefix of any other segment
+    let isPrefix = false
+    for (let j = 0; j < segments.length; j++) {
+      if (i !== j && segments[j].startsWith(seg)) {
+        // Check if the next character after the prefix is a separator (space, dash, etc.)
+        const nextChar = segments[j][seg.length]
+        if (nextChar === '-' || nextChar === ' ' || nextChar === ':') {
+          isPrefix = true
+          break
+        }
+      }
+    }
+    if (!isPrefix) {
+      kept.push(seg)
+    }
+  }
+  
+  return kept.length > 0 ? kept.join(', ') : cleaned.trim()
+}
+
+/**
+ * ============================================================================
+ * PREVIOUS/NEXT SECTION NAVIGATION
+ * ============================================================================
+ * 
+ * This section handles navigation between sections (chapters, dapim, etc.) for all book types.
+ * 
+ * Flow:
+ * 1. When user navigates to a section (via TOC or Next button), fetchBookContent() is called
+ * 2. The API response includes response.next (e.g. "Berakhot 14b" or "Genesis 42")
+ * 3. We store this in nextSectionRef and resolve it to complexSections format in currentSectionRef
+ * 4. prevSectionRef computes the previous section by finding currentSectionRef's index - 1
+ * 5. Display titles are cleaned up (remove duplicates, repeated words) for UI
+ * 
+ * Book types supported:
+ * - Talmud: Uses daf refs like "14b" or "Chapter 1; MeEimatai/14b"
+ * - Tanakh: Uses chapter numbers like "42" or wholeRefs like "Genesis 12:1-17:27"
+ * - Complex books: Uses numbered simanim or hierarchical paths
+ * - Simple books: No complexSections, just pagination (prevSectionRef/nextSectionRef are null)
+ * 
+ * ============================================================================
+ */
+
+/**
+ * Get the display title for the next section (shown in "Next Chapter" button).
+ * Works for all book types by finding the section in complexSections or building from ref.
+ */
 const nextSectionDisplayTitle = computed(() => {
   const ref = nextSectionRef.value
   if (!ref) return null
+  
+  // Try to find the section in complexSections first (has better title)
   const section = complexSections.value?.find(s => s.ref === ref)
   const raw = section?.title ?? buildSefariaRefForSection(ref)
-  return deduplicateTitleSegments(raw)
+  
+  // Clean up the label (remove duplicates, repeated words, etc.)
+  return cleanSectionDisplayLabel(raw)
+})
+
+/**
+ * Find the previous section ref from complexSections.
+ * 
+ * This works by:
+ * 1. Finding the current section's index in the non-container sections list
+ * 2. Returning the section before it (if current is not the first)
+ * 
+ * Works for all book types (Talmud, Tanakh, complex books) because they all use complexSections.
+ * Returns null if:
+ * - No current section is set
+ * - Current section is the first section
+ * - Current section not found in complexSections
+ */
+const prevSectionRef = computed(() => {
+  const currentRef = currentSectionRef.value
+  if (!currentRef || !complexSections.value) return null
+  
+  // Filter out container headers (like "Chapters" or "Chapter 1; MeEimatai")
+  // We only want actual clickable sections for navigation
+  const nonContainerSections = complexSections.value.filter(s => !s.isContainer)
+  
+  // Find the current section's position
+  const currentIndex = nonContainerSections.findIndex(s => s.ref === currentRef)
+  
+  // If found and not the first section, return the previous one
+  if (currentIndex > 0) {
+    return nonContainerSections[currentIndex - 1].ref
+  }
+  
+  return null
+})
+
+/**
+ * Get the display title for the previous section (shown in "Prev Chapter" button).
+ * Works for all book types by finding the section in complexSections or building from ref.
+ */
+const prevSectionDisplayTitle = computed(() => {
+  const ref = prevSectionRef.value
+  if (!ref) return null
+  
+  // Try to find the section in complexSections first (has better title)
+  const section = complexSections.value?.find(s => s.ref === ref)
+  const raw = section?.title ?? buildSefariaRefForSection(ref)
+  
+  // Clean up the label (remove duplicates, repeated words, etc.)
+  return cleanSectionDisplayLabel(raw)
 })
 
 const filteredCategories = computed(() => {
@@ -1500,9 +1712,11 @@ function goBackSection () {
     totalRecords.value = 0
     first.value = 0
     nextSectionRef.value = null
+    currentSectionRef.value = null
   } else {
     complexSections.value = null
     sectionStack.value = []
+    currentSectionRef.value = null
   }
 }
 
@@ -1654,8 +1868,22 @@ async function fetchBookContent (refOverride?: string | null, displayLabel?: str
       allVerseData.value = []
       sefariaEnglishVersion.value = null
       totalRecords.value = 0
+      currentSectionRef.value = null
       loading.value = false
       return
+    }
+    // Track current section ref for previous section navigation.
+    // 
+    // CRITICAL: We must resolve the API-style ref (from response.next or user selection) to the
+    // ref format used in complexSections. This ensures prevSectionRef can find the current section
+    // and compute the previous one correctly.
+    //
+    // Example: API returns "Berakhot 14b" -> resolve to "14b" or "Chapter 1; MeEimatai/14b"
+    //          API returns "Genesis 42" -> resolve to "42"
+    //
+    // Only set when navigating to a new section (refOverride present), not when paginating within a section.
+    if (refOverride) {
+      currentSectionRef.value = resolveRefToComplexSectionRef(refOverride, complexSections.value)
     }
     let textData: VerseSection[] = []
     const enArr = extractTextArray(response.text)
@@ -1785,6 +2013,7 @@ async function fetchBookContent (refOverride?: string | null, displayLabel?: str
     sefariaEnglishVersion.value = null
     totalRecords.value = 0
     nextSectionRef.value = null
+    currentSectionRef.value = null
   } finally {
     loading.value = false
   }
@@ -1835,6 +2064,7 @@ async function onBookSelect (event: { data: CategoryNode }) {
   complexSections.value = null
   sectionStack.value = []
   nextSectionRef.value = null
+  currentSectionRef.value = null
   bookLoadAttempted.value = false // Reset flag before starting load
   const isComplex = await isComplexBook(bookWithPath || data)
   isComplexBookFlag.value = isComplex
@@ -1864,6 +2094,8 @@ function handleCloseBook (options?: { forceCloseToBookList?: boolean }) {
     currentChapter.value = null
     complexSections.value = null
     sectionStack.value = []
+    nextSectionRef.value = null
+    currentSectionRef.value = null
     isComplexBookFlag.value = false
     bookLoadAttempted.value = false
     return
@@ -1875,6 +2107,7 @@ function handleCloseBook (options?: { forceCloseToBookList?: boolean }) {
       totalRecords.value = 0
       first.value = 0
       nextSectionRef.value = null
+      currentSectionRef.value = null
       complexSections.value = complexSections.value ? [...complexSections.value] : null
     } else {
       allVerseData.value = []

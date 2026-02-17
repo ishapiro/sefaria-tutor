@@ -255,7 +255,18 @@
         </template>
         <!-- Pagination (multiple pages) -->
         <div v-if="totalRecords > rowsPerPage" class="flex flex-wrap items-center justify-between gap-2 pt-4 border-t border-gray-200">
+          <!-- Prev page (same chapter) or Prev Chapter when on first page -->
           <button
+            v-if="first === 0 && prevSectionRef"
+            type="button"
+            class="px-3 py-1 text-sm font-medium border border-blue-300 rounded-lg transition-all duration-150 inline-flex items-center bg-blue-50 text-blue-800 hover:bg-blue-100 hover:border-blue-400 shrink-0"
+            :title="prevSectionTitle ? `Go to ${prevSectionTitle}` : 'Go to previous section'"
+            @click="$emit('select-section', prevSectionRef, prevSectionTitle ?? '')"
+          >
+            Prev Chapter<span v-if="prevSectionTitle" class="ml-1 inline-block min-w-0 max-w-[min(140px,calc(100vw-14rem))] truncate align-middle sm:max-w-none" :title="prevSectionTitle">({{ prevSectionTitle }})</span>
+          </button>
+          <button
+            v-else
             type="button"
             class="px-3 py-1 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
             :disabled="first === 0"
@@ -286,9 +297,19 @@
             Next
           </button>
         </div>
-        <!-- Single page: show Next Section when there is a following section -->
-        <div v-else-if="totalRecords > 0 && nextSectionRef" class="flex flex-wrap items-center justify-end gap-2 pt-4 border-t border-gray-200">
+        <!-- Single page: show Prev/Next Section buttons when there are adjacent sections -->
+        <div v-else-if="totalRecords > 0 && (prevSectionRef || nextSectionRef)" class="flex flex-wrap items-center justify-between gap-2 pt-4 border-t border-gray-200">
           <button
+            v-if="prevSectionRef"
+            type="button"
+            class="px-3 py-1 text-sm font-medium border border-blue-300 rounded-lg transition-all duration-150 inline-flex items-center bg-blue-50 text-blue-800 hover:bg-blue-100 hover:border-blue-400 shrink-0"
+            :title="prevSectionTitle ? `Go to ${prevSectionTitle}` : 'Go to previous section'"
+            @click="$emit('select-section', prevSectionRef, prevSectionTitle ?? '')"
+          >
+            Prev Section<span v-if="prevSectionTitle" class="ml-1 inline-block min-w-0 max-w-[min(140px,calc(100vw-14rem))] truncate align-middle sm:max-w-none" :title="prevSectionTitle">({{ prevSectionTitle }})</span>
+          </button>
+          <button
+            v-if="nextSectionRef"
             type="button"
             class="px-3 py-1 text-sm font-medium border border-blue-300 rounded-lg transition-all duration-150 inline-flex items-center bg-blue-50 text-blue-800 hover:bg-blue-100 hover:border-blue-400 shrink-0"
             :title="nextSectionTitle ? `Go to ${nextSectionTitle}` : 'Go to next section'"
@@ -400,6 +421,8 @@ const props = defineProps<{
   first: number
   nextSectionRef: string | null
   nextSectionTitle: string | null
+  prevSectionRef: string | null
+  prevSectionTitle: string | null
   wordToHighlight: string | null
   loggedIn: boolean
   showWordListModal: boolean
