@@ -64,16 +64,25 @@
       v-if="searchQuery.trim()"
       class="border border-gray-200 rounded-lg bg-white overflow-hidden"
     >
-      <div class="px-4 py-3 bg-blue-50 border-b border-blue-100">
-        <h2 class="text-sm font-semibold text-gray-800">
-          Search results for “<span class="text-blue-700">{{ searchQuery }}</span>”
-        </h2>
-        <p v-if="searchResults.length > 0" class="text-xs text-gray-600 mt-0.5">
-          {{ searchResults.length }} book{{ searchResults.length === 1 ? '' : 's' }} found. Click to open.
-        </p>
-        <p v-else-if="!loading" class="text-xs text-gray-600 mt-0.5">
-          No books found. Try a different term or browse by category below.
-        </p>
+      <div class="px-4 py-3 bg-blue-50 border-b border-blue-100 flex items-start justify-between gap-3">
+        <div class="min-w-0 flex-1">
+          <h2 class="text-sm font-semibold text-gray-800">
+            Search results for “<span class="text-blue-700">{{ searchQuery }}</span>”
+          </h2>
+          <p v-if="searchResults.length > 0" class="text-xs text-gray-600 mt-0.5">
+            {{ searchResults.length }} book{{ searchResults.length === 1 ? '' : 's' }} found. Click to open.
+          </p>
+          <p v-else-if="!loading" class="text-xs text-gray-600 mt-0.5">
+            No books found. Try a different term or browse by category below.
+          </p>
+        </div>
+        <button
+          type="button"
+          class="shrink-0 px-3 py-1.5 text-sm font-medium border border-gray-300 rounded-lg bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-colors"
+          @click="$emit('update:searchQuery', '')"
+        >
+          Cancel
+        </button>
       </div>
       <div v-if="searchResults.length > 0" class="max-h-[60vh] overflow-y-auto">
         <table class="w-full text-sm border-collapse">
