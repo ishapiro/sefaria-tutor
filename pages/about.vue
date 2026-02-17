@@ -15,6 +15,8 @@
         <dd class="text-gray-700">
           <a href="https://cogitations.com" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">Cogitations, LLC</a>
         </dd>
+        <dt class="font-semibold text-gray-800">Copyright</dt>
+        <dd class="text-gray-700">© 2025–2026 Irv Shapiro / Cogitations, LLC</dd>
         <dt class="font-semibold text-gray-800">Version</dt>
         <dd class="text-gray-700 font-mono">{{ version }}</dd>
         <dt class="font-semibold text-gray-800">GitHub</dt>

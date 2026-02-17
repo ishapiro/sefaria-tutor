@@ -73,5 +73,16 @@ const supportModalOpen = ref(false)
     <main>
       <slot />
     </main>
+
+    <!-- Desktop-only footer -->
+    <footer class="hidden md:block border-t border-gray-200 bg-gray-50/80 text-gray-600 text-xs">
+      <div class="max-w-5xl mx-auto px-4 py-2 flex items-center justify-between gap-4">
+        <span>© 2025–2026 Irv Shapiro / Cogitations, LLC</span>
+        <span>
+          Licensed under <strong>Business Source License 1.1 (BSL 1.1)</strong>;
+          each version converts to CPAL&nbsp;1.0 three years after the last update by the original author.
+        </span>
+      </div>
+    </footer>
   </div>
 </template>

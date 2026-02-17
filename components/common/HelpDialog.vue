@@ -156,7 +156,7 @@
         <section class="pt-4 border-t border-slate-200">
           <h3 class="font-semibold text-slate-900 mb-2 text-base">License & Feedback</h3>
           <p class="text-slate-600 text-sm leading-relaxed">
-            Licensed under the <strong>Business Source License 1.1 (BSL 1.1)</strong>. Non‑commercial use and production use for entities with less than $1M in revenue are permitted without a commercial license. Each version automatically converts to <strong>Common Public Attribution License (CPAL) 1.0</strong> three years after the last update by the original author. <a href="https://github.com/ishapiro/sefaria-tutor" target="_blank" rel="noopener" class="text-blue-600 hover:underline">View on GitHub</a>. Suggestions welcome: <a href="mailto:ishapiro@cogitations.com" class="text-blue-600 hover:underline">ishapiro@cogitations.com</a>
+            Licensed under the <strong>Business Source License 1.1 (BSL 1.1)</strong>. Non‑commercial use and production use for entities with less than $1M in revenue are permitted without a commercial license. Each version automatically converts to <strong>Common Public Attribution License (CPAL) 1.0</strong> three years after the last update by the original author. © 2025–2026 Irv Shapiro / Cogitations, LLC. <a href="https://github.com/ishapiro/sefaria-tutor" target="_blank" rel="noopener" class="text-blue-600 hover:underline">View on GitHub</a>. Suggestions welcome: <a href="mailto:ishapiro@cogitations.com" class="text-blue-600 hover:underline">ishapiro@cogitations.com</a>
           </p>
         </section>
       </div>
