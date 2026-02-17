@@ -33,6 +33,7 @@
       :search-query="searchQuery"
       :loading="loading"
       :filtered-categories="filteredCategories"
+      :search-results="searchResults"
       :show-category-dialog="showCategoryDialog"
       :show-error-dialog="showErrorDialog"
       :error-message="errorMessage"
@@ -1038,6 +1039,54 @@ const filteredCategories = computed(() => {
   return filter(categories.value)
 })
 
+/** Max number of book search results to show (avoids UI freeze on very broad queries). */
+const SEARCH_RESULTS_LIMIT = 200
+
+/** Recursively collect leaf nodes (books) from the full index whose title or category contains the query. */
+function collectBooksMatchingQuery (
+  nodes: unknown[],
+  query: string,
+  parentPath: string,
+  results: Array<CategoryNode & { breadcrumb: string[] }>,
+  maxResults: number
+): void {
+  if (results.length >= maxResults) return
+  const q = query.trim().toLowerCase()
+  if (!q) return
+  for (const node of nodes as Array<Record<string, unknown> & { category?: string; title?: string; heCategory?: string; heTitle?: string; contents?: unknown[] }>) {
+    const name = (node.title ?? node.category ?? '').toString()
+    const heName = (node.heTitle ?? node.heCategory ?? '').toString()
+    const pathSegment = name || (node.category ?? node.title ?? '').toString()
+    const fullPath = parentPath ? `${parentPath}/${pathSegment}`.replace(/\s*\([^)]*\)/g, '').trim() : pathSegment.replace(/\s*\([^)]*\)/g, '').trim()
+    const isLeaf = !node.contents || !Array.isArray(node.contents) || node.contents.length === 0
+    const matches = name.toLowerCase().includes(q) || heName.toLowerCase().includes(q)
+    if (isLeaf && matches) {
+      const breadcrumb = fullPath.split('/').filter(Boolean)
+      results.push({
+        ...node,
+        type: 'book',
+        path: fullPath,
+        title: node.title ?? node.category,
+        breadcrumb,
+      } as CategoryNode & { breadcrumb: string[] })
+      if (results.length >= maxResults) return
+    }
+    if (node.contents && Array.isArray(node.contents)) {
+      collectBooksMatchingQuery(node.contents, query, fullPath, results, maxResults)
+      if (results.length >= maxResults) return
+    }
+  }
+}
+
+/** When user is searching, show books from the whole index that match the query. */
+const searchResults = computed(() => {
+  const q = searchQuery.value.trim()
+  if (!q || !fullIndex.value || !Array.isArray(fullIndex.value)) return []
+  const results: Array<CategoryNode & { breadcrumb: string[] }> = []
+  collectBooksMatchingQuery(fullIndex.value as unknown[], q, '', results, SEARCH_RESULTS_LIMIT)
+  return results
+})
+
 /** Strip down a node to only the fields we actually need for display and navigation.
  * This significantly reduces localStorage size by removing unused metadata from Sefaria API.
  */
@@ -1973,7 +2022,8 @@ async function fetchBookContent (refOverride?: string | null, displayLabel?: str
         he: heArr[i] ?? ''
       }))
     }
-    if (textData.length === 0 && response.next && !refOverride) {
+    // If this ref has no direct text (e.g. container like "Laws of Tahorot"), follow response.next to the first available section
+    if (textData.length === 0 && response.next) {
       await fetchBookContent(response.next)
       return
     }
@@ -2027,10 +2077,14 @@ async function fetchBookContent (refOverride?: string | null, displayLabel?: str
  * Ensure selectedBook has a path by looking it up in the index if needed
  */
 async function ensureBookPath(book: CategoryNode | null): Promise<CategoryNode | null> {
-  if (!book || !book.title) return book
+  if (!book) return book
+  const titleForLookup = book.title || book.category
+  if (!titleForLookup) return book
   
-  // If path already exists, return as-is
-  if (book.path) return book
+  // If path already exists, ensure title for display (leaf categories may have only .category)
+  if (book.path) {
+    return book.title ? book : { ...book, title: book.category }
+  }
   
   // Ensure the full index is loaded
   if (!fullIndex.value || (Array.isArray(fullIndex.value) && fullIndex.value.length === 0)) {
@@ -2038,11 +2092,11 @@ async function ensureBookPath(book: CategoryNode | null): Promise<CategoryNode |
     await new Promise(resolve => setTimeout(resolve, 200))
   }
   
-  // Find the book in the index to get its path
-  const bookInIndex = findBookByTitle(fullIndex.value as CategoryNode[] | null, book.title)
+  // Find the book in the index to get its path (match by title or category)
+  const bookInIndex = findBookByTitle(fullIndex.value as CategoryNode[] | null, titleForLookup)
   if (bookInIndex && bookInIndex.path) {
-    // Return book with path from index
-    return { ...book, path: bookInIndex.path }
+    // Return book with path from index; keep title/category for display
+    return { ...book, path: bookInIndex.path, title: book.title || bookInIndex.title || book.category }
   }
   
   // If not found, return original book (path might be set elsewhere)
@@ -2051,7 +2105,9 @@ async function ensureBookPath(book: CategoryNode | null): Promise<CategoryNode |
 
 async function onBookSelect (event: { data: CategoryNode }) {
   const data = event.data
-  if (data.type === 'category') {
+  // Category with no children (e.g. "Footnotes on Mekhilta...") is openable as a book
+  const isLeafCategory = data.type === 'category' && data.loaded && (!data.children || data.children.length === 0)
+  if (data.type === 'category' && !isLeafCategory) {
     showCategoryDialog.value = true
     return
   }
@@ -2681,12 +2737,13 @@ function findBookByTitle(nodes: CategoryNode[] | null | undefined, title: string
   
   for (const node of nodes) {
     // Check if this node matches
-    // A book is identified by: type === 'book' OR (has title and no children/contents indicating it's a leaf)
-    const isBook = node.type === 'book' || (node.title && !node.children?.length && !node.contents?.length)
+    // A book is identified by: type === 'book' OR (has title/category and no children/contents indicating it's a leaf)
+    const name = node.title || node.category
+    const isBook = node.type === 'book' || (name && !node.children?.length && !node.contents?.length)
     
-    if (isBook && node.title) {
-      // Case-insensitive comparison
-      const nodeTitleNormalized = String(node.title).trim().toLowerCase()
+    if (isBook && name) {
+      // Case-insensitive comparison (match title or category)
+      const nodeTitleNormalized = String(name).trim().toLowerCase()
       if (nodeTitleNormalized === normalizedTitle) {
         return node
       }

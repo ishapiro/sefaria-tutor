@@ -24,9 +24,9 @@
       </button>
       <!-- Expandable body: only one row open at a time (openIndex === idx) -->
       <div v-show="openIndex === idx" class="border-t border-gray-200 bg-gray-50/50 p-4">
-        <template v-if="cat.loaded && cat.children?.length">
+        <template v-if="cat.loaded">
           <!-- Books table: direct children with type "book" (selectable) -->
-          <div v-if="books(cat).length" class="mb-4">
+          <div v-if="books(cat).length || leafSubcategories(cat).length || leafCategoryRow(cat)" class="mb-4">
             <table class="w-full text-sm border border-gray-200 rounded-lg overflow-hidden bg-white">
               <thead class="bg-gray-100">
                 <tr>
@@ -35,6 +35,7 @@
                 </tr>
               </thead>
               <tbody>
+                <!-- Regular books -->
                 <tr
                   v-for="row in books(cat)"
                   :key="String(row.path ?? row.title ?? '')"
@@ -46,6 +47,32 @@
                     <div v-if="row.heTitle" class="text-gray-600">{{ row.heTitle }}</div>
                   </td>
                   <td class="px-3 py-2 text-gray-600">{{ row.enShortDesc || '—' }}</td>
+                </tr>
+                <!-- Leaf subcategories (e.g. "Footnotes on...") with no children: show as clickable rows -->
+                <tr
+                  v-for="row in leafSubcategories(cat)"
+                  :key="String(row.path ?? row.category ?? row.title ?? '')"
+                  class="border-t border-gray-100 hover:bg-blue-50 cursor-pointer"
+                  @click="onBookClick(row)"
+                >
+                  <td class="px-3 py-2">
+                    <div class="font-medium">{{ row.category || row.title }}</div>
+                    <div v-if="row.heCategory || row.heTitle" class="text-gray-600">{{ row.heCategory || row.heTitle }}</div>
+                  </td>
+                  <td class="px-3 py-2 text-gray-600">—</td>
+                </tr>
+                <!-- This category itself is a leaf (expanded but no children): show as single clickable row -->
+                <tr
+                  v-if="leafCategoryRow(cat)"
+                  :key="String(cat.path ?? cat.category ?? cat.title ?? '')"
+                  class="border-t border-gray-100 hover:bg-blue-50 cursor-pointer"
+                  @click="onBookClick(leafCategoryRow(cat)!)"
+                >
+                  <td class="px-3 py-2">
+                    <div class="font-medium">{{ cat.category || cat.title }}</div>
+                    <div v-if="cat.heCategory || cat.heTitle" class="text-gray-600">{{ cat.heCategory || cat.heTitle }}</div>
+                  </td>
+                  <td class="px-3 py-2 text-gray-600">—</td>
                 </tr>
               </tbody>
             </table>
@@ -101,6 +128,20 @@ function books (cat: { children?: unknown[] }) {
 function subcategories (cat: { children?: unknown[] }) {
   if (!cat?.children) return []
   return cat.children.filter(isCategory) as Array<Record<string, unknown>>
+}
+
+// Subcategories that have no children after load (e.g. "Footnotes on...") — show as clickable rows to open as book
+function leafSubcategories (cat: { children?: unknown[] }): Array<Record<string, unknown>> {
+  const subs = subcategories(cat)
+  return subs.filter((sub: Record<string, unknown>) =>
+    sub.loaded === true && Array.isArray(sub.children) && sub.children.length === 0
+  ) as Array<Record<string, unknown>>
+}
+// When this category itself is expanded and has no books and no subcategories, show it as one clickable row
+function leafCategoryRow (cat: { loaded?: boolean; children?: unknown[] }): Record<string, unknown> | null {
+  if (!cat?.loaded || !Array.isArray(cat.children)) return null
+  if (books(cat).length > 0 || subcategories(cat).length > 0) return null
+  return cat as Record<string, unknown>
 }
 
 // Display child count; "..." when not yet loaded (triggers parent to fetch)

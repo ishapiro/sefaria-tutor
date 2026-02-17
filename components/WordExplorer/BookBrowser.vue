@@ -58,12 +58,63 @@
         Admin
       </NuxtLink>
     </div>
+
+    <!-- When searching: show full-index search results in a dedicated panel -->
+    <div
+      v-if="searchQuery.trim()"
+      class="border border-gray-200 rounded-lg bg-white overflow-hidden"
+    >
+      <div class="px-4 py-3 bg-blue-50 border-b border-blue-100">
+        <h2 class="text-sm font-semibold text-gray-800">
+          Search results for “<span class="text-blue-700">{{ searchQuery }}</span>”
+        </h2>
+        <p v-if="searchResults.length > 0" class="text-xs text-gray-600 mt-0.5">
+          {{ searchResults.length }} book{{ searchResults.length === 1 ? '' : 's' }} found. Click to open.
+        </p>
+        <p v-else-if="!loading" class="text-xs text-gray-600 mt-0.5">
+          No books found. Try a different term or browse by category below.
+        </p>
+      </div>
+      <div v-if="searchResults.length > 0" class="max-h-[60vh] overflow-y-auto">
+        <table class="w-full text-sm border-collapse">
+          <thead class="bg-gray-100 sticky top-0">
+            <tr>
+              <th class="px-3 py-2 text-left font-semibold text-gray-700">Title</th>
+              <th class="px-3 py-2 text-left font-semibold text-gray-700">Location</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="row in searchResults"
+              :key="String(row.path ?? row.title ?? '')"
+              class="border-t border-gray-100 hover:bg-blue-50 cursor-pointer transition-colors"
+              @click="onSearchResultClick(row)"
+            >
+              <td class="px-3 py-2">
+                <div class="font-medium">{{ row.title || row.category }}</div>
+                <div v-if="row.heTitle || row.heCategory" class="text-gray-600">{{ row.heTitle || row.heCategory }}</div>
+              </td>
+              <td class="px-3 py-2 text-gray-600 text-xs">
+                {{ (row as SearchResultNode).breadcrumb?.slice(0, -1).join(' › ') || '—' }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p v-else-if="searchQuery.trim() && !loading" class="px-4 py-6 text-center text-gray-500 text-sm">
+        No books match “{{ searchQuery }}”. Clear the search to browse by category.
+      </p>
+    </div>
+
+    <!-- When not searching: show category accordion -->
     <CategoryAccordion
+      v-show="!searchQuery.trim()"
       :categories="filteredCategories"
       :loading="loading"
       @book-select="$emit('book-select', $event)"
       @tab-open="$emit('tab-open', $event)"
     />
+
     <!-- Category error: please select a book -->
     <div
       v-if="showCategoryDialog"
@@ -133,10 +184,14 @@ export interface CategoryNode {
   [key: string]: unknown
 }
 
-defineProps<{
+/** Search result item includes breadcrumb for display */
+export type SearchResultNode = CategoryNode & { breadcrumb?: string[] }
+
+const props = defineProps<{
   searchQuery: string
   loading: boolean
   filteredCategories: CategoryNode[]
+  searchResults: SearchResultNode[]
   showCategoryDialog: boolean
   showErrorDialog: boolean
   errorMessage: string
@@ -150,7 +205,7 @@ defineProps<{
   copiedStatus: string | null
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   'update:searchQuery': [value: string]
   'refresh-index': []
   'open-help': []
@@ -165,4 +220,9 @@ defineEmits<{
   'close-help': []
   'copy-debug': [text: string, key: string]
 }>()
+
+function onSearchResultClick (row: SearchResultNode) {
+  const { breadcrumb: _, ...node } = row
+  emit('book-select', { data: node as CategoryNode })
+}
 </script>
