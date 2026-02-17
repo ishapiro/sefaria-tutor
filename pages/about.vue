@@ -22,7 +22,9 @@
           <a href="https://github.com/ishapiro/sefaria-tutor" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">github.com/ishapiro/sefaria-tutor</a>
         </dd>
         <dt class="font-semibold text-gray-800">License</dt>
-        <dd class="text-gray-700">Open source under <strong>Common Public Attribution License (CPAL)</strong>.</dd>
+        <dd class="text-gray-700">
+          Licensed under <strong>Business Source License 1.1 (BSL 1.1)</strong>. Non‑commercial use and production use for entities with less than $1M in revenue are permitted without a commercial license. Each released version converts to <strong>Common Public Attribution License (CPAL) 1.0</strong> three years after the last modification to that version by the original author.
+        </dd>
       </dl>
 
       <section class="mt-6">
