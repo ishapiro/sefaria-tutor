@@ -156,7 +156,7 @@
         <section class="pt-4 border-t border-slate-200">
           <h3 class="font-semibold text-slate-900 mb-2 text-base">License & Feedback</h3>
           <p class="text-slate-600 text-sm leading-relaxed">
-            Open source under <strong>GNU GPL v3.0</strong>. <a href="https://github.com/ishapiro/sefaria-tutor" target="_blank" rel="noopener" class="text-blue-600 hover:underline">View on GitHub</a>. Suggestions welcome: <a href="mailto:ishapiro@cogitations.com" class="text-blue-600 hover:underline">ishapiro@cogitations.com</a>
+            Open source under <strong>Common Public Attribution License (CPAL)</strong>. <a href="https://github.com/ishapiro/sefaria-tutor" target="_blank" rel="noopener" class="text-blue-600 hover:underline">View on GitHub</a>. Suggestions welcome: <a href="mailto:ishapiro@cogitations.com" class="text-blue-600 hover:underline">ishapiro@cogitations.com</a>
           </p>
         </section>
       </div>

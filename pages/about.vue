@@ -22,7 +22,7 @@
           <a href="https://github.com/ishapiro/sefaria-tutor" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">github.com/ishapiro/sefaria-tutor</a>
         </dd>
         <dt class="font-semibold text-gray-800">License</dt>
-        <dd class="text-gray-700">Open source under <strong>GNU GPL v3.0</strong>.</dd>
+        <dd class="text-gray-700">Open source under <strong>Common Public Attribution License (CPAL)</strong>.</dd>
       </dl>
 
       <section class="mt-6">

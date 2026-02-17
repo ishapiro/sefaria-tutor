@@ -211,7 +211,18 @@ Before deploying, make sure the Worker has the required **secrets/variables** se
 
 ## License
 
-This project is open source under the [GNU GPL v3.0](LICENSE), matching Sefaria's license.
+This project is open source under the [Common Public Attribution License (CPAL) Version 1.0](LICENSE).
+
+### Contributions and proprietary add-ons
+
+By contributing code to this repository (for example via pull requests), you agree that:
+
+- You retain the copyright to your contributions.
+- You grant Cogitations, LLC and Irv Shapiro a broad, irrevocable license to use, modify, sublicense, and incorporate your contributions into:
+  - proprietary or closed-source add-ons for the hosted Shoresh service, and
+  - proprietary or closed-source versions of Shoresh, including but not limited to mobile apps.
+
+In practice, this functions like a lightweight Contributor License Agreement (CLA): you keep ownership of your code, but you also give us the right to use it in private/commercial versions without additional permission.
 
 ## Source acknowledgments
 
