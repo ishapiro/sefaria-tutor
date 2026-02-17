@@ -292,9 +292,6 @@
             <strong>Multiple sentences detected.</strong>
             For best results, select individual sentences instead of the whole passage.
           </div>
-          <p class="text-xs text-gray-500 -mt-2 mb-1">
-            Click the Hebrew phrase to hear it spoken. Click any word in the table to hear its pronunciation.
-          </p>
           <div class="bg-gray-50 p-4 rounded-lg space-y-2">
             <div
               class="text-3xl text-right text-gray-900 cursor-pointer hover:bg-blue-100 hover:text-blue-700 rounded px-2 py-1 -mx-2 -my-1 transition-colors"
