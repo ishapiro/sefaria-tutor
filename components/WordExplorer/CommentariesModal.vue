@@ -1,10 +1,10 @@
 <template>
   <div
     v-if="open"
-    class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50"
+    class="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-black/50 overflow-y-auto"
     @click.self="$emit('close')"
   >
-    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col">
+    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col my-auto">
       <div class="flex items-center justify-between p-4 border-b border-gray-200 shrink-0">
         <h3 class="text-sm font-semibold text-gray-900">
           Commentaries &amp; links
@@ -12,7 +12,7 @@
         </h3>
         <button
           type="button"
-          class="p-1.5 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+          class="p-1.5 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center"
           aria-label="Close"
           @click="$emit('close')"
         >
@@ -26,11 +26,11 @@
           <li
             v-for="(link, idx) in list"
             :key="link.ref + String(idx)"
-            class="border border-gray-100 rounded-lg p-3 hover:bg-blue-50/50 hover:border-blue-200 transition-colors"
+            class="border border-gray-100 rounded-lg p-3 hover:bg-blue-50/50 hover:border-blue-200 transition-colors active:bg-blue-100"
           >
             <button
               type="button"
-              class="w-full text-left"
+              class="w-full text-left touch-manipulation min-h-[44px] py-1"
               @click="$emit('select-link', link)"
             >
               <div class="font-medium text-blue-700">{{ link.index_title }}</div>

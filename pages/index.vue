@@ -351,6 +351,50 @@
       @close="showCommentariesModal = false"
       @select-link="onCommentaryLinkClick"
     />
+
+    <!-- Clarify reference: book not found, pick from index suggestions -->
+    <div
+      v-if="showClarifyRefModal"
+      class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50"
+      @click.self="showClarifyRefModal = false"
+    >
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full overflow-hidden">
+        <div class="p-4 border-b border-gray-200">
+          <h3 class="text-sm font-semibold text-gray-900">Clarify reference</h3>
+        </div>
+        <div class="p-4 text-sm text-gray-700 space-y-3">
+          <p>
+            <strong>“{{ clarifyRefRequestedTitle }}”</strong> wasn’t found in our index.
+          </p>
+          <p v-if="clarifyRefSuggestions.length">
+            We need your help to clarify the reference. Select one of the options below, or cancel and choose from the main book list.
+          </p>
+          <p v-else>
+            We don’t have any similar titles in the index. Try choosing a book from the main list, or check the spelling.
+          </p>
+        </div>
+        <div class="px-4 pb-4 space-y-1.5 max-h-64 overflow-y-auto">
+          <button
+            v-for="suggestion in clarifyRefSuggestions"
+            :key="suggestion.path ?? suggestion.title"
+            type="button"
+            class="w-full text-left px-3 py-2 rounded-lg border border-gray-200 bg-white text-blue-700 hover:bg-blue-50 hover:border-blue-200 transition-colors text-sm font-medium"
+            @click="onClarifyRefPick(suggestion)"
+          >
+            {{ suggestion.title ?? suggestion.category }}
+          </button>
+        </div>
+        <div class="p-4 border-t border-gray-200 flex justify-end">
+          <button
+            type="button"
+            class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg bg-white text-gray-700 hover:bg-gray-50"
+            @click="showClarifyRefModal = false"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -519,6 +563,11 @@ const commentariesList = ref<Array<{ ref: string; index_title: string; type?: st
 /** When user navigated to a commentary from a verse, we store origin so Return can go back. */
 const returnToSefariaRef = ref<string | null>(null)
 const returnToBookTitle = ref<string | null>(null)
+/** Clarify reference modal: shown when requested book not found; user picks from index suggestions. */
+const showClarifyRefModal = ref(false)
+const clarifyRefRequestedTitle = ref<string>('')
+const clarifyRefSuggestions = ref<CategoryNode[]>([])
+const clarifyRefSefariaRef = ref<string | null>(null)
 /** Last segment of the return ref for the header button label (e.g. "Genesis 23:1" → "23:1", "Berakhot 14b" → "14b"). */
 const returnToRefShort = computed(() => {
   const ref = returnToSefariaRef.value
@@ -2884,24 +2933,26 @@ async function navigateToReference (params: {
     book = findBookByTitle(fullIndex.value as CategoryNode[] | null, bookTitle)
   }
   if (!book) {
-    const similarTitles: string[] = []
-    function collectBookTitles(nodes: CategoryNode[] | null | undefined, depth = 0) {
-      if (!nodes || depth > 5) return
+    const similarBooks: CategoryNode[] = []
+    const prefix = bookTitle.toLowerCase().substring(0, Math.min(5, bookTitle.length)).trim()
+    function collectSimilarBooks(nodes: CategoryNode[] | null | undefined, depth = 0) {
+      if (!nodes || depth > 5 || similarBooks.length >= 8) return
       for (const node of nodes) {
         const isBook = node.type === 'book' || (node.title && !node.children?.length && !node.contents?.length)
-        if (isBook && node.title) similarTitles.push(String(node.title))
-        if (node.children) collectBookTitles(node.children as CategoryNode[], depth + 1)
-        if (node.contents) collectBookTitles(node.contents as CategoryNode[], depth + 1)
+        const name = node.title ?? node.category
+        if (isBook && name && prefix && String(name).toLowerCase().includes(prefix)) {
+          similarBooks.push(node)
+        }
+        if (node.children) collectSimilarBooks(node.children as CategoryNode[], depth + 1)
+        if (node.contents) collectSimilarBooks(node.contents as CategoryNode[], depth + 1)
       }
     }
-    collectBookTitles(fullIndex.value as CategoryNode[] | null)
-    const suggestions = similarTitles
-      .filter(t => t.toLowerCase().includes(bookTitle.toLowerCase().substring(0, 3)))
-      .slice(0, 5)
-    const errorMsg = suggestions.length > 0
-      ? `Could not find book "${bookTitle}" in the index. Did you mean: ${suggestions.join(', ')}?`
-      : `Could not find book "${bookTitle}" in the index. Please try selecting it manually.`
-    alert(errorMsg)
+    collectSimilarBooks(fullIndex.value as CategoryNode[] | null)
+    const suggestions = similarBooks.slice(0, 8)
+    clarifyRefRequestedTitle.value = bookTitle
+    clarifyRefSuggestions.value = suggestions
+    clarifyRefSefariaRef.value = sefariaRef ?? null
+    showClarifyRefModal.value = true
     return
   }
 
@@ -3034,6 +3085,20 @@ async function onReturnToOrigin () {
   returnToSefariaRef.value = null
   returnToBookTitle.value = null
   await navigateToReference({ bookTitle: book, sefariaRef: ref })
+}
+
+/** User picked a book from the "clarify reference" modal; navigate to that book with the stored ref. */
+async function onClarifyRefPick (suggestion: CategoryNode) {
+  const sefariaRef = clarifyRefSefariaRef.value
+  showClarifyRefModal.value = false
+  clarifyRefRequestedTitle.value = ''
+  clarifyRefSuggestions.value = []
+  clarifyRefSefariaRef.value = null
+  await navigateToReference({
+    bookTitle: suggestion.title ?? suggestion.category ?? '',
+    bookPath: suggestion.path,
+    sefariaRef: sefariaRef ?? undefined
+  })
 }
 
 /**
