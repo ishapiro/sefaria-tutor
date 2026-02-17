@@ -244,66 +244,65 @@
             </div>
           </div>
         </template>
-        <!-- Pagination (multiple pages) -->
+        <!-- Pagination (multiple pages): mobile = 2 lines (Prev+Next, then range); desktop = 1 row -->
         <div v-if="totalRecords > rowsPerPage" class="pt-4 border-t border-gray-200">
-          <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <!-- Prev page (same chapter) or Prev Chapter when on first page) -->
-            <div class="flex items-center gap-2">
-              <button
-                v-if="first === 0 && prevSectionRef"
-                type="button"
-                class="px-3 py-1 text-sm font-medium border border-blue-300 rounded-lg transition-all duration-150 inline-flex items-center bg-blue-50 text-blue-800 hover:bg-blue-100 hover:border-blue-400 shrink-0 whitespace-nowrap"
-                :title="prevSectionTitle ? `Go to ${prevSectionTitle}` : 'Go to previous section'"
-                @click="$emit('select-section', prevSectionRef, prevSectionTitle ?? '')"
-              >
-                <span class="lg:hidden">Prev {{ lastSegment(prevSectionTitle) }}</span>
-                <span v-if="prevSectionTitle" class="hidden lg:inline">
-                  Prev Chapter
-                  <span class="ml-1 inline-block min-w-0 max-w-[min(140px,calc(100vw-14rem))] truncate align-middle max-w-none" :title="prevSectionTitle">({{ prevSectionTitle }})</span>
-                </span>
-                <span v-else class="hidden lg:inline">Prev Chapter</span>
-              </button>
-              <button
-                v-else
-                type="button"
-                class="px-3 py-1 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 whitespace-nowrap"
-                :disabled="first === 0"
-                @click="$emit('update:first', Math.max(0, first - rowsPerPage))"
-              >
-                Prev
-              </button>
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-0">
+            <!-- Line 1 (mobile) / left (desktop): Prev and Next on same row -->
+            <div class="flex items-center justify-between sm:contents">
+              <div class="flex items-center gap-2">
+                <button
+                  v-if="first === 0 && prevSectionRef"
+                  type="button"
+                  class="px-3 py-1 text-sm font-medium border border-blue-300 rounded-lg transition-all duration-150 inline-flex items-center bg-blue-50 text-blue-800 hover:bg-blue-100 hover:border-blue-400 shrink-0 whitespace-nowrap"
+                  :title="prevSectionTitle ? `Go to ${prevSectionTitle}` : 'Go to previous section'"
+                  @click="$emit('select-section', prevSectionRef, prevSectionTitle ?? '', true)"
+                >
+                  <span class="lg:hidden">Prev {{ lastSegment(prevSectionTitle) }}</span>
+                  <span v-if="prevSectionTitle" class="hidden lg:inline">
+                    Prev Chapter
+                    <span class="ml-1 inline-block min-w-0 max-w-[min(140px,calc(100vw-14rem))] truncate align-middle max-w-none" :title="prevSectionTitle">({{ prevSectionTitle }})</span>
+                  </span>
+                  <span v-else class="hidden lg:inline">Prev Chapter</span>
+                </button>
+                <button
+                  v-else
+                  type="button"
+                  class="px-3 py-1 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 whitespace-nowrap"
+                  :disabled="first === 0"
+                  @click="$emit('update:first', Math.max(0, first - rowsPerPage))"
+                >
+                  Prev
+                </button>
+              </div>
+              <div class="flex items-center justify-end gap-2 sm:order-3">
+                <button
+                  v-if="isOnLastPage && nextSectionRef"
+                  type="button"
+                  class="px-3 py-1 text-sm font-medium border border-blue-300 rounded-lg transition-all duration-150 inline-flex items-center bg-blue-50 text-blue-800 hover:bg-blue-100 hover:border-blue-400 shrink-0 whitespace-nowrap"
+                  :title="nextSectionTitle ? `Go to ${nextSectionTitle}` : 'Go to next chapter'"
+                  @click="$emit('select-section', nextSectionRef, nextSectionTitle ?? '', false)"
+                >
+                  <span class="lg:hidden">Next {{ lastSegment(nextSectionTitle) }}</span>
+                  <span v-if="nextSectionTitle" class="hidden lg:inline">
+                    Next Chapter
+                    <span class="ml-1 inline-block min-w-0 max-w-[min(140px,calc(100vw-14rem))] truncate align-middle max-w-none" :title="nextSectionTitle">({{ nextSectionTitle }})</span>
+                  </span>
+                  <span v-else class="hidden lg:inline">Next Chapter</span>
+                </button>
+                <button
+                  v-else
+                  type="button"
+                  class="px-3 py-1 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 whitespace-nowrap"
+                  :disabled="first + rowsPerPage >= totalRecords"
+                  @click="$emit('update:first', Math.min(first + rowsPerPage, totalRecords - 1))"
+                >
+                  Next
+                </button>
+              </div>
             </div>
-
-            <!-- Page range (kept on a single line; moves to its own row on small screens) -->
-            <div class="text-sm text-gray-600 text-center whitespace-nowrap">
+            <!-- Line 2 (mobile) / center (desktop): page range -->
+            <div class="text-sm text-gray-600 text-center whitespace-nowrap sm:order-2">
               {{ first + 1 }}–{{ Math.min(first + rowsPerPage, totalRecords) }} of {{ totalRecords }}
-            </div>
-
-            <!-- Next page (same chapter) or Next Chapter when on last page -->
-            <div class="flex items-center justify-end gap-2">
-              <button
-                v-if="isOnLastPage && nextSectionRef"
-                type="button"
-                class="px-3 py-1 text-sm font-medium border border-blue-300 rounded-lg transition-all duration-150 inline-flex items-center bg-blue-50 text-blue-800 hover:bg-blue-100 hover:border-blue-400 shrink-0 whitespace-nowrap"
-                :title="nextSectionTitle ? `Go to ${nextSectionTitle}` : 'Go to next chapter'"
-                @click="$emit('select-section', nextSectionRef, nextSectionTitle ?? '')"
-              >
-                <span class="lg:hidden">Next {{ lastSegment(nextSectionTitle) }}</span>
-                <span v-if="nextSectionTitle" class="hidden lg:inline">
-                  Next Chapter
-                  <span class="ml-1 inline-block min-w-0 max-w-[min(140px,calc(100vw-14rem))] truncate align-middle max-w-none" :title="nextSectionTitle">({{ nextSectionTitle }})</span>
-                </span>
-                <span v-else class="hidden lg:inline">Next Chapter</span>
-              </button>
-              <button
-                v-else
-                type="button"
-                class="px-3 py-1 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 whitespace-nowrap"
-                :disabled="first + rowsPerPage >= totalRecords"
-                @click="$emit('update:first', Math.min(first + rowsPerPage, totalRecords - 1))"
-              >
-                Next
-              </button>
             </div>
           </div>
         </div>
@@ -320,7 +319,7 @@
                 type="button"
                 class="px-3 py-1 text-sm font-medium border border-blue-300 rounded-lg transition-all duration-150 inline-flex items-center bg-blue-50 text-blue-800 hover:bg-blue-100 hover:border-blue-400 shrink-0 whitespace-nowrap"
                 :title="prevSectionTitle ? `Go to ${prevSectionTitle}` : 'Go to previous section'"
-                @click="$emit('select-section', prevSectionRef, prevSectionTitle ?? '')"
+                @click="$emit('select-section', prevSectionRef, prevSectionTitle ?? '', true)"
               >
                 <span class="lg:hidden">Prev {{ lastSegment(prevSectionTitle) }}</span>
                 <span v-if="prevSectionTitle" class="hidden lg:inline">
@@ -336,7 +335,7 @@
                 type="button"
                 class="px-3 py-1 text-sm font-medium border border-blue-300 rounded-lg transition-all duration-150 inline-flex items-center bg-blue-50 text-blue-800 hover:bg-blue-100 hover:border-blue-400 shrink-0 whitespace-nowrap"
                 :title="nextSectionTitle ? `Go to ${nextSectionTitle}` : 'Go to next section'"
-                @click="$emit('select-section', nextSectionRef, nextSectionTitle ?? '')"
+                @click="$emit('select-section', nextSectionRef, nextSectionTitle ?? '', false)"
               >
                 <span class="lg:hidden">Next {{ lastSegment(nextSectionTitle) }}</span>
                 <span v-if="nextSectionTitle" class="hidden lg:inline">
@@ -508,7 +507,7 @@ const emit = defineEmits<{
   'close-book': []
   'open-word-list': []
   'open-notes-list': []
-  'select-section': [ref: string, title: string]
+  'select-section': [ref: string, title: string, isPrevSection?: boolean]
   'go-back-section': []
   'open-section-list-debug': []
   'open-book-load-debug': []
@@ -522,12 +521,12 @@ const emit = defineEmits<{
 function goPrev () {
   if (props.totalRecords > props.rowsPerPage) {
     if (props.first === 0 && props.prevSectionRef) {
-      emit('select-section', props.prevSectionRef, props.prevSectionTitle ?? '')
+      emit('select-section', props.prevSectionRef, props.prevSectionTitle ?? '', true)
     } else if (props.first > 0) {
       emit('update:first', Math.max(0, props.first - props.rowsPerPage))
     }
   } else if (props.prevSectionRef) {
-    emit('select-section', props.prevSectionRef, props.prevSectionTitle ?? '')
+    emit('select-section', props.prevSectionRef, props.prevSectionTitle ?? '', true)
   }
 }
 
@@ -535,12 +534,12 @@ function goPrev () {
 function goNext () {
   if (props.totalRecords > props.rowsPerPage) {
     if (isOnLastPage.value && props.nextSectionRef) {
-      emit('select-section', props.nextSectionRef, props.nextSectionTitle ?? '')
+      emit('select-section', props.nextSectionRef, props.nextSectionTitle ?? '', false)
     } else if (!isOnLastPage.value) {
       emit('update:first', Math.min(props.first + props.rowsPerPage, props.totalRecords - 1))
     }
   } else if (props.nextSectionRef) {
-    emit('select-section', props.nextSectionRef, props.nextSectionTitle ?? '')
+    emit('select-section', props.nextSectionRef, props.nextSectionTitle ?? '', false)
   }
 }
 

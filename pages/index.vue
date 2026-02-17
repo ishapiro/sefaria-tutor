@@ -1368,8 +1368,8 @@ function onTabOpen (cat: CategoryNode) {
   onCategoryExpand(cat)
 }
 
-function onSelectSection (ref: string, title: string) {
-  fetchBookContent(ref, title)
+function onSelectSection (ref: string, title: string, isPrevSection?: boolean) {
+  fetchBookContent(ref, title, { goToLastPage: isPrevSection === true })
 }
 
 function onPhraseClick (phrase: string) {
@@ -1720,7 +1720,7 @@ function goBackSection () {
   }
 }
 
-async function fetchBookContent (refOverride?: string | null, displayLabel?: string) {
+async function fetchBookContent (refOverride?: string | null, displayLabel?: string, options?: { goToLastPage?: boolean }) {
   if (!selectedBook.value) return
   
   // Safety check: don't fetch container nodes (schema-only headers)
@@ -1980,7 +1980,11 @@ async function fetchBookContent (refOverride?: string | null, displayLabel?: str
     totalRecords.value = textData.length
     allVerseData.value = textData
     sefariaEnglishVersion.value = response.versionTitle ?? null
-    first.value = 0
+    if (options?.goToLastPage && totalRecords.value > 0) {
+      first.value = Math.max(0, Math.floor((totalRecords.value - 1) / rowsPerPage) * rowsPerPage)
+    } else {
+      first.value = 0
+    }
   } catch (err: unknown) {
     const httpErr = err as { data?: { error?: string }; message?: string }
     const dataError = httpErr?.data?.error ?? ''
