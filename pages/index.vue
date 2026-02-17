@@ -85,6 +85,9 @@
       :split-into-phrases="splitIntoPhrases"
       :phrase-contains-word="phraseContainsWord"
       :get-section-display-title="getSectionDisplayTitle"
+      :get-verse-sefaria-ref="getVerseSefariaRef"
+      :show-return-button="!!returnToSefariaRef"
+      :return-to-ref-short="returnToRefShort"
       @close-book="handleCloseBook"
       @open-word-list="showWordListModal = true"
       @open-notes-list="showNotesListModal = true"
@@ -95,6 +98,8 @@
       @open-content-debug="showContentDebugDialog = true"
       @phrase-click="onPhraseClick"
       @open-note="onOpenNote"
+      @open-commentaries="onOpenCommentaries"
+      @return-to-origin="onReturnToOrigin"
       @update:first="first = $event"
     />
 
@@ -336,6 +341,16 @@
         </div>
       </div>
     </div>
+
+    <!-- Commentaries / links modal (Sefaria) -->
+    <WordExplorerCommentariesModal
+      :open="showCommentariesModal"
+      :ref-display="commentariesRef"
+      :loading="commentariesLoading"
+      :list="commentariesList"
+      @close="showCommentariesModal = false"
+      @select-link="onCommentaryLinkClick"
+    />
   </div>
 </template>
 
@@ -496,6 +511,21 @@ async function getSefariaIndexForBook (book: CategoryNode): Promise<SefariaIndex
 // Word List state
 const showWordListModal = ref(false)
 const showNotesListModal = ref(false)
+/** Commentaries modal: ref whose links we're showing; stored when user opens modal. */
+const showCommentariesModal = ref(false)
+const commentariesRef = ref<string | null>(null)
+const commentariesLoading = ref(false)
+const commentariesList = ref<Array<{ ref: string; index_title: string; type?: string; category?: string; text?: string[] | string[][]; he?: string }>>([])
+/** When user navigated to a commentary from a verse, we store origin so Return can go back. */
+const returnToSefariaRef = ref<string | null>(null)
+const returnToBookTitle = ref<string | null>(null)
+/** Last segment of the return ref for the header button label (e.g. "Genesis 23:1" → "23:1", "Berakhot 14b" → "14b"). */
+const returnToRefShort = computed(() => {
+  const ref = returnToSefariaRef.value
+  if (!ref?.trim()) return null
+  const parts = ref.trim().split(/\s+/)
+  return parts.length > 0 ? parts[parts.length - 1]! : null
+})
 type WordListWord = {
   id: number
   wordData: {
@@ -874,6 +904,23 @@ const currentPageText = computed(() => {
   const end = Math.min(start + rowsPerPage, allVerseData.value.length)
   return allVerseData.value.slice(start, end)
 })
+
+/** Sefaria ref for a verse/section by its index on the current page (for links/commentaries API). */
+function getVerseSefariaRef (sectionIndex: number): string | null {
+  const globalIndex = first.value + sectionIndex
+  const section = allVerseData.value[globalIndex]
+  if (!section || !selectedBook.value) return null
+  const bookTitle = selectedBookTitle.value
+  const displayNumber = String(section.displayNumber ?? '')
+  if (selectedBook.value.categories?.includes('Tanakh')) {
+    return `${bookTitle} ${displayNumber}`
+  }
+  const sectionRef = currentSectionRef.value
+  if (sectionRef) return buildSefariaRefForSection(sectionRef)
+  const lastRef = lastSefariaRefAttempted.value
+  if (lastRef) return lastRef.replace(/_/g, ' ')
+  return null
+}
 
 const showSectionList = computed(() => (complexSections.value?.length ?? 0) > 0 && allVerseData.value.length === 0)
 const showBookNotAvailable = computed(() => bookLoadAttempted.value && !loading.value && currentPageText.value.length === 0 && !complexSections.value)
@@ -2145,6 +2192,8 @@ function handleCloseBook (options?: { forceCloseToBookList?: boolean }) {
   const goHome = options?.forceCloseToBookList === true
   showWordListModal.value = false
   showNotesListModal.value = false
+  returnToSefariaRef.value = null
+  returnToBookTitle.value = null
   if (goHome) {
     selectedBook.value = null
     allVerseData.value = []
@@ -2936,6 +2985,55 @@ async function navigateToNoteReference(note: {
     bookPath: note.bookPath,
     sefariaRef: note.sefariaRef
   })
+}
+
+/** Open commentaries modal for the verse at sectionIndex and fetch Sefaria links. */
+async function onOpenCommentaries (sectionIndex: number) {
+  const tref = getVerseSefariaRef(sectionIndex)
+  if (!tref) return
+  commentariesRef.value = tref
+  showCommentariesModal.value = true
+  commentariesList.value = []
+  commentariesLoading.value = true
+  try {
+    const links = await $fetch<Array<{ ref: string; index_title: string; type?: string; category?: string; text?: string[] | string[][]; he?: string }>>(
+      `/api/sefaria/links/${encodeURIComponent(tref)}`,
+      { params: { with_text: 1 } }
+    )
+    commentariesList.value = Array.isArray(links) ? links : []
+  } catch (err) {
+    console.warn('[Commentaries] Failed to fetch links:', err)
+    commentariesList.value = []
+  } finally {
+    commentariesLoading.value = false
+  }
+}
+
+/** Derive book title from a full Sefaria ref (e.g. "Tosafot Yom Tov on Mishnah Peah 4:2:1" -> "Tosafot Yom Tov on Mishnah Peah"). */
+function deriveBookTitleFromLinkRef (linkRef: string): string {
+  const m = linkRef.match(/^(.+?)\s+[\d.:]+$/)
+  return m ? m[1].trim() : linkRef.replace(/\s+[\d.:]+$/, '').trim() || linkRef
+}
+
+/** User clicked a commentary/link in the modal: store return ref and navigate to the linked text. */
+async function onCommentaryLinkClick (link: { ref: string; index_title: string }) {
+  const linkRef = link.ref
+  if (!linkRef) return
+  returnToBookTitle.value = selectedBookTitle.value
+  returnToSefariaRef.value = commentariesRef.value
+  showCommentariesModal.value = false
+  const bookTitle = deriveBookTitleFromLinkRef(linkRef)
+  await navigateToReference({ bookTitle, sefariaRef: linkRef })
+}
+
+/** User clicked Return in the reader header: go back to the stored verse ref. */
+async function onReturnToOrigin () {
+  const ref = returnToSefariaRef.value
+  const book = returnToBookTitle.value
+  if (!ref || !book) return
+  returnToSefariaRef.value = null
+  returnToBookTitle.value = null
+  await navigateToReference({ bookTitle: book, sefariaRef: ref })
 }
 
 /**

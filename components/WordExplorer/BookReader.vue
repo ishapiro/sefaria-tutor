@@ -25,6 +25,18 @@
               <span>{{ showEnglishColumn ? 'Hide EN' : 'Show EN' }}</span>
             </button>
             <button
+              v-if="showReturnButton"
+              type="button"
+              class="px-2 py-1 text-xs font-medium border border-blue-500 rounded-md transition-all duration-150 inline-flex items-center gap-1 min-h-[32px] bg-blue-50 text-blue-700 hover:bg-blue-100 hover:border-blue-600 max-w-[120px]"
+              :title="returnToRefShort ? `Return to ${returnToRefShort}` : 'Return to original verse'"
+              @click="$emit('return-to-origin')"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              <span class="truncate text-[10px] leading-tight" :title="returnToRefShort ?? ''">{{ returnToRefShort ?? '…' }}</span>
+            </button>
+            <button
               type="button"
               class="px-2 py-1 text-xs font-medium border border-gray-300 rounded-md transition-all duration-150 inline-flex items-center min-h-[32px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
               @click="$emit('close-book')"
@@ -102,6 +114,18 @@
           >
             <span class="text-base leading-none">📝</span>
             <span>My Notes</span>
+          </button>
+          <button
+            v-if="showReturnButton"
+            type="button"
+            class="px-3 py-2 text-sm font-medium border border-blue-500 rounded-lg transition-all duration-150 inline-flex items-center gap-1.5 min-h-[36px] bg-blue-50 text-blue-700 hover:bg-blue-100 hover:border-blue-600 max-w-[140px]"
+            :title="returnToRefShort ? `Return to ${returnToRefShort}` : 'Return to original verse'"
+            @click="$emit('return-to-origin')"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            <span class="truncate text-xs leading-tight" :title="returnToRefShort ?? ''">{{ returnToRefShort ?? '…' }}</span>
           </button>
           <button
             type="button"
@@ -203,11 +227,22 @@
             class="grid gap-2 sm:gap-4 border-b border-gray-100 pb-4 last:border-0"
             :class="showEnglishColumn ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'"
           >
-            <div
-              class="text-right text-lg select-none verse-hebrew-column order-1 md:order-2"
-              style="direction: rtl"
-            >
+<div
+            class="text-right text-lg select-none verse-hebrew-column order-1 md:order-2"
+            style="direction: rtl"
+          >
               <span class="text-gray-500 ml-2 text-sm pointer-events-none cursor-default">{{ section.displayNumber }}</span>
+              <button
+                type="button"
+                class="shrink-0 mr-1 p-0.5 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors align-middle inline-flex"
+                title="Commentaries & links"
+                aria-label="View commentaries and links for this verse"
+                @click.stop="$emit('open-commentaries', index)"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                </svg>
+              </button>
               <span
                 v-for="(phrase, pIdx) in splitIntoPhrases(section.he)"
                 :key="pIdx"
@@ -376,6 +411,24 @@
             <strong>What counts as a phrase?</strong> Phrases are split by punctuation. Everything from the start of the segment up to the next comma, period, semicolon, or similar mark is treated as one phrase. So clicking right before a comma translates from the beginning of that line or verse up to that comma.
           </p>
           <p>
+            <strong>Commentaries and links:</strong> Next to each verse you’ll see a
+            <span class="inline-flex align-middle mx-0.5">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+              </svg>
+            </span>
+            link icon. Click it to open a list of related commentaries and links from Sefaria. Choose one to jump to that text; you can then use the return button in the header to go back to your original verse.
+          </p>
+          <p>
+            <strong>Return button:</strong> When you’ve opened a commentary from a verse, a
+            <span class="inline-flex align-middle mx-0.5">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+            </span>
+            <span class="text-xs text-gray-500">23:1</span> button appears in the header. It shows the verse you came from (e.g. 23:1 or 14b). Click it to go back to that verse in the original book.
+          </p>
+          <p>
             <strong>Tips:</strong> Use “Hide English” to focus on the Hebrew only. Use the 📝 button next to a phrase to add a personal note (when signed in). From “My Word List” you can study saved words with flashcards.
           </p>
         </div>
@@ -459,6 +512,10 @@ const props = defineProps<{
   splitIntoPhrases: (segment: string) => string[]
   phraseContainsWord: (phrase: string, word: string) => boolean
   getSectionDisplayTitle: (section: SectionRef) => string
+  getVerseSefariaRef: (sectionIndex: number) => string | null
+  showReturnButton: boolean
+  /** Short label for the return button (e.g. "23:1", "14b"). */
+  returnToRefShort: string | null
 }>()
 
 const isOnLastPage = computed(() =>
@@ -514,6 +571,8 @@ const emit = defineEmits<{
   'open-content-debug': []
   'phrase-click': [phrase: string, fromHebrew: boolean]
   'open-note': [rowIndex: number, phraseIndex: number]
+  'open-commentaries': [sectionIndex: number]
+  'return-to-origin': []
   'update:first': [value: number]
 }>()
 
