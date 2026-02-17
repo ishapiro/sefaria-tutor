@@ -155,14 +155,14 @@
             </div>
 
             <div
-              class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-12 gap-1.5 md:gap-2"
+              class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-10 xl:grid-cols-12 gap-1.5 md:gap-2"
             >
               <button
                 v-for="section in group.items"
                 :key="section.ref"
                 type="button"
-                class="px-2 py-1 md:px-2.5 md:py-1.5 rounded-md border text-xs md:text-sm font-medium
-                       bg-white text-blue-700 border-blue-100 shadow-sm
+                class="px-2 py-1 md:px-2.5 md:py-1.5 rounded-md border text-[11px] md:text-xs lg:text-sm font-medium
+                       bg-white text-blue-700 border-blue-100 shadow-sm text-center leading-tight break-words
                        hover:bg-blue-50 hover:border-blue-400 hover:text-blue-900
                        focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
                 @click="$emit('select-section', section.ref, section.title)"
