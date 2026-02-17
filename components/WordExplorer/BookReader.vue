@@ -198,20 +198,6 @@
             Debug
           </button>
         </div>
-        <div
-          class="grid gap-2 sm:gap-4 text-sm"
-          :class="showEnglishColumn ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'"
-        >
-          <div class="font-medium text-gray-500 text-right order-1 md:order-2" style="direction: rtl">
-            Hebrew
-          </div>
-          <div
-            v-if="showEnglishColumn"
-            class="font-medium text-gray-500 order-2 md:order-1"
-          >
-            English
-          </div>
-        </div>
         <template v-for="(section, index) in currentPageText" :key="'v-' + index">
           <div
             class="grid gap-2 sm:gap-4 border-b border-gray-100 pb-4 last:border-0"
@@ -270,14 +256,12 @@
                 :title="prevSectionTitle ? `Go to ${prevSectionTitle}` : 'Go to previous section'"
                 @click="$emit('select-section', prevSectionRef, prevSectionTitle ?? '')"
               >
-                Prev Chapter
-                <span
-                  v-if="prevSectionTitle"
-                  class="ml-1 inline-block min-w-0 max-w-[min(140px,calc(100vw-14rem))] truncate align-middle sm:max-w-none"
-                  :title="prevSectionTitle"
-                >
-                  ({{ prevSectionTitle }})
+                <span class="lg:hidden">Prev {{ lastSegment(prevSectionTitle) }}</span>
+                <span v-if="prevSectionTitle" class="hidden lg:inline">
+                  Prev Chapter
+                  <span class="ml-1 inline-block min-w-0 max-w-[min(140px,calc(100vw-14rem))] truncate align-middle max-w-none" :title="prevSectionTitle">({{ prevSectionTitle }})</span>
                 </span>
+                <span v-else class="hidden lg:inline">Prev Chapter</span>
               </button>
               <button
                 v-else
@@ -304,14 +288,12 @@
                 :title="nextSectionTitle ? `Go to ${nextSectionTitle}` : 'Go to next chapter'"
                 @click="$emit('select-section', nextSectionRef, nextSectionTitle ?? '')"
               >
-                Next Chapter
-                <span
-                  v-if="nextSectionTitle"
-                  class="ml-1 inline-block min-w-0 max-w-[min(140px,calc(100vw-14rem))] truncate align-middle sm:max-w-none"
-                  :title="nextSectionTitle"
-                >
-                  ({{ nextSectionTitle }})
+                <span class="lg:hidden">Next {{ lastSegment(nextSectionTitle) }}</span>
+                <span v-if="nextSectionTitle" class="hidden lg:inline">
+                  Next Chapter
+                  <span class="ml-1 inline-block min-w-0 max-w-[min(140px,calc(100vw-14rem))] truncate align-middle max-w-none" :title="nextSectionTitle">({{ nextSectionTitle }})</span>
                 </span>
+                <span v-else class="hidden lg:inline">Next Chapter</span>
               </button>
               <button
                 v-else
@@ -340,14 +322,12 @@
                 :title="prevSectionTitle ? `Go to ${prevSectionTitle}` : 'Go to previous section'"
                 @click="$emit('select-section', prevSectionRef, prevSectionTitle ?? '')"
               >
-                Prev Section
-                <span
-                  v-if="prevSectionTitle"
-                  class="ml-1 inline-block min-w-0 max-w-[min(140px,calc(100vw-14rem))] truncate align-middle sm:max-w-none"
-                  :title="prevSectionTitle"
-                >
-                  ({{ prevSectionTitle }})
+                <span class="lg:hidden">Prev {{ lastSegment(prevSectionTitle) }}</span>
+                <span v-if="prevSectionTitle" class="hidden lg:inline">
+                  Prev Section
+                  <span class="ml-1 inline-block min-w-0 max-w-[min(140px,calc(100vw-14rem))] truncate align-middle max-w-none" :title="prevSectionTitle">({{ prevSectionTitle }})</span>
                 </span>
+                <span v-else class="hidden lg:inline">Prev Section</span>
               </button>
             </div>
             <div class="flex items-center justify-end gap-2">
@@ -358,14 +338,12 @@
                 :title="nextSectionTitle ? `Go to ${nextSectionTitle}` : 'Go to next section'"
                 @click="$emit('select-section', nextSectionRef, nextSectionTitle ?? '')"
               >
-                Next Section
-                <span
-                  v-if="nextSectionTitle"
-                  class="ml-1 inline-block min-w-0 max-w-[min(140px,calc(100vw-14rem))] truncate align-middle sm:max-w-none"
-                  :title="nextSectionTitle"
-                >
-                  ({{ nextSectionTitle }})
+                <span class="lg:hidden">Next {{ lastSegment(nextSectionTitle) }}</span>
+                <span v-if="nextSectionTitle" class="hidden lg:inline">
+                  Next Section
+                  <span class="ml-1 inline-block min-w-0 max-w-[min(140px,calc(100vw-14rem))] truncate align-middle max-w-none" :title="nextSectionTitle">({{ nextSectionTitle }})</span>
                 </span>
+                <span v-else class="hidden lg:inline">Next Section</span>
               </button>
             </div>
           </div>
@@ -487,6 +465,13 @@ const props = defineProps<{
 const isOnLastPage = computed(() =>
   props.first + props.rowsPerPage >= props.totalRecords
 )
+
+/** For mobile only: show just the last segment of a section title (e.g. "Berakhot, 14b" → "14b"). Display only. */
+function lastSegment (title: string | null | undefined): string {
+  if (!title) return ''
+  const parts = title.split(/[,;/]/).map(s => s.trim()).filter(Boolean)
+  return parts.length ? parts[parts.length - 1]! : title
+}
 
 /**
  * Swipe navigation (mobile): horizontal swipe changes page/section.
