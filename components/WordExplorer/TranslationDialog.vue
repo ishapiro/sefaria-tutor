@@ -5,50 +5,48 @@
     @click.self="$emit('close')"
   >
     <div class="bg-white rounded-lg shadow-xl p-3 sm:p-6 w-[95vw] sm:w-[90vw] max-h-[90vh] overflow-auto text-sm sm:text-base">
-      <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-3 sm:mb-4 gap-2">
-        <h2 class="text-lg sm:text-2xl font-bold">Word-by-word translation</h2>
-        <div class="flex items-center gap-2 flex-wrap">
+      <!-- Single row on all screen sizes: compact on mobile so all 4 fit -->
+      <div class="flex items-center justify-between gap-1 sm:gap-2 mb-3 sm:mb-4 flex-nowrap overflow-hidden min-w-0">
+        <div class="flex items-center gap-1 sm:gap-2 shrink-0 min-w-0 overflow-hidden">
           <button
             type="button"
-            class="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium border border-green-500 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[32px] sm:min-h-[36px] bg-white text-gray-700 hover:bg-green-50 hover:border-green-600"
+            class="px-2 py-1 sm:px-4 sm:py-2 text-[11px] sm:text-sm font-medium border border-green-500 rounded-md sm:rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[28px] sm:min-h-[36px] bg-white text-gray-700 hover:bg-green-50 hover:border-green-600 shrink-0"
             @click="showUsageModal = true"
           >
             Usage
           </button>
           <button
             type="button"
-            class="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[32px] sm:min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
-            @click="$emit('close')"
+            class="px-2 py-1 sm:px-4 sm:py-2 text-[11px] sm:text-sm font-medium border rounded-md sm:rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center gap-0.5 sm:gap-2 min-h-[28px] sm:min-h-[36px] shrink-0"
+            :class="canCopy ? (copiedStatus === 'he' ? 'border-green-500 bg-green-50 text-green-700 shadow-sm' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400') : 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'"
+            :disabled="!canCopy"
+            @click="copyHebrew"
           >
-            Close
+            <span class="leading-none" aria-hidden="true">{{ copiedStatus === 'he' ? '✅' : '📋' }}</span>
+            <span>Hebrew</span>
+          </button>
+          <button
+            type="button"
+            class="px-2 py-1 sm:px-4 sm:py-2 text-[11px] sm:text-sm font-medium border rounded-md sm:rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center gap-0.5 sm:gap-2 min-h-[28px] sm:min-h-[36px] shrink-0"
+            :class="canCopy ? (copiedStatus === 'en' ? 'border-green-500 bg-green-50 text-green-700 shadow-sm' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400') : 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'"
+            :disabled="!canCopy"
+            @click="copyEnglish"
+          >
+            <span class="leading-none" aria-hidden="true">{{ copiedStatus === 'en' ? '✅' : '📋' }}</span>
+            <span>English</span>
           </button>
         </div>
+        <button
+          type="button"
+          class="px-2 py-1 sm:px-4 sm:py-2 text-[11px] sm:text-sm font-medium border border-gray-300 rounded-md sm:rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[28px] sm:min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 shrink-0 ml-1 sm:ml-2"
+          @click="$emit('close')"
+        >
+          Close
+        </button>
       </div>
       <div v-if="translationLoading" class="text-center py-8 text-gray-500 text-lg">Loading word-by-word translation from OpenAI…</div>
       <div v-else-if="translationError" class="text-center py-8 text-red-600 text-lg">{{ translationError }}</div>
       <div v-else-if="translationData && !translationLoading" class="space-y-4 sm:space-y-6">
-        <div class="flex flex-wrap items-center gap-2 sm:gap-3">
-          <button
-            type="button"
-            class="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium border rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center gap-1 sm:gap-2 min-h-[32px] sm:min-h-[36px]"
-            :class="copiedStatus === 'he' ? 'border-green-500 bg-green-50 text-green-700 shadow-sm' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400'"
-            @click="$emit('copy', translationData.originalPhrase || '', 'he')"
-          >
-            <span>{{ copiedStatus === 'he' ? '✅' : '📋' }}</span>
-            <span class="hidden sm:inline">{{ copiedStatus === 'he' ? 'Copied!' : 'Copy Hebrew' }}</span>
-            <span class="sm:hidden">{{ copiedStatus === 'he' ? 'Copied!' : 'Hebrew' }}</span>
-          </button>
-          <button
-            type="button"
-            class="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium border rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center gap-1 sm:gap-2 min-h-[32px] sm:min-h-[36px]"
-            :class="copiedStatus === 'en' ? 'border-green-500 bg-green-50 text-green-700 shadow-sm' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400'"
-            @click="$emit('copy', translationData.translatedPhrase || '', 'en')"
-          >
-            <span>{{ copiedStatus === 'en' ? '✅' : '📋' }}</span>
-            <span class="hidden sm:inline">{{ copiedStatus === 'en' ? 'Copied!' : 'Copy English' }}</span>
-            <span class="sm:hidden">{{ copiedStatus === 'en' ? 'Copied!' : 'English' }}</span>
-          </button>
-        </div>
         <div
           v-if="translationHasMultipleSentences"
           class="px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg text-blue-800 text-sm"
@@ -256,7 +254,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { substantiveWord } from '~/utils/text'
 import { useSupportPageContext } from '~/composables/useSupportPageContext'
 import { SUPPORT_VIEW_NAMES } from '~/constants/supportViewNames'
@@ -303,6 +301,8 @@ const props = defineProps<{
   getWordListButtonText: (index: number) => string
 }>()
 
+const canCopy = computed(() => !props.translationLoading && !!props.translationData)
+
 const showUsageModal = ref(false)
 const { setSupportView, clearSupportView } = useSupportPageContext()
 watch(() => props.open, (isOpen) => {
@@ -324,7 +324,7 @@ function rootExplorerLink (rootOrWord: string) {
   }
 }
 
-defineEmits<{
+const emit = defineEmits<{
   close: []
   copy: [text: string, key: string]
   'view-raw': []
@@ -332,4 +332,12 @@ defineEmits<{
   'play-word-tts': [word: string | undefined]
   'add-word-to-list': [index: number]
 }>()
+
+function copyHebrew () {
+  if (props.translationData) emit('copy', props.translationData.originalPhrase ?? '', 'he')
+}
+
+function copyEnglish () {
+  if (props.translationData) emit('copy', props.translationData.translatedPhrase ?? '', 'en')
+}
 </script>

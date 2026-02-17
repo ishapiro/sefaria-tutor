@@ -29,7 +29,7 @@ const supportModalOpen = ref(false)
           />
         </a>
         <NuxtLink
-          to="/"
+          :to="{ path: '/', query: { home: '1' } }"
           class="text-base sm:text-lg md:text-2xl font-semibold tracking-tight text-[#003c71] no-underline hover:underline truncate"
         >
           Shoresh
@@ -41,7 +41,7 @@ const supportModalOpen = ref(false)
           class="inline-flex items-center justify-center text-xs sm:text-sm font-medium text-blue-600 hover:text-blue-800 whitespace-nowrap px-1 sm:px-0"
           aria-label="Home"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 sm:hidden" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 sm:hidden" aria-hidden="true">
             <path fill-rule="evenodd" d="M9.293 2.293a1 1 0 011.414 0l7 7A1 1 0 0117 11h-1v6a1 1 0 01-1 1h-3a1 1 0 01-1-1v-3a1 1 0 00-1-1H9a1 1 0 00-1 1v3a1 1 0 01-1 1H5a1 1 0 01-1-1v-6H3a1 1 0 01-.293-.707l7-7z" clip-rule="evenodd" />
           </svg>
           <span class="hidden sm:inline">Home</span>
