@@ -429,6 +429,66 @@ const route = useRoute()
 const router = useRouter()
 const openaiModel = ref('gpt-5.1-chat-latest')
 
+// In-memory cache of Sefaria index responses, keyed by book title.
+type SefariaIndexData = {
+  schema?: { lengths?: number[]; nodes?: unknown[]; heSectionNames?: string[] }
+  alts?: Record<string, unknown>
+}
+const sefariaIndexCache = new Map<string, SefariaIndexData>()
+
+// LocalStorage key for caching "complex vs simple" book classification in the browser.
+const COMPLEX_BOOKS_STORAGE_KEY = 'sefariaComplexBooksV1'
+
+function getComplexBooksCache (): Record<string, boolean> {
+  if (!import.meta.client) return {}
+  try {
+    const raw = localStorage.getItem(COMPLEX_BOOKS_STORAGE_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw) as unknown
+    if (parsed && typeof parsed === 'object') {
+      return parsed as Record<string, boolean>
+    }
+  } catch {
+    // ignore parse errors and treat as empty cache
+  }
+  return {}
+}
+
+function getComplexFlagFromStorage (title: string): boolean | null {
+  const cache = getComplexBooksCache()
+  if (Object.prototype.hasOwnProperty.call(cache, title)) {
+    return cache[title] ?? false
+  }
+  return null
+}
+
+function setComplexFlagInStorage (title: string, isComplex: boolean) {
+  if (!import.meta.client) return
+  try {
+    const cache = getComplexBooksCache()
+    cache[title] = isComplex
+    localStorage.setItem(COMPLEX_BOOKS_STORAGE_KEY, JSON.stringify(cache))
+  } catch {
+    // best-effort only; ignore storage errors
+  }
+}
+
+async function getSefariaIndexForBook (book: CategoryNode): Promise<SefariaIndexData | null> {
+  const title = String(book.title ?? '')
+  if (!title) return null
+  const cached = sefariaIndexCache.get(title)
+  if (cached) return cached
+
+  const ref = title.replace(/\s+/g, '_')
+  try {
+    const indexData = await $fetch<SefariaIndexData>(`/api/sefaria/index/${encodeURIComponent(ref)}`)
+    sefariaIndexCache.set(title, indexData)
+    return indexData
+  } catch {
+    return null
+  }
+}
+
 // Word List state
 const showWordListModal = ref(false)
 const showNotesListModal = ref(false)
@@ -1128,28 +1188,54 @@ function onCategoryExpand (category: CategoryNode) {
   category.loaded = true
 }
 
-/** Detect if a book needs section selection (TOC) by checking the Sefaria index API. */
+/** Detect if a book needs section selection (TOC).
+ *
+ * Optimizations:
+ * - Caches "complex vs simple" per title in localStorage so repeat visits are instant on the client.
+ * - Reuses a shared in-memory index cache so we never fetch the same /index/{Book} twice per session.
+ * - Avoids probing the heavy /texts API just to infer complexity (that was causing long first-load delays).
+ */
 async function isComplexBook (book: CategoryNode): Promise<boolean> {
-  const ref = String(book.title ?? '').replace(/\s+/g, '_')
-  try {
-    const indexData = await $fetch<{ schema?: { lengths?: number[]; nodes?: unknown[] } }>(`/api/sefaria/index/${encodeURIComponent(ref)}`)
-    if (!indexData?.schema) return false
-    const schema = indexData.schema
-    if (book.categories?.includes('Talmud') && schema.lengths?.[0] && schema.lengths[0] > 0) return true
-    if (schema.lengths?.[0] && schema.lengths[0] > 1) return true
-    const sections = processSchemaNodes(schema.nodes ?? [])
-    if (sections.length > 0) return true
-  } catch {
-    // Index not found or failed – fall back to texts API
+  const title = String(book.title ?? '')
+  if (!title) return false
+
+  // Quick heuristic: Talmud tractates are always treated as complex and use the daf-based TOC.
+  if (book.categories?.includes('Talmud')) {
+    setComplexFlagInStorage(title, true)
+    return true
   }
-  try {
-    await $fetch(`/api/sefaria/texts/${encodeURIComponent(ref)}`)
+
+  // Client-side cache: if we've classified this book before, trust that.
+  const cachedFlag = getComplexFlagFromStorage(title)
+  if (cachedFlag !== null) {
+    return cachedFlag
+  }
+
+  // Use /index once (via shared cache) to determine structure.
+  const indexData = await getSefariaIndexForBook(book)
+  if (!indexData?.schema) {
+    setComplexFlagInStorage(title, false)
     return false
-  } catch (err: unknown) {
-    const data = (err as { data?: { error?: string } })?.data
-    const msg = String(data?.error ?? '')
-    return msg.includes('complex') || msg.includes('book-level ref')
   }
+
+  const schema = indexData.schema
+
+  // If the top-level lengths array shows multiple chapters/simanim, treat as complex.
+  if (schema.lengths?.[0] && schema.lengths[0] > 1) {
+    setComplexFlagInStorage(title, true)
+    return true
+  }
+
+  // If schema nodes produce a non-empty section list, it's complex.
+  const sections = processSchemaNodes(schema.nodes ?? [])
+  if (sections.length > 0) {
+    setComplexFlagInStorage(title, true)
+    return true
+  }
+
+  // Otherwise, treat as a simple chaptered text where we can jump straight to /texts.
+  setComplexFlagInStorage(title, false)
+  return false
 }
 
 /** When schema only has Introduction, discover numbered sections by probing the API. */
@@ -1244,8 +1330,7 @@ async function fetchComplexBookToc (book: CategoryNode) {
   loading.value = true
   try {
     const isTalmud = book.categories?.includes('Talmud')
-    const ref = String(book.title ?? '').replace(/\s+/g, '_')
-    const indexData = await $fetch<{ schema?: { lengths?: number[]; nodes?: unknown[]; heSectionNames?: string[] }; alts?: Record<string, unknown> }>(`/api/sefaria/index/${encodeURIComponent(ref)}`)
+    const indexData = await getSefariaIndexForBook(book)
     if (!indexData?.schema) {
       throw new Error('No schema found')
     }
@@ -1825,20 +1910,32 @@ async function doTranslateApiCall (plainText: string, fullSentence: boolean, sef
   translationMetadata.value = null
   rawTranslationData.value = null
   lastTranslatedInputText.value = plainText
+  console.log('[BookReader][translate] Requesting translation', {
+    source: sefariaRefOverride ? 'override' : 'lastSefariaRef',
+    sefariaRef: sefariaRefOverride ?? lastSefariaRefAttempted.value,
+    wordCount: translationInProgressWordCount.value,
+    textPreview: plainText.trim().slice(0, 80),
+  })
   const startTime = Date.now()
   try {
-    const response = await $fetch<{
-      model?: string
-      output?: Array<{ type?: string; content?: Array<{ type?: string; text?: string }> }>
-    }>('/api/openai/chat', {
+    const response = await $fetch<any>('/api/openai/chat', {
       method: 'POST',
       body: { prompt: plainText, model: openaiModel.value, fullSentence },
       headers: { Authorization: `Bearer ${token}` },
     })
     rawTranslationData.value = response
+    // Support both shapes:
+    // 1) Responses API envelope with output_text that wraps our JSON
+    // 2) Direct JSON object already in the parsed translation shape (for older cache entries)
+    let jsonStr: string | null = null
     const content = extractOutputText(response)?.trim()
-    if (!content) throw new Error('No translation in response')
-    let jsonStr = content
+    if (content) {
+      jsonStr = content
+    } else if (response && typeof response.originalPhrase === 'string') {
+      // Cached older shape: the response itself is already the translation JSON.
+      jsonStr = JSON.stringify(response)
+    }
+    if (!jsonStr) throw new Error('No translation in response')
     if (!jsonStr.startsWith('{')) {
       const match = jsonStr.match(/\{[\s\S]*\}/)
       if (match) jsonStr = match[0]
@@ -1864,6 +1961,12 @@ async function doTranslateApiCall (plainText: string, fullSentence: boolean, sef
     const model = (response as { model?: string })?.model
     const fromCache = (response as { fromCache?: boolean })?.fromCache
     translationMetadata.value = { model, durationMs, fromCache }
+    console.log('[BookReader][translate] Response received', {
+      model,
+      durationMs,
+      fromCache,
+      originalPhrasePreview: parsed.originalPhrase?.slice(0, 80),
+    })
     if (import.meta.client) window.getSelection()?.removeAllRanges()
   } catch (err: unknown) {
     translationError.value = err instanceof Error ? err.message : 'Translation failed'

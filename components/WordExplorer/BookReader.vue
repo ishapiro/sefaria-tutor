@@ -194,25 +194,28 @@
           </button>
         </div>
         <div
-          class="grid gap-4 text-sm"
+          class="grid gap-2 sm:gap-4 text-sm"
           :class="showEnglishColumn ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'"
         >
-          <div v-if="showEnglishColumn" class="font-medium text-gray-500">English</div>
-          <div class="font-medium text-gray-500 text-right" style="direction: rtl">Hebrew</div>
+          <div class="font-medium text-gray-500 text-right order-1 md:order-2" style="direction: rtl">
+            Hebrew
+          </div>
+          <div
+            v-if="showEnglishColumn"
+            class="font-medium text-gray-500 order-2 md:order-1"
+          >
+            English
+          </div>
         </div>
         <template v-for="(section, index) in currentPageText" :key="'v-' + index">
           <div
-            class="grid gap-4 border-b border-gray-100 pb-4 last:border-0"
+            class="grid gap-2 sm:gap-4 border-b border-gray-100 pb-4 last:border-0"
             :class="showEnglishColumn ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'"
           >
-            <div v-if="showEnglishColumn" class="select-none verse-english-column">
-              <span class="text-gray-500 mr-2 pointer-events-none cursor-default">{{ section.displayNumber }}</span>
-              <span
-                class="cursor-default text-gray-700 verse-english-html"
-                v-html="sanitizeSefariaVerseHtml(section.en)"
-              />
-            </div>
-            <div class="text-right text-lg select-none" style="direction: rtl">
+            <div
+              class="text-right text-lg select-none verse-hebrew-column order-1 md:order-2"
+              style="direction: rtl"
+            >
               <span class="text-gray-500 ml-2 text-sm pointer-events-none cursor-default">{{ section.displayNumber }}</span>
               <span
                 v-for="(phrase, pIdx) in splitIntoPhrases(section.he)"
@@ -221,7 +224,7 @@
               >
                 <span
                   :class="[
-                    'hover:bg-blue-50 cursor-pointer rounded px-0.5 transition-colors',
+                    'phrase-token cursor-pointer rounded px-0.5 transition-colors',
                     wordToHighlight && phraseContainsWord(phrase, wordToHighlight) ? 'bg-yellow-300 font-semibold' : ''
                   ]"
                   @click="$emit('phrase-click', phrase, true)"
@@ -237,6 +240,16 @@
                   <span class="text-sm" aria-hidden="true">📝</span>
                 </button>
               </span>
+            </div>
+            <div
+              v-if="showEnglishColumn"
+              class="select-none verse-english-column order-2 md:order-1"
+            >
+              <span class="text-gray-500 mr-2 pointer-events-none cursor-default hidden md:inline">{{ section.displayNumber }}</span>
+              <span
+                class="cursor-default text-gray-700 verse-english-html"
+                v-html="sanitizeSefariaVerseHtml(section.en)"
+              />
             </div>
           </div>
         </template>
@@ -425,6 +438,38 @@ defineEmits<{
   font-size: 0.9375rem;
   line-height: 1.2;
   letter-spacing: 0.01em;
+}
+.verse-hebrew-column {
+  line-height: 1.6;
+}
+
+/* Desktop / pointer devices: only show hover highlight when a real mouse/trackpad exists */
+@media (hover: hover) and (pointer: fine) {
+  .phrase-token:hover {
+    background-color: #eff6ff; /* Tailwind bg-blue-50 */
+  }
+}
+
+/* Phone: make verses more compact while staying readable */
+@media (max-width: 639px) {
+  .verse-english-column {
+    font-size: 0.875rem;
+    line-height: 1.35;
+  }
+  .verse-hebrew-column {
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+}
+
+/* iPad‑mini–sized tablets in portrait: use desktop layout but slightly tighter text */
+@media (min-width: 768px) and (max-width: 1024px) and (orientation: portrait) {
+  .verse-english-column {
+    font-size: 0.9rem;
+  }
+  .verse-hebrew-column {
+    font-size: 1.05rem;
+  }
 }
 .verse-english-html :deep(sup) {
   font-size: 0.75em;

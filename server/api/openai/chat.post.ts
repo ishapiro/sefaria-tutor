@@ -98,31 +98,32 @@ export default defineEventHandler(async (event) => {
         prompt_hash: string
       } | null
 
-      if (cached && 
-          cached.phrase === normalized && 
+      if (cached &&
+          cached.phrase === normalized &&
           cached.version === CURRENT_CACHE_VERSION &&
           (now - cached.created_at) < CACHE_TTL_SECONDS) {
-        
-        let parsed: any = null
+        console.log('[openai/chat][cache] HIT', {
+          phrasePreview: normalized.slice(0, 80),
+          phraseLength: normalized.length,
+          createdAt: cached.created_at,
+          ageSeconds: now - cached.created_at,
+          version: cached.version,
+        })
         try {
-          parsed = JSON.parse(cached.response)
-        } catch (e) {
-          parsed = null
-        }
-
-        if (parsed && isValidTranslationStructure(parsed)) {
-          // Cache Hit - Structurally compatible and within TTL
+          const parsed = JSON.parse(cached.response)
+          // Trust the cached payload as long as it is valid JSON; the client
+          // already performs its own parsing/validation of the inner JSON and
+          // will surface any structural problems.
           await db.prepare('UPDATE cache_stats SET hits = hits + 1, updated_at = ? WHERE id = 1')
             .bind(now)
             .run()
-          
           return { ...parsed, fromCache: true }
-        } else {
-          // Malformed Hit - Treat as miss and track it
-          await db.prepare('UPDATE cache_stats SET malformed_hits = malformed_hits + 1, updated_at = ? WHERE id = 1')
-            .bind(now)
-            .run()
-          // Proceed to fetch fresh from OpenAI
+        } catch (e) {
+          console.warn('[openai/chat][cache] Failed to parse cached.response JSON – treating as miss', {
+            phrasePreview: normalized.slice(0, 80),
+            error: (e as Error).message,
+          })
+          // fall through to OpenAI call on parse failure
         }
       }
     } catch (dbErr) {
@@ -181,6 +182,11 @@ export default defineEventHandler(async (event) => {
         await db.prepare('UPDATE cache_stats SET misses = misses + 1, updated_at = ? WHERE id = 1')
           .bind(now)
           .run()
+        console.log('[openai/chat][cache] MISS – stored response', {
+          phrasePreview: normalized.slice(0, 80),
+          phraseLength: normalized.length,
+          version: CURRENT_CACHE_VERSION,
+        })
       } catch (dbWriteErr) {
         console.error('Cache write error:', dbWriteErr)
       }
@@ -206,6 +212,11 @@ export default defineEventHandler(async (event) => {
             await db.prepare('UPDATE cache_stats SET misses = misses + 1, updated_at = ? WHERE id = 1')
               .bind(now)
               .run()
+            console.log('[openai/chat][cache] MISS_FALLBACK – stored response', {
+              phrasePreview: normalized.slice(0, 80),
+              phraseLength: normalized.length,
+              version: CURRENT_CACHE_VERSION,
+            })
           } catch (dbWriteErr) {
             console.error('Cache write error:', dbWriteErr)
           }

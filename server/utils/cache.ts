@@ -8,51 +8,23 @@ export const CURRENT_CACHE_VERSION = 2
 export const CACHE_TTL_SECONDS = 30 * 24 * 60 * 60 // 30 days
 
 export function isValidTranslationStructure(fullResponse: any): boolean {
+  // This is intentionally very permissive. The client already parses and
+  // validates the inner JSON structure. Here we only want to detect truly
+  // corrupted rows (e.g. missing the expected OpenAI "output" envelope).
   if (!fullResponse || typeof fullResponse !== 'object') return false
-  
-  // Extract the inner content from OpenAI response structure
-  // Based on chat.post.ts, the JSON is in output[0].content[0].text
-  let content = ''
+  if (!Array.isArray(fullResponse.output) || fullResponse.output.length === 0) return false
+  const first = fullResponse.output[0]
+  if (!first || typeof first !== 'object') return false
+  // As long as we have at least one output_text chunk, treat it as structurally OK.
   try {
-    const output = fullResponse.output?.[0]
-    if (output?.type === 'message' && Array.isArray(output.content)) {
-      content = output.content.find((c: any) => c.type === 'output_text')?.text || ''
+    if (Array.isArray(first.content)) {
+      const hasText = first.content.some((c: any) => c && c.type === 'output_text' && typeof c.text === 'string' && c.text.trim().length > 0)
+      return hasText
     }
-  } catch (e) {
+  } catch {
     return false
   }
-
-  if (!content) return false
-
-  // Parse the inner JSON
-  let data: any
-  try {
-    // Handle potential markdown code blocks in AI response
-    let jsonStr = content.trim()
-    if (jsonStr.includes('```')) {
-      const match = jsonStr.match(/\{[\s\S]*\}/)
-      if (match) jsonStr = match[0]
-    }
-    data = JSON.parse(jsonStr)
-  } catch (e) {
-    return false
-  }
-
-  // Now validate the actual translation fields
-  if (typeof data.originalPhrase !== 'string') return false
-  if (typeof data.translatedPhrase !== 'string') return false
-  if (!Array.isArray(data.wordTable)) return false
-
-  // Sample check on the first wordTable entry if it exists
-  if (data.wordTable.length > 0) {
-    const entry = data.wordTable[0]
-    const requiredEntryFields = ['word', 'wordTranslation', 'hebrewAramaic']
-    for (const field of requiredEntryFields) {
-      if (!(field in entry)) return false
-    }
-  }
-
-  return true
+  return false
 }
 
 export function normalizePhrase(phrase: string): string {
