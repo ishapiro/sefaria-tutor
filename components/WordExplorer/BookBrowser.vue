@@ -27,7 +27,6 @@
         Help
       </button>
       <button
-        v-if="loggedIn"
         type="button"
         class="px-4 py-2 text-sm font-medium border rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center gap-2 min-h-[36px]"
         :class="showWordListModal
@@ -39,7 +38,6 @@
         <span>My Word List</span>
       </button>
       <button
-        v-if="loggedIn"
         type="button"
         class="px-4 py-2 text-sm font-medium border rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center gap-2 min-h-[36px]"
         :class="showNotesListModal

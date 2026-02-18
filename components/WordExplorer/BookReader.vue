@@ -45,7 +45,7 @@
             </button>
           </div>
         </div>
-        <div v-if="loggedIn" class="flex items-center gap-1.5">
+        <div class="flex items-center gap-1.5">
           <button
             type="button"
             class="flex-1 px-2 py-1 text-xs font-medium border rounded-md transition-all duration-150 inline-flex items-center justify-center gap-1 min-h-[32px]"
@@ -92,7 +92,6 @@
             <span>{{ showEnglishColumn ? 'Hide English' : 'Show English' }}</span>
           </button>
           <button
-            v-if="loggedIn"
             type="button"
             class="px-4 py-2 text-sm font-medium border rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center gap-2 min-h-[36px]"
             :class="showWordListModal
@@ -104,7 +103,6 @@
             <span>My Word List</span>
           </button>
           <button
-            v-if="loggedIn"
             type="button"
             class="px-4 py-2 text-sm font-medium border rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center gap-2 min-h-[36px]"
             :class="showNotesListModal
@@ -280,7 +278,6 @@
                   @click="$emit('phrase-click', phrase, true)"
                 >{{ phrase }} </span>
                 <button
-                  v-if="loggedIn"
                   type="button"
                   class="shrink-0 p-0.5 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors align-middle"
                   title="Add note"

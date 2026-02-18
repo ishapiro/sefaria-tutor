@@ -48,8 +48,8 @@
       @update:search-query="searchQuery = $event"
       @refresh-index="refreshIndex"
       @open-help="showHelpDialog = true"
-      @open-word-list="showWordListModal = true"
-      @open-notes-list="showNotesListModal = true"
+      @open-word-list="onOpenWordList"
+      @open-notes-list="onOpenNotesList"
       @book-select="onBookSelectFromBrowser"
       @tab-open="onTabOpen"
       @close-category-dialog="showCategoryDialog = false"
@@ -92,8 +92,8 @@
       :origin-verse-he="originVerseContent?.he ?? null"
       :origin-verse-en="originVerseContent?.en ?? null"
       @close-book="handleCloseBook"
-      @open-word-list="showWordListModal = true"
-      @open-notes-list="showNotesListModal = true"
+      @open-word-list="onOpenWordList"
+      @open-notes-list="onOpenNotesList"
       @select-section="onSelectSection"
       @go-back-section="goBackSection"
       @open-section-list-debug="showSectionListDebugDialog = true"
@@ -210,6 +210,9 @@
       :on-play-tts="playWordTts"
       @close="showStudySession = false"
     />
+
+    <!-- Sign-in required (drive sign-ups when guest clicks a feature that needs an account) -->
+    <SignInRequiredModal v-model:open="showSignInRequiredModal" />
 
     <!-- Archive confirmation dialog -->
     <CommonConfirmDialog
@@ -559,6 +562,7 @@ async function getSefariaIndexForBook (book: CategoryNode): Promise<SefariaIndex
 // Word List state
 const showWordListModal = ref(false)
 const showNotesListModal = ref(false)
+const showSignInRequiredModal = ref(false)
 /** Commentaries modal: ref whose links we're showing; stored when user opens modal. */
 const showCommentariesModal = ref(false)
 const commentariesRef = ref<string | null>(null)
@@ -621,7 +625,8 @@ const studyCorrectRepetitions = ref(2)
 const studyMaxCards = ref<number | null>(null)
 
 const showAddToWordList = computed(() => {
-  if (!loggedIn.value) return false
+  // Show to guests to drive sign-ups (click opens sign-in modal); show to logged-in users with permission
+  if (!loggedIn.value) return true
   const u = user.value as SessionUser | null
   return !!(u?.role && ['general', 'team', 'admin'].includes(String(u.role)))
 })
@@ -1539,7 +1544,20 @@ function onPhraseClick (phrase: string) {
   translateWithOpenAI(phrase, true)
 }
 
+function onOpenWordList () {
+  if (loggedIn.value) showWordListModal.value = true
+  else showSignInRequiredModal.value = true
+}
+function onOpenNotesList () {
+  if (loggedIn.value) showNotesListModal.value = true
+  else showSignInRequiredModal.value = true
+}
+
 function onOpenNote (rowIndex: number, phraseIndex: number) {
+  if (!loggedIn.value) {
+    showSignInRequiredModal.value = true
+    return
+  }
   const section = currentPageText.value[rowIndex]
   if (!section) return
   const bookTitle = String(selectedBook.value?.title ?? '')
@@ -2551,6 +2569,10 @@ function getWordListButtonText(index: number): string {
 }
 
 async function addWordToList(index: number) {
+  if (!loggedIn.value) {
+    showSignInRequiredModal.value = true
+    return
+  }
   if (!translationData.value || !translationData.value.wordTable || !translationData.value.wordTable[index]) {
     return
   }
