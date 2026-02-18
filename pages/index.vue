@@ -323,7 +323,7 @@
             <strong>Where the content comes from:</strong> The Hebrew and English source texts are loaded from the <a href="https://www.sefaria.org/" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline">Sefaria</a> API. When you tap a phrase, Shoresh sends it to <a href="https://openai.com/" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline">OpenAI</a> to generate the word-by-word breakdown; that translation is not from Sefaria.
           </p>
           <p>
-            <strong>How to use it:</strong> Open a book from the list, then pick a section (e.g. a Torah portion or Talmud tractate). In the reader, tap any Hebrew phrase to open the translation popup. You can add words to “My Word List” for later study, add notes to phrases when signed in, and use the Study button to practice with flashcards.
+            <strong>How to use it:</strong> Open a book from the list, then pick a section (e.g. a Torah portion or Talmud tractate). In the reader, tap any Hebrew phrase to open the translation popup. You can add words to “My Word List” for later study, add notes to numbered entries when signed in, and use the Study button to practice with flashcards.
           </p>
         </div>
       </div>
@@ -411,7 +411,7 @@ import { useRuntimeConfig } from 'nuxt/app'
 import type { CategoryNode } from '~/components/WordExplorer/BookBrowser.vue'
 import { hasMultipleSentences, countWords, getPlainTextFromHtml, splitIntoPhrases, countWordInPhrase, phraseContainsWord, normalizeEnglishSpacingForHtml } from '~/utils/text'
 import { parseStartChapterFromRef, buildTanakhDisplayNumbers, parseRangeFromRef, extractTextArray, extractTextAndSections } from '~/utils/sefaria'
-import { buildNoteContext } from '~/utils/notes'
+import { buildNoteContextForSection } from '~/utils/notes'
 import { useClipboard } from '~/composables/useClipboard'
 import { useNotes } from '~/composables/useNotes'
 import { useSupportPageContext } from '~/composables/useSupportPageContext'
@@ -1553,7 +1553,7 @@ function onOpenNotesList () {
   else showSignInRequiredModal.value = true
 }
 
-function onOpenNote (rowIndex: number, phraseIndex: number) {
+function onOpenNote (rowIndex: number) {
   if (!loggedIn.value) {
     showSignInRequiredModal.value = true
     return
@@ -1562,13 +1562,11 @@ function onOpenNote (rowIndex: number, phraseIndex: number) {
   if (!section) return
   const bookTitle = String(selectedBook.value?.title ?? '')
   const bookPath = selectedBook.value?.path
-  const ctx = buildNoteContext(
+  const ctx = buildNoteContextForSection(
     section,
-    phraseIndex,
     bookTitle,
     bookPath,
-    lastSefariaRefAttempted.value ?? '',
-    splitIntoPhrases
+    lastSefariaRefAttempted.value ?? ''
   )
   if (ctx) openNoteModal(ctx)
 }

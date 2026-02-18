@@ -265,10 +265,20 @@
                   <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                 </svg>
               </button>
+              <button
+                type="button"
+                class="shrink-0 mr-1 p-0.5 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors align-middle inline-flex touch-manipulation min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 items-center justify-center"
+                title="Add note for this entry"
+                aria-label="Add note for this entry"
+                @click.stop="$emit('open-note', index)"
+                @touchstart.passive.stop
+              >
+                <span class="text-sm" aria-hidden="true">📝</span>
+              </button>
               <span
                 v-for="(phrase, pIdx) in splitIntoPhrases(section.he)"
                 :key="pIdx"
-                class="inline-flex items-center gap-0.5 align-baseline"
+                class="inline-flex items-center align-baseline"
               >
                 <span
                   :class="[
@@ -277,15 +287,6 @@
                   ]"
                   @click="$emit('phrase-click', phrase, true)"
                 >{{ phrase }} </span>
-                <button
-                  type="button"
-                  class="shrink-0 p-0.5 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors align-middle"
-                  title="Add note"
-                  aria-label="Add note for this phrase"
-                  @click.stop="$emit('open-note', index, pIdx)"
-                >
-                  <span class="text-sm" aria-hidden="true">📝</span>
-                </button>
               </span>
             </div>
             <div
@@ -450,7 +451,7 @@
             <span class="text-xs text-gray-500">23:1</span> button appears in the header. It shows the verse you came from (e.g. 23:1 or 14b). Click it to go back to that verse in the original book.
           </p>
           <p>
-            <strong>Tips:</strong> Use “Hide English” to focus on the Hebrew only. Use the 📝 button next to a phrase to add a personal note (when signed in). From “My Word List” you can study saved words with flashcards.
+            <strong>Tips:</strong> Use “Hide English” to focus on the Hebrew only. Use the 📝 button next to each numbered entry to add a personal note for the full verse or segment (when signed in). From “My Word List” you can study saved words with flashcards.
           </p>
         </div>
       </div>
@@ -595,7 +596,7 @@ const emit = defineEmits<{
   'open-book-load-debug': []
   'open-content-debug': []
   'phrase-click': [phrase: string, fromHebrew: boolean]
-  'open-note': [rowIndex: number, phraseIndex: number]
+  'open-note': [rowIndex: number]
   'open-commentaries': [sectionIndex: number]
   'return-to-origin': []
   'update:first': [value: number]

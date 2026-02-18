@@ -61,7 +61,7 @@
 
       <div v-else-if="notes.length === 0" class="flex-1 flex items-center justify-center p-8">
         <p class="text-gray-600 text-center">
-          You don't have any notes yet. Click the 📝 icon next to a phrase in the text to add a note.
+          You don't have any notes yet. Click the 📝 icon next to a numbered entry in the text to add a note.
         </p>
       </div>
 
@@ -224,7 +224,7 @@
         </div>
         <div class="p-4 overflow-y-auto text-sm text-gray-600 space-y-3">
           <p>
-            <strong>Adding notes:</strong> When reading a book, click the 📝 icon next to any Hebrew phrase to add or edit a note. Your note is tied to that phrase and reference. You must be signed in to save notes.
+            <strong>Adding notes:</strong> When reading a book, click the 📝 icon next to a numbered entry (verse or segment) to add or edit a note. Your note is tied to that full entry and reference. You must be signed in to save notes.
           </p>
           <p>
             <strong>This list:</strong> My Notes shows all your notes grouped by book. Click a note in the list to view or edit it. Use the checkboxes to select notes, then <strong>Print</strong> or <strong>Copy</strong> to export them. You can edit the note text in the panel and delete notes you no longer need.

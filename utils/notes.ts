@@ -1,10 +1,45 @@
 import type { NoteContext } from '~/composables/useNotes'
+import { getPlainTextFromHtml } from '~/utils/text'
 
 export interface VerseSection {
   displayNumber: string | number
   en: string
   he: string
   number?: number
+}
+
+/**
+ * Build context for opening the note modal for a full numbered entry (whole section).
+ * Uses the full Hebrew and English text of the section.
+ * bookTitle and bookPath are stored with the note for in-app navigation (same as word list).
+ */
+export function buildNoteContextForSection (
+  section: VerseSection,
+  bookTitle: string,
+  bookPath: string | undefined,
+  lastSefariaRef: string
+): NoteContext | null {
+  const hePhrase = (section.he ?? '').trim()
+  if (!hePhrase) return null
+  const enPhrase = getPlainTextFromHtml(section.en ?? '').trim()
+
+  const refDisplay = bookTitle
+    ? `${bookTitle} ${section.displayNumber}`
+    : String(section.displayNumber)
+
+  const displayNum = String(section.displayNumber)
+  const sefariaRef = displayNum.includes(':')
+    ? `${bookTitle.replace(/\s+/g, '_')}_${displayNum.replace(':', '.')}`
+    : lastSefariaRef
+
+  return {
+    hePhrase,
+    enPhrase,
+    refDisplay,
+    sefariaRef: sefariaRef || refDisplay.replace(/\s+/g, '_'),
+    bookTitle: bookTitle || undefined,
+    bookPath: bookPath || undefined
+  }
 }
 
 /**

@@ -121,7 +121,7 @@
         <section class="rounded-xl bg-purple-50/60 p-5">
           <h3 class="font-semibold text-slate-900 mb-2 text-base">My Notes</h3>
           <p class="text-slate-600 text-sm leading-relaxed mb-2">
-            <strong class="text-slate-900">Requires a free account.</strong> Add personal notes to phrases as you study. Click the 📝 icon next to any Hebrew phrase to add or edit a note with your thoughts, questions, or insights.
+            <strong class="text-slate-900">Requires a free account.</strong> Add personal notes to verses or numbered entries as you study. Click the 📝 icon next to a numbered entry to add or edit a note for the full verse/segment with your thoughts, questions, or insights.
           </p>
           <ul class="space-y-1.5 text-slate-600 text-sm list-disc list-inside mb-0">
             <li>View all your notes organized by book in the "My Notes" page</li>
