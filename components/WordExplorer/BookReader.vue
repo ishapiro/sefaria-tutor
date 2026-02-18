@@ -222,6 +222,29 @@
             Debug
           </button>
         </div>
+        <!-- Original verse (Torah/Tanakh only) when viewing a commentary; desktop/tablet only, not mobile -->
+        <div
+          v-if="showOriginVerse && (originVerseHe || originVerseEn)"
+          class="hidden sm:grid gap-2 sm:gap-4 border-b border-gray-200 pb-4 mb-1 bg-amber-50/50 rounded-lg px-3 py-3"
+          :class="showEnglishColumn ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'"
+        >
+          <p class="col-span-full text-xs font-semibold text-amber-800 mb-1">Original verse</p>
+          <div
+            class="text-right text-lg select-none verse-hebrew-column order-1 md:order-2"
+            style="direction: rtl"
+          >
+            <span v-if="originVerseHe" class="text-gray-800">{{ originVerseHe }}</span>
+          </div>
+          <div
+            v-if="showEnglishColumn && originVerseEn"
+            class="select-none verse-english-column order-2 md:order-1"
+          >
+            <span
+              class="cursor-default text-gray-700 verse-english-html text-sm"
+              v-html="sanitizeSefariaVerseHtml(originVerseEn)"
+            />
+          </div>
+        </div>
         <template v-for="(section, index) in currentPageText" :key="'v-' + index">
           <div
             class="grid gap-2 sm:gap-4 border-b border-gray-100 pb-4 last:border-0"
@@ -517,6 +540,10 @@ const props = defineProps<{
   showReturnButton: boolean
   /** Short label for the return button (e.g. "23:1", "14b"). */
   returnToRefShort: string | null
+  /** When viewing a Torah/Tanakh commentary, show the original verse at top. */
+  showOriginVerse: boolean
+  originVerseHe: string | null
+  originVerseEn: string | null
 }>()
 
 const isOnLastPage = computed(() =>

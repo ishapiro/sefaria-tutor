@@ -88,6 +88,9 @@
       :get-verse-sefaria-ref="getVerseSefariaRef"
       :show-return-button="!!returnToSefariaRef"
       :return-to-ref-short="returnToRefShort"
+      :show-origin-verse="!!(returnToSefariaRef && originVerseIsTanakh)"
+      :origin-verse-he="originVerseContent?.he ?? null"
+      :origin-verse-en="originVerseContent?.en ?? null"
       @close-book="handleCloseBook"
       @open-word-list="showWordListModal = true"
       @open-notes-list="showNotesListModal = true"
@@ -348,6 +351,7 @@
       :ref-display="commentariesRef"
       :loading="commentariesLoading"
       :list="commentariesList"
+      :additional-links="additionalLinksList"
       @close="showCommentariesModal = false"
       @select-link="onCommentaryLinkClick"
     />
@@ -560,9 +564,13 @@ const showCommentariesModal = ref(false)
 const commentariesRef = ref<string | null>(null)
 const commentariesLoading = ref(false)
 const commentariesList = ref<Array<{ ref: string; index_title: string; type?: string; category?: string; text?: string[] | string[][]; he?: string }>>([])
+const additionalLinksList = ref<Array<{ ref: string; index_title: string; type?: string; category?: string; text?: string[] | string[][]; he?: string }>>([])
 /** When user navigated to a commentary from a verse, we store origin so Return can go back. */
 const returnToSefariaRef = ref<string | null>(null)
 const returnToBookTitle = ref<string | null>(null)
+/** Original verse (he/en) when viewing a Torah/Tanakh commentary; shown at top of reader. */
+const originVerseContent = ref<{ he: string; en: string } | null>(null)
+const originVerseIsTanakh = ref(false)
 /** Clarify reference modal: shown when requested book not found; user picks from index suggestions. */
 const showClarifyRefModal = ref(false)
 const clarifyRefRequestedTitle = ref<string>('')
@@ -969,6 +977,16 @@ function getVerseSefariaRef (sectionIndex: number): string | null {
   const lastRef = lastSefariaRefAttempted.value
   if (lastRef) return lastRef.replace(/_/g, ' ')
   return null
+}
+
+/** Normalize a display ref for Sefaria Links/Related API (e.g. "Genesis 15:2" → "Genesis.15.2"). */
+function sefariaRefToApiTref (ref: string): string {
+  const t = ref.trim()
+  const lastSpace = t.lastIndexOf(' ')
+  if (lastSpace < 0) return t.replace(/:/g, '.')
+  const book = t.slice(0, lastSpace).trim()
+  const segment = t.slice(lastSpace + 1).replace(/:/g, '.')
+  return `${book.replace(/\s+/g, '_')}.${segment}`
 }
 
 const showSectionList = computed(() => (complexSections.value?.length ?? 0) > 0 && allVerseData.value.length === 0)
@@ -2243,6 +2261,8 @@ function handleCloseBook (options?: { forceCloseToBookList?: boolean }) {
   showNotesListModal.value = false
   returnToSefariaRef.value = null
   returnToBookTitle.value = null
+  originVerseContent.value = null
+  originVerseIsTanakh.value = false
   if (goHome) {
     selectedBook.value = null
     allVerseData.value = []
@@ -3043,18 +3063,36 @@ async function onOpenCommentaries (sectionIndex: number) {
   const tref = getVerseSefariaRef(sectionIndex)
   if (!tref) return
   commentariesRef.value = tref
+  const section = currentPageText.value[sectionIndex]
+  if (section) {
+    originVerseContent.value = { he: section.he, en: section.en }
+    originVerseIsTanakh.value = selectedBook.value?.categories?.includes('Tanakh') ?? false
+  } else {
+    originVerseContent.value = null
+    originVerseIsTanakh.value = false
+  }
   showCommentariesModal.value = true
   commentariesList.value = []
+  additionalLinksList.value = []
   commentariesLoading.value = true
   try {
+    const apiTref = sefariaRefToApiTref(tref)
     const links = await $fetch<Array<{ ref: string; index_title: string; type?: string; category?: string; text?: string[] | string[][]; he?: string }>>(
-      `/api/sefaria/links/${encodeURIComponent(tref)}`,
+      `/api/sefaria/links/${encodeURIComponent(apiTref)}`,
       { params: { with_text: 1 } }
     )
-    commentariesList.value = Array.isArray(links) ? links : []
+    const raw = Array.isArray(links) ? links : []
+    const isCommentary = (l: { type?: string; category?: string }) => {
+      const t = (l.type || '').toLowerCase()
+      const c = (l.category || '').toLowerCase()
+      return t === 'commentary' || c === 'commentary'
+    }
+    commentariesList.value = raw.filter(isCommentary)
+    additionalLinksList.value = raw.filter(l => !isCommentary(l))
   } catch (err) {
     console.warn('[Commentaries] Failed to fetch links:', err)
     commentariesList.value = []
+    additionalLinksList.value = []
   } finally {
     commentariesLoading.value = false
   }
@@ -3084,6 +3122,8 @@ async function onReturnToOrigin () {
   if (!ref || !book) return
   returnToSefariaRef.value = null
   returnToBookTitle.value = null
+  originVerseContent.value = null
+  originVerseIsTanakh.value = false
   await navigateToReference({ bookTitle: book, sefariaRef: ref })
 }
 
