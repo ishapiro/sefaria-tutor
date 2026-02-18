@@ -19,35 +19,39 @@
           <span class="text-lg leading-none">×</span>
         </button>
       </div>
-      <!-- Mobile: size to content (no flex-1) to avoid bottom white space. Desktop: fill and scroll (flex-1 min-h-0). -->
-      <div class="overflow-y-auto max-h-[70vh] sm:max-h-none sm:flex-1 sm:min-h-0 p-4">
-        <div v-if="loading" class="text-gray-500 py-4">Loading…</div>
+      <!-- Mobile: size to content (no flex-1) to avoid bottom white space; list flex-shrink-0 so cards don't stretch. Desktop: fill and scroll (flex-1 min-h-0). -->
+      <div class="overflow-y-auto max-h-[70vh] sm:max-h-none sm:flex-1 sm:min-h-0 p-4 min-h-0 flex flex-col">
+        <div v-if="loading" class="text-gray-500 py-4 shrink-0">Loading…</div>
         <template v-else>
-          <div v-if="!list.length && !additionalLinks.length" class="text-gray-500 py-4">No related commentaries or links for this reference.</div>
+          <div v-if="!list.length && !additionalLinks.length" class="text-gray-500 py-4 shrink-0">No related commentaries or links for this reference.</div>
           <template v-else>
-            <ul v-if="list.length" class="space-y-1.5 sm:space-y-3">
+            <ul v-if="list.length" class="space-y-1.5 sm:space-y-3 flex flex-col shrink-0">
               <li
                 v-for="(link, idx) in list"
                 :key="'c-' + link.ref + String(idx)"
-                class="border border-gray-100 rounded-md sm:rounded-lg px-2.5 py-2 sm:p-3 hover:bg-blue-50/50 hover:border-blue-200 transition-colors active:bg-blue-100"
+                class="border border-gray-100 rounded-md sm:rounded-lg px-2.5 py-2 sm:p-3 hover:bg-blue-50/50 hover:border-blue-200 transition-colors active:bg-blue-100 shrink-0"
               >
-                <button
-                  type="button"
-                  class="w-full text-left touch-manipulation min-h-[40px] sm:min-h-[44px] py-0.5 sm:py-1"
+                <!-- div instead of button to avoid Safari min-height / flex quirks that add extra space -->
+                <div
+                  role="button"
+                  tabindex="0"
+                  class="commentary-card-trigger w-full text-left touch-manipulation py-0.5 sm:py-1 cursor-pointer min-h-0"
                   @click="$emit('select-link', link)"
+                  @keydown.enter.prevent="$emit('select-link', link)"
+                  @keydown.space.prevent="$emit('select-link', link)"
                 >
                   <div class="font-medium text-blue-700 text-sm sm:text-base">{{ link.index_title }}</div>
                   <div class="text-[11px] sm:text-xs text-gray-500 mt-0.5 truncate">{{ link.ref }}</div>
                   <p
                     v-if="getLinkDisplayText(link)"
-                    class="text-xs sm:text-sm text-gray-600 sm:text-gray-700 mt-1.5 sm:mt-2 line-clamp-1 sm:line-clamp-2"
+                    class="text-xs sm:text-sm text-gray-600 sm:text-gray-700 mt-1.5 sm:mt-2 line-clamp-1 sm:line-clamp-2 overflow-hidden"
                     :style="(!link.text?.length && link.he) ? 'direction: rtl' : undefined"
                     v-html="sanitizeSefariaVerseHtml(getLinkDisplayText(link))"
                   />
-                </button>
+                </div>
               </li>
             </ul>
-            <div v-if="additionalLinks.length" class="mt-4 pt-3 border-t border-gray-200">
+            <div v-if="additionalLinks.length" class="mt-4 pt-3 border-t border-gray-200 shrink-0">
               <button
                 type="button"
                 class="w-full text-left px-2.5 py-2 sm:px-3 sm:py-2.5 rounded-md sm:rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium text-sm sm:text-base touch-manipulation"
@@ -56,26 +60,29 @@
                 {{ showAdditionalLinks ? 'Hide additional links' : 'Additional links' }}
                 <span class="text-gray-500 font-normal ml-1">({{ additionalLinks.length }})</span>
               </button>
-              <ul v-show="showAdditionalLinks" class="mt-2 space-y-1.5 sm:space-y-3">
+              <ul v-show="showAdditionalLinks" class="mt-2 space-y-1.5 sm:space-y-3 flex flex-col shrink-0">
                 <li
                   v-for="(link, idx) in additionalLinks"
                   :key="'a-' + link.ref + String(idx)"
-                  class="border border-gray-100 rounded-md sm:rounded-lg px-2.5 py-2 sm:p-3 hover:bg-blue-50/50 hover:border-blue-200 transition-colors active:bg-blue-100"
+                  class="border border-gray-100 rounded-md sm:rounded-lg px-2.5 py-2 sm:p-3 hover:bg-blue-50/50 hover:border-blue-200 transition-colors active:bg-blue-100 shrink-0"
                 >
-                  <button
-                    type="button"
-                    class="w-full text-left touch-manipulation min-h-[40px] sm:min-h-[44px] py-0.5 sm:py-1"
+                  <div
+                    role="button"
+                    tabindex="0"
+                    class="commentary-card-trigger w-full text-left touch-manipulation py-0.5 sm:py-1 cursor-pointer min-h-0"
                     @click="$emit('select-link', link)"
+                    @keydown.enter.prevent="$emit('select-link', link)"
+                    @keydown.space.prevent="$emit('select-link', link)"
                   >
                     <div class="font-medium text-blue-700 text-sm sm:text-base">{{ link.index_title }}</div>
                     <div class="text-[11px] sm:text-xs text-gray-500 mt-0.5 truncate">{{ link.ref }}</div>
                     <p
                       v-if="getLinkDisplayText(link)"
-                      class="text-xs sm:text-sm text-gray-600 sm:text-gray-700 mt-1.5 sm:mt-2 line-clamp-1 sm:line-clamp-2"
+                      class="text-xs sm:text-sm text-gray-600 sm:text-gray-700 mt-1.5 sm:mt-2 line-clamp-1 sm:line-clamp-2 overflow-hidden"
                       :style="(!link.text?.length && link.he) ? 'direction: rtl' : undefined"
                       v-html="sanitizeSefariaVerseHtml(getLinkDisplayText(link))"
                     />
-                  </button>
+                  </div>
                 </li>
               </ul>
             </div>
@@ -125,3 +132,12 @@ function getLinkDisplayText (link: { text?: string[] | string[][]; he?: string }
   return link.he ?? ''
 }
 </script>
+
+<style scoped>
+/* Safari (iOS + Mac) adds extra space when cards use <button>; avoid by using div. Ensure no residual stretch. */
+.commentary-card-trigger {
+  display: block;
+  height: fit-content;
+  min-height: 0;
+}
+</style>
