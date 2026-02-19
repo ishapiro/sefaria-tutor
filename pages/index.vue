@@ -1791,20 +1791,22 @@ async function fetchComplexBookToc (book: CategoryNode) {
       }
     } else if (indexData.schema.lengths?.[0] && indexData.schema.lengths[0] > 0) {
       const isTanakh = book.categories?.includes('Tanakh')
+      const isTorah = book.categories?.includes('Torah') || (typeof book.path === 'string' && book.path.includes('Torah'))
       const topLevelCount = indexData.schema.lengths[0]
 
       if (isTanakh) {
-        const sections: Array<{ ref: string; title: string; heTitle?: string; isContainer?: boolean }> = []
+        const chaptersBlock: Array<{ ref: string; title: string; heTitle?: string; isContainer?: boolean }> = []
+        const parashaBlock: Array<{ ref: string; title: string; heTitle?: string; isContainer?: boolean }> = []
 
-        // Primary chapter list, like Sefaria's "Chapters" grid.
-        sections.push({
+        // Chapters list, like Sefaria's "Chapters" grid.
+        chaptersBlock.push({
           ref: '__chapters__',
           title: 'Chapters',
           heTitle: indexData.schema.heSectionNames?.[0] as string | undefined,
           isContainer: true,
         })
         for (let n = 1; n <= topLevelCount; n++) {
-          sections.push({
+          chaptersBlock.push({
             ref: String(n),
             title: String(n),
           })
@@ -1813,7 +1815,7 @@ async function fetchComplexBookToc (book: CategoryNode) {
         // Torah portions (Parasha alt structure), when available.
         const parashaAlt = (indexData.alts?.Parasha as { nodes?: Array<Record<string, unknown>> } | undefined)?.nodes
         if (Array.isArray(parashaAlt) && parashaAlt.length > 0) {
-          sections.push({
+          parashaBlock.push({
             ref: '__parasha__',
             title: 'Torah Portions',
             heTitle: 'פרשיות התורה',
@@ -1827,7 +1829,7 @@ async function fetchComplexBookToc (book: CategoryNode) {
             const enTitle = titles.find(t => t.lang === 'en' && t.text)?.text ?? (node.title as string | undefined) ?? ''
             const heTitle = titles.find(t => t.lang === 'he' && t.text)?.text ?? (node.heTitle as string | undefined)
 
-            sections.push({
+            parashaBlock.push({
               ref: wholeRef,
               title: enTitle,
               heTitle,
@@ -1835,6 +1837,10 @@ async function fetchComplexBookToc (book: CategoryNode) {
           }
         }
 
+        // For Torah books: Torah Portions on top, Chapters on bottom. Other Tanakh: Chapters then Portions.
+        const sections = isTorah
+          ? [...parashaBlock, ...chaptersBlock]
+          : [...chaptersBlock, ...parashaBlock]
         complexSections.value = sections
       } else {
         // Non‑Tanakh complex book with a simple length array: treat as numbered simanim.

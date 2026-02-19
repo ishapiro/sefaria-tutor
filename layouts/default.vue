@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import SupportSupportModal from '~/components/Support/SupportModal.vue'
 
-const { loggedIn, user, logout } = useAuth()
+const { loggedIn, user, logout, fetch: fetchSession } = useAuth()
 
 const displayName = computed(() => {
   const u = (user as any)?.value ?? user
@@ -9,6 +9,32 @@ const displayName = computed(() => {
 })
 
 const supportModalOpen = ref(false)
+const showWhenToUseShoreshModal = ref(false)
+
+const WELCOME_STORAGE_KEY = 'shoresh_welcome_last_shown'
+const ONE_DAY_MS = 24 * 60 * 60 * 1000
+
+onMounted(async () => {
+  await fetchSession()
+  if (loggedIn.value) return
+  try {
+    const raw = localStorage.getItem(WELCOME_STORAGE_KEY)
+    const lastShown = raw ? parseInt(raw, 10) : 0
+    const now = Date.now()
+    if (!Number.isFinite(lastShown) || now - lastShown >= ONE_DAY_MS) {
+      showWhenToUseShoreshModal.value = true
+    }
+  } catch {
+    showWhenToUseShoreshModal.value = true
+  }
+})
+
+function closeWhenToUseShoreshModal () {
+  showWhenToUseShoreshModal.value = false
+  try {
+    localStorage.setItem(WELCOME_STORAGE_KEY, String(Date.now()))
+  } catch {}
+}
 </script>
 
 <template>
@@ -68,6 +94,10 @@ const supportModalOpen = ref(false)
     </header>
     <ClientOnly>
       <SupportSupportModal v-model:open="supportModalOpen" />
+      <CommonWhenToUseShoreshModal
+        :open="showWhenToUseShoreshModal"
+        @close="closeWhenToUseShoreshModal"
+      />
       <template #fallback />
     </ClientOnly>
     <main>

@@ -30,6 +30,13 @@
       </dl>
 
       <section class="mt-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-2">When to use Shoresh vs Sefaria</h2>
+        <p class="text-gray-700 text-sm leading-relaxed">
+          All of the texts in Shoresh come from <a href="https://www.sefaria.org/" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">Sefaria.org</a>. Shoresh (at shoresh.cogitations.com) and Sefaria both give you access to Jewish texts, but they serve different goals. Use <strong>Shoresh</strong> when you want to build vocabulary and read word by word: tap any phrase to get an AI breakdown of each word (meaning, root, grammar, pronunciation), save words to My Word List, and study with flashcards. Use <strong>Sefaria</strong> when you want the full library with multiple commentaries (Rashi, Ramban, and many others), study calendars (Daf Yomi, 929, Parashat HaShavua), source sheets, and offline access. In short—Sefaria for breadth and traditional commentary; Shoresh for word-level learning and vocabulary building on the same texts.
+        </p>
+      </section>
+
+      <section class="mt-6">
         <h2 class="text-lg font-semibold text-gray-800 mb-2">Release notes</h2>
         <div class="max-h-[60vh] overflow-y-auto rounded-lg border border-gray-200 bg-gray-50 p-4">
           <p class="text-gray-700 text-sm mb-4 leading-relaxed">

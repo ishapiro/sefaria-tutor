@@ -1,7 +1,7 @@
 <template>
   <div class="mb-4">
-    <div class="flex items-center gap-4 mb-4 flex-wrap">
-      <span class="relative flex-grow min-w-[200px]">
+    <div class="flex items-center gap-2 sm:gap-4 mb-4 flex-wrap">
+      <span class="relative flex-grow min-w-0 sm:min-w-[200px]">
         <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">🔍</span>
         <input
           :value="searchQuery"
@@ -12,46 +12,52 @@
         />
       </span>
       <button
+        v-if="isAdmin"
         type="button"
-        class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
+        class="px-2 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[32px] sm:min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
         :disabled="loading"
         @click="$emit('refresh-index')"
       >
-        Refresh Index
+        <span class="hidden sm:inline">Refresh Index</span>
+        <span class="sm:hidden">Refresh</span>
       </button>
-      <button
-        type="button"
-        class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
-        @click="$emit('open-help')"
-      >
-        Help
-      </button>
-      <button
-        type="button"
-        class="px-4 py-2 text-sm font-medium border rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center gap-2 min-h-[36px]"
-        :class="showWordListModal
-          ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm'
-          : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400'"
-        @click="$emit('open-word-list')"
-      >
-        <span class="text-base leading-none">📚</span>
-        <span>My Word List</span>
-      </button>
-      <button
-        type="button"
-        class="px-4 py-2 text-sm font-medium border rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center gap-2 min-h-[36px]"
-        :class="showNotesListModal
-          ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm'
-          : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400'"
-        @click="$emit('open-notes-list')"
-      >
-        <span class="text-base leading-none">📝</span>
-        <span>My Notes</span>
-      </button>
+      <!-- Help, My Word List, My Notes: one row on mobile with compact sizing -->
+      <div class="flex items-center flex-nowrap gap-1 sm:gap-2 shrink-0">
+        <button
+          type="button"
+          class="px-2 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center justify-center gap-1 sm:gap-2 min-h-[32px] sm:min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
+          @click="$emit('open-help')"
+        >
+          Help
+        </button>
+        <button
+          type="button"
+          class="px-2 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium border rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center justify-center gap-1 sm:gap-2 min-h-[32px] sm:min-h-[36px]"
+          :class="showWordListModal
+            ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm'
+            : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400'"
+          @click="$emit('open-word-list')"
+        >
+          <span class="text-sm sm:text-base leading-none">📚</span>
+          <span class="sm:hidden">Words</span>
+          <span class="hidden sm:inline">My Word List</span>
+        </button>
+        <button
+          type="button"
+          class="px-2 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium border rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center justify-center gap-1 sm:gap-2 min-h-[32px] sm:min-h-[36px]"
+          :class="showNotesListModal
+            ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm'
+            : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400'"
+          @click="$emit('open-notes-list')"
+        >
+          <span class="text-sm sm:text-base leading-none">📝</span>
+          <span>My Notes</span>
+        </button>
+      </div>
       <NuxtLink
         v-if="isAdmin"
         to="/admin"
-        class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
+        class="px-2 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[32px] sm:min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
       >
         Admin
       </NuxtLink>
