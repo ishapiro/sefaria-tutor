@@ -66,7 +66,16 @@
           >{{ translationData.originalPhrase }}</div>
           <div class="text-sm sm:text-2xl text-gray-900 break-words overflow-wrap-anywhere" style="word-break: break-word;">{{ translationData.translatedPhrase }}</div>
         </div>
-        <div class="flex justify-end mb-2">
+        <div class="flex flex-wrap items-center gap-2 mb-2">
+          <button
+            type="button"
+            class="px-3 py-1.5 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 disabled:opacity-60 disabled:cursor-not-allowed"
+            :disabled="grammarLoading"
+            @click="fetchSentenceGrammar"
+          >
+            <span v-if="grammarLoading" class="animate-pulse">Loading…</span>
+            <span v-else>Grammar</span>
+          </button>
           <button type="button" class="px-3 py-1.5 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400" @click="$emit('view-raw')">View Raw Data</button>
         </div>
         <div
@@ -222,6 +231,14 @@
       </div>
     </div>
 
+    <WordExplorerSentenceGrammarModal
+      :open="showGrammarModal"
+      :loading="grammarLoading"
+      :error="grammarError"
+      :explanation="grammarExplanation"
+      @close="showGrammarModal = false"
+    />
+
     <!-- Usage modal (translation dialog) -->
     <div
       v-if="showUsageModal"
@@ -264,10 +281,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { substantiveWord } from '~/utils/text'
 import { useSupportPageContext } from '~/composables/useSupportPageContext'
 import { SUPPORT_VIEW_NAMES } from '~/constants/supportViewNames'
+import { useRuntimeConfig } from 'nuxt/app'
 
 export interface RootExample {
   word: string
@@ -320,10 +338,51 @@ const props = defineProps<{
 const canCopy = computed(() => !props.translationLoading && !!props.translationData)
 
 const showUsageModal = ref(false)
+const showGrammarModal = ref(false)
+const grammarLoading = ref(false)
+const grammarError = ref<string | null>(null)
+const grammarExplanation = ref<string | null>(null)
+
+const config = useRuntimeConfig()
+
+async function fetchSentenceGrammar () {
+  if (!props.translationData?.originalPhrase) return
+  const token = config.public?.apiAuthToken as string | undefined
+  if (!token) {
+    grammarError.value = 'API auth not configured.'
+    showGrammarModal.value = true
+    return
+  }
+  grammarError.value = null
+  grammarExplanation.value = null
+  showGrammarModal.value = true
+  grammarLoading.value = true
+  try {
+    const res = await $fetch<{ explanation: string }>('/api/openai/sentence-grammar', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: {
+        phrase: props.translationData.originalPhrase,
+        translatedPhrase: props.translationData.translatedPhrase ?? undefined,
+      },
+    })
+    grammarExplanation.value = res?.explanation ?? null
+  } catch (e: unknown) {
+    const msg = (e as { data?: { message?: string }; message?: string })?.data?.message ?? (e as Error)?.message ?? 'Request failed'
+    grammarError.value = String(msg)
+  } finally {
+    grammarLoading.value = false
+  }
+}
 const { setSupportView, clearSupportView } = useSupportPageContext()
 watch(() => props.open, (isOpen) => {
   if (isOpen) setSupportView(SUPPORT_VIEW_NAMES.TRANSLATION)
-  else clearSupportView()
+  else {
+    clearSupportView()
+    showGrammarModal.value = false
+    grammarError.value = null
+    grammarExplanation.value = null
+  }
 }, { immediate: true })
 
 /** Use root when present and not "—", otherwise the substantive word (after maqaf, leading vav stripped; e.g. אֶל־מֹשֶׁה or וּמֹשֶׁה → מֹשֶׁה). */

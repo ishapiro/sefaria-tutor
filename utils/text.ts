@@ -101,6 +101,24 @@ export function getPlainTextFromHtml (html: string): string {
 /** Tags allowed in Sefaria verse text. */
 const SEFARIA_ALLOWED_TAGS = new Set(['b', 'i', 'sup', 'sub', 'span', 'small', 'br', 'a', 'strong', 'em', 'ref', 'note'])
 
+/** Tags allowed in markdown-rendered content (e.g. grammar explanation). No attributes kept. */
+const MARKDOWN_ALLOWED_TAGS = new Set(['p', 'strong', 'em', 'b', 'i', 'ul', 'ol', 'li', 'br', 'code', 'pre'])
+
+/**
+ * Sanitize HTML produced from markdown (e.g. marked) for safe use with v-html.
+ * Keeps only paragraph, emphasis, list, and code tags; strips all attributes.
+ */
+export function sanitizeMarkdownHtml (html: string): string {
+  if (!html || typeof html !== 'string') return ''
+  return html.replace(/<\/?([a-z][a-z0-9]*)(\s+[^>]*)?\/?>/gi, (match, tagName: string) => {
+    const name = tagName.toLowerCase()
+    if (!MARKDOWN_ALLOWED_TAGS.has(name)) return ''
+    if (match.startsWith('</')) return `</${name}>`
+    if (name === 'br') return '<br>'
+    return `<${name}>`
+  })
+}
+
 /** Safe href: refs like Genesis.2.7, paths, or sefaria.org. No javascript:, data:, etc. */
 function isSafeHref (href: string): boolean {
   if (!href || typeof href !== 'string') return false

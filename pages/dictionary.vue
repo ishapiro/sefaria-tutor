@@ -309,7 +309,16 @@
               {{ translationData.translatedPhrase }}
             </div>
           </div>
-          <div class="flex justify-end mb-2">
+          <div class="flex flex-wrap items-center gap-2 mb-2">
+            <button
+              type="button"
+              class="px-3 py-1.5 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 disabled:opacity-60 disabled:cursor-not-allowed"
+              :disabled="grammarLoading"
+              @click="fetchSentenceGrammar"
+            >
+              <span v-if="grammarLoading" class="animate-pulse">Loading…</span>
+              <span v-else>Grammar</span>
+            </button>
             <button
               type="button"
               class="px-3 py-1.5 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
@@ -413,6 +422,14 @@
             </span>
           </div>
         </div>
+
+        <WordExplorerSentenceGrammarModal
+          :open="showGrammarModal"
+          :loading="grammarLoading"
+          :error="grammarError"
+          :explanation="grammarExplanation"
+          @close="showGrammarModal = false"
+        />
       </div>
     </div>
 
@@ -623,6 +640,10 @@ const showRawData = ref(false)
 const rawTranslationData = ref<unknown>(null)
 const ttsLoading = ref(false)
 const copiedStatus = ref<string | null>(null)
+const showGrammarModal = ref(false)
+const grammarLoading = ref(false)
+const grammarError = ref<string | null>(null)
+const grammarExplanation = ref<string | null>(null)
 
 const hitRate = computed(() => {
   const totalCalls = stats.value.hits + stats.value.misses
@@ -852,6 +873,9 @@ async function doTranslateApiCall(plainText: string, fullSentence: boolean) {
   translationMetadata.value = null
   rawTranslationData.value = null
   lastTranslatedInputText.value = plainText
+  showGrammarModal.value = false
+  grammarError.value = null
+  grammarExplanation.value = null
   const startTime = Date.now()
 
   try {
@@ -926,6 +950,37 @@ function confirmMultiSentenceContinue() {
   showMultiSentenceConfirmDialog.value = false
   pendingTranslation.value = null
   doTranslateApiCall(pending.plainText, pending.fullSentence)
+}
+
+async function fetchSentenceGrammar() {
+  if (!translationData.value?.originalPhrase) return
+  const config = useRuntimeConfig()
+  const token = config.public.apiAuthToken as string
+  if (!token) {
+    grammarError.value = 'API auth not configured.'
+    showGrammarModal.value = true
+    return
+  }
+  grammarError.value = null
+  grammarExplanation.value = null
+  showGrammarModal.value = true
+  grammarLoading.value = true
+  try {
+    const res = await $fetch<{ explanation: string }>('/api/openai/sentence-grammar', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: {
+        phrase: translationData.value.originalPhrase,
+        translatedPhrase: translationData.value.translatedPhrase ?? undefined
+      }
+    })
+    grammarExplanation.value = res?.explanation ?? null
+  } catch (e: unknown) {
+    const err = e as { data?: { message?: string }; message?: string }
+    grammarError.value = err?.data?.message ?? (err as Error)?.message ?? 'Request failed'
+  } finally {
+    grammarLoading.value = false
+  }
 }
 
 async function translateWithOpenAI(text: string, fullSentence = false) {
