@@ -224,7 +224,7 @@
         <div
           v-if="showOriginVerse && (originVerseHe || originVerseEn)"
           class="hidden sm:grid gap-2 sm:gap-4 border-b border-gray-200 pb-4 mb-1 bg-amber-50/50 rounded-lg px-3 py-3"
-          :class="showEnglishColumn ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'"
+          :class="showEffectiveEnglishColumn ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'"
         >
           <p class="col-span-full text-xs font-semibold text-amber-800 mb-1">Original verse</p>
           <div
@@ -234,7 +234,7 @@
             <span v-if="originVerseHe" class="text-gray-800">{{ originVerseHe }}</span>
           </div>
           <div
-            v-if="showEnglishColumn && originVerseEn"
+            v-if="showEffectiveEnglishColumn && originVerseEn"
             class="select-none verse-english-column order-2 md:order-1"
           >
             <span
@@ -246,35 +246,53 @@
         <template v-for="(section, index) in currentPageText" :key="'v-' + index">
           <div
             class="grid gap-2 sm:gap-4 border-b border-gray-100 pb-4 last:border-0"
-            :class="showEnglishColumn ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'"
+            :class="showEffectiveEnglishColumn ? 'grid-cols-1 md:grid-cols-[auto_1fr_1fr]' : 'grid-cols-1 md:grid-cols-[auto_1fr]'"
           >
-<div
-            class="text-right text-lg select-none verse-hebrew-column order-1 md:order-2"
-            style="direction: rtl"
-          >
-              <span class="text-gray-500 ml-2 text-sm pointer-events-none cursor-default">{{ section.displayNumber }}</span>
-              <button
-                type="button"
-                class="shrink-0 mr-1 p-0.5 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors align-middle inline-flex touch-manipulation min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 items-center justify-center"
-                title="Commentaries & links"
-                aria-label="View commentaries and links for this verse"
-                @click.stop="$emit('open-commentaries', index)"
-                @touchstart.passive.stop
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                class="shrink-0 mr-1 p-0.5 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors align-middle inline-flex touch-manipulation min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 items-center justify-center"
-                title="Add note for this entry"
-                aria-label="Add note for this entry"
-                @click.stop="$emit('open-note', index)"
-                @touchstart.passive.stop
-              >
-                <span class="text-sm" aria-hidden="true">📝</span>
-              </button>
+            <!-- Actions column: paragraph number (bold) + links and notes, aligned with top of row -->
+            <div
+              class="flex flex-col sm:flex-row gap-0.5 sm:gap-1 items-center order-3 md:order-1 min-w-0 self-start"
+            >
+              <span class="text-gray-700 text-sm font-bold pointer-events-none shrink-0 leading-9">{{ section.displayNumber }}</span>
+              <div class="flex items-center gap-0.5 sm:gap-1 shrink-0">
+                <button
+                  type="button"
+                  class="verse-action-btn h-9 w-9 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors inline-flex touch-manipulation items-center justify-center flex-shrink-0"
+                  title="Commentaries & links"
+                  aria-label="View commentaries and links for this verse"
+                  @click.stop="$emit('open-commentaries', index)"
+                  @touchstart.passive.stop
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  class="verse-action-btn h-9 w-9 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors inline-flex touch-manipulation items-center justify-center flex-shrink-0"
+                  title="Add note for this entry"
+                  aria-label="Add note for this entry"
+                  @click.stop="$emit('open-note', index)"
+                  @touchstart.passive.stop
+                >
+                  <span class="verse-action-icon text-base leading-none" aria-hidden="true">📝</span>
+                </button>
+              </div>
+            </div>
+            <!-- English -->
+            <div
+              v-if="showEffectiveEnglishColumn"
+              class="select-none verse-english-column order-2 md:order-2 min-w-0"
+            >
+              <span
+                class="cursor-default text-gray-700 verse-english-html"
+                v-html="sanitizeSefariaVerseHtml(section.en)"
+              />
+            </div>
+            <!-- Hebrew -->
+            <div
+              class="text-right text-lg select-none verse-hebrew-column order-1 md:order-3 min-w-0"
+              style="direction: rtl"
+            >
               <span
                 v-for="(phrase, pIdx) in splitIntoPhrases(section.he)"
                 :key="pIdx"
@@ -288,16 +306,6 @@
                   @click="$emit('phrase-click', phrase, true)"
                 >{{ phrase }} </span>
               </span>
-            </div>
-            <div
-              v-if="showEnglishColumn"
-              class="select-none verse-english-column order-2 md:order-1"
-            >
-              <span class="text-gray-500 mr-2 pointer-events-none cursor-default hidden md:inline">{{ section.displayNumber }}</span>
-              <span
-                class="cursor-default text-gray-700 verse-english-html"
-                v-html="sanitizeSefariaVerseHtml(section.en)"
-              />
             </div>
           </div>
         </template>
@@ -548,6 +556,15 @@ const isOnLastPage = computed(() =>
   props.first + props.rowsPerPage >= props.totalRecords
 )
 
+/** True if the current text has any English content (origin verse or any section). */
+const textHasEnglish = computed(() => {
+  if ((props.originVerseEn || '').trim()) return true
+  return props.currentPageText.some(s => ((s?.en ?? '').trim().length > 0))
+})
+
+/** Show English column only when user has it on and the text actually has English. Toggle state is unchanged. */
+const showEffectiveEnglishColumn = computed(() => showEnglishColumn.value && textHasEnglish.value)
+
 /** For mobile only: show just the last segment of a section title (e.g. "Berakhot, 14b" → "14b"). Display only. */
 function lastSegment (title: string | null | undefined): string {
   if (!title) return ''
@@ -712,5 +729,18 @@ onUnmounted(() => clearSupportView())
 }
 .verse-english-html :deep(a.refLink:hover) {
   color: #1d4ed8;
+}
+
+/* Same-size action buttons in verse row */
+.verse-action-btn {
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+}
+.verse-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  line-height: 1;
 }
 </style>
