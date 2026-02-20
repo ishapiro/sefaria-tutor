@@ -107,6 +107,21 @@
             Root: {{ currentWord.wordData.wordEntry.wordRoot }}
             <span v-if="currentWord.wordData.wordEntry.wordRootTranslation" class="text-gray-500">({{ currentWord.wordData.wordEntry.wordRootTranslation }})</span>
           </div>
+          <!-- Modern Hebrew Example (included on mobile and desktop) -->
+          <div
+            v-if="currentWord?.wordData?.wordEntry?.modernHebrewExample?.sentence && currentWord?.wordData?.wordEntry?.modernHebrewExample?.translation"
+            class="block w-full flex-shrink-0 mt-3 pt-3 border-t border-gray-100 text-left"
+          >
+            <div class="text-xs font-semibold text-gray-500 uppercase mb-2">Modern Hebrew Example</div>
+            <div class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 space-y-1">
+              <div class="text-sm text-right text-slate-800 break-words" style="direction: rtl; word-break: break-word;">
+                {{ currentWord.wordData.wordEntry.modernHebrewExample.sentence }}
+              </div>
+              <div class="text-sm text-gray-700">
+                {{ currentWord.wordData.wordEntry.modernHebrewExample.translation }}
+              </div>
+            </div>
+          </div>
           <div class="flex flex-wrap gap-2 justify-center pt-4">
             <button
               type="button"
