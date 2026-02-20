@@ -162,6 +162,7 @@
       :count-word-in-phrase="countWordInPhrase"
       :get-word-list-button-class="getWordListButtonClass"
       :get-word-list-button-text="getWordListButtonText"
+      :is-admin="isAdmin"
       @close="showTranslationDialog = false"
       @copy="onTranslationCopy"
       @view-raw="showRawData = true"

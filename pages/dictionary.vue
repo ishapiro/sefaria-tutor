@@ -320,6 +320,7 @@
               <span v-else>Grammar</span>
             </button>
             <button
+              v-if="isAdmin"
               type="button"
               class="px-3 py-1.5 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
               @click="showRawData = true"
@@ -601,6 +602,7 @@ import { useSupportPageContext } from '~/composables/useSupportPageContext'
 import { SUPPORT_VIEW_NAMES } from '~/constants/supportViewNames'
 
 const { setSupportView, clearSupportView } = useSupportPageContext()
+const { isAdmin } = useAuth()
 
 const entries = ref<any[]>([])
 const stats = ref({ hits: 0, misses: 0, malformed_hits: 0, updated_at: 0 })

@@ -76,7 +76,14 @@
             <span v-if="grammarLoading" class="animate-pulse">Loading…</span>
             <span v-else>Grammar</span>
           </button>
-          <button type="button" class="px-3 py-1.5 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400" @click="$emit('view-raw')">View Raw Data</button>
+          <button
+            v-if="isAdmin"
+            type="button"
+            class="px-3 py-1.5 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
+            @click="$emit('view-raw')"
+          >
+            View Raw Data
+          </button>
         </div>
         <div
           v-if="translationWordTableIncomplete"
@@ -333,6 +340,7 @@ const props = defineProps<{
   countWordInPhrase: (phrase: string, word: string) => number
   getWordListButtonClass: (index: number) => string
   getWordListButtonText: (index: number) => string
+  isAdmin?: boolean
 }>()
 
 const canCopy = computed(() => !props.translationLoading && !!props.translationData)
