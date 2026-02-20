@@ -49,7 +49,8 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // Start session
+  // Start session (30-day cookie so user stays logged in across browser sessions)
+  const sessionMaxAge = 60 * 60 * 24 * 30 // 30 days, in seconds
   await setUserSession(event, {
     user: {
       id: user.id,
@@ -59,7 +60,7 @@ export default defineEventHandler(async (event) => {
       isVerified: Boolean(user.is_verified)
     },
     loggedInAt: Date.now()
-  })
+  }, { maxAge: sessionMaxAge })
 
   return {
     user: {

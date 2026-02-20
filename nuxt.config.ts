@@ -31,6 +31,10 @@ export default defineNuxtConfig({
     openaiApiKey: '',
     resendApiKey: '',
     turnstileSecretKey: '', // Server-side secret for Turnstile verification
+    // Session cookie lasts 30 days so users stay logged in across browser sessions (nuxt-auth-utils)
+    session: {
+      maxAge: 60 * 60 * 24 * 30, // 30 days, in seconds
+    },
     public: {
       appName: 'Shoresh',
       version: '1.0.0',

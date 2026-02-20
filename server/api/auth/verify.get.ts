@@ -36,7 +36,8 @@ export default defineEventHandler(async (event) => {
     .bind(user.id)
     .run()
 
-  // Start session automatically after verification
+  // Start session automatically after verification (30-day cookie)
+  const sessionMaxAge = 60 * 60 * 24 * 30 // 30 days, in seconds
   await setUserSession(event, {
     user: {
       id: user.id,
@@ -46,7 +47,7 @@ export default defineEventHandler(async (event) => {
       isVerified: true
     },
     loggedInAt: Date.now()
-  })
+  }, { maxAge: sessionMaxAge })
 
   // Redirect to home or a success page
   return sendRedirect(event, '/?verified=true')

@@ -43,6 +43,8 @@ export default defineOAuthGoogleEventHandler({
         throw new Error('Failed to retrieve user after login')
       }
 
+      // 30-day cookie so user stays logged in across browser sessions
+      const sessionMaxAge = 60 * 60 * 24 * 30 // 30 days, in seconds
       await setUserSession(event, {
         user: {
           id: user.id,
@@ -52,7 +54,7 @@ export default defineOAuthGoogleEventHandler({
           isVerified: Boolean(user.is_verified)
         },
         loggedInAt: Date.now()
-      })
+      }, { maxAge: sessionMaxAge })
 
       return sendRedirect(event, '/')
     } catch (error: any) {
