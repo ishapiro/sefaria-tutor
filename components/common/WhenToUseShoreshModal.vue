@@ -1,10 +1,10 @@
 <template>
   <div
     v-if="open"
-    class="when-to-use-overlay fixed inset-0 z-50 flex items-end sm:items-center justify-center py-0 sm:py-8 px-3 sm:px-4 bg-black/60 backdrop-blur-sm overflow-hidden sm:overflow-y-auto"
+    class="when-to-use-overlay fixed inset-0 z-50 flex items-start sm:items-center justify-center py-0 sm:py-8 px-3 sm:px-4 bg-black/60 backdrop-blur-sm overflow-y-auto"
     @click.self="$emit('close')"
   >
-    <div class="when-to-use-card bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-2xl w-full max-h-[85vh] sm:max-h-[90vh] overflow-hidden flex flex-col sm:my-auto">
+    <div class="when-to-use-card bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[85vh] sm:max-h-[90vh] overflow-hidden flex flex-col mt-3 sm:my-auto">
       <div class="px-4 sm:px-8 pt-4 sm:pt-8 pb-2 sm:pb-4 shrink-0">
         <h2 class="text-base sm:text-xl font-bold text-gray-900 tracking-tight leading-snug">When to use Shoresh vs Sefaria</h2>
       </div>
@@ -43,17 +43,12 @@ defineEmits<{
 </script>
 
 <style scoped>
-/* Fit within safe area on notched devices (e.g. iPhone X); button stays visible at bottom on mobile */
+/* Fit within safe area on notched devices (e.g. iPhone X) */
 .when-to-use-overlay {
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
   padding-left: max(0.75rem, env(safe-area-inset-left));
   padding-right: max(0.75rem, env(safe-area-inset-right));
-  padding-top: max(0.75rem, env(safe-area-inset-top));
-  padding-bottom: 0;
-}
-@media (min-width: 640px) {
-  .when-to-use-overlay {
-    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
-  }
 }
 .safe-area-buttons {
   padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
