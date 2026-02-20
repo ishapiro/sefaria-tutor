@@ -209,6 +209,7 @@
         v-else
         class="space-y-4 touch-pan-y"
         @touchstart.passive="onSwipeStart"
+        @touchmove="onSwipeMove"
         @touchend="onSwipeEnd"
       >
         <div class="flex items-center gap-2 flex-wrap -mt-0.5">
@@ -248,9 +249,38 @@
             class="grid gap-2 sm:gap-4 border-b border-gray-100 pb-4 last:border-0"
             :class="showEffectiveEnglishColumn ? 'grid-cols-1 md:grid-cols-[auto_1fr_1fr]' : 'grid-cols-1 md:grid-cols-[auto_1fr]'"
           >
-            <!-- Actions column: paragraph number (bold) + links and notes, aligned with top of row -->
+            <!-- Mobile: Actions row above Hebrew (right-justified, full width) -->
             <div
-              class="flex flex-col sm:flex-row gap-0.5 sm:gap-1 items-center order-3 md:order-1 min-w-0 self-start"
+              class="flex items-center justify-end gap-1 md:hidden"
+              style="direction: rtl"
+            >
+              <span class="text-gray-700 text-sm font-bold pointer-events-none shrink-0">{{ section.displayNumber }}</span>
+              <button
+                type="button"
+                class="verse-action-btn h-9 w-9 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors inline-flex touch-manipulation items-center justify-center flex-shrink-0"
+                title="Commentaries & links"
+                aria-label="View commentaries and links for this verse"
+                @click.stop="$emit('open-commentaries', index)"
+                @touchstart.passive.stop
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                class="verse-action-btn h-9 w-9 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors inline-flex touch-manipulation items-center justify-center flex-shrink-0"
+                title="Add note for this entry"
+                aria-label="Add note for this entry"
+                @click.stop="$emit('open-note', index)"
+                @touchstart.passive.stop
+              >
+                <span class="verse-action-icon text-base leading-none" aria-hidden="true">📝</span>
+              </button>
+            </div>
+            <!-- Desktop: Actions column: paragraph number (bold) + links and notes, aligned with top of row -->
+            <div
+              class="hidden md:flex flex-row gap-0.5 sm:gap-1 items-center order-3 md:order-1 min-w-0 self-start"
             >
               <span class="text-gray-700 text-sm font-bold pointer-events-none shrink-0 leading-9">{{ section.displayNumber }}</span>
               <div class="flex items-center gap-0.5 sm:gap-1 shrink-0">
@@ -580,10 +610,23 @@ function lastSegment (title: string | null | undefined): string {
  */
 const swipeStart = ref<{ x: number; y: number } | null>(null)
 const SWIPE_MIN_PX = 50
+/** Claim horizontal gestures early so the browser doesn't steal right-to-left swipe (e.g. back on Surface/Edge). */
+const SWIPE_CLAIM_PX = 15
 
 function onSwipeStart (e: TouchEvent) {
   if (e.touches.length === 0) return
   swipeStart.value = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+}
+
+function onSwipeMove (e: TouchEvent) {
+  const start = swipeStart.value
+  if (!start || e.touches.length === 0) return
+  const current = e.touches[0]
+  const deltaX = current.clientX - start.x
+  const deltaY = current.clientY - start.y
+  if (Math.abs(deltaX) > SWIPE_CLAIM_PX && Math.abs(deltaX) > Math.abs(deltaY)) {
+    e.preventDefault()
+  }
 }
 
 function onSwipeEnd (e: TouchEvent) {

@@ -21,7 +21,7 @@
       </div>
       <!-- Mobile: size to content (no flex-1) to avoid bottom white space; list flex-shrink-0 so cards don't stretch. Desktop: fill and scroll (flex-1 min-h-0). -->
       <div class="overflow-y-auto max-h-[70vh] sm:max-h-none sm:flex-1 sm:min-h-0 p-4 min-h-0 flex flex-col">
-        <div v-if="loading" class="text-gray-500 py-4 shrink-0">Loading…</div>
+        <div v-if="loading" class="text-gray-500 py-4 shrink-0">Searching thousands of pages—give me a moment …</div>
         <template v-else>
           <div v-if="!list.length && !additionalLinks.length" class="text-gray-500 py-4 shrink-0">No related commentaries or links for this reference.</div>
           <template v-else>

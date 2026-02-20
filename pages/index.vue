@@ -3123,6 +3123,10 @@ async function navigateToNoteReference(note: {
 
 /** Open commentaries modal for the verse at sectionIndex and fetch Sefaria links. */
 async function onOpenCommentaries (sectionIndex: number) {
+  if (!loggedIn.value) {
+    showSignInRequiredModal.value = true
+    return
+  }
   const tref = getVerseSefariaRef(sectionIndex)
   if (!tref) return
   commentariesRef.value = tref
