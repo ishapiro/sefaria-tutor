@@ -5,12 +5,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "echo 'Starting Wrangler dev mode... \nNOTE: We use Wrangler because the Cloudflare D1 translation cache requires a simulated Cloudflare environment. \nBuilding app...' && npm run build && npx wrangler dev",
+    "dev": "npm run migrate:local && echo 'Starting Wrangler dev mode...' && npm run build && npx wrangler dev",
     "dev:ui": "nuxt dev",
     "build": "nuxt build",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "deploy": "nuxt build && npx wrangler deploy"
+    "deploy": "nuxt build && npx wrangler deploy",
+    "migrate:local": "./scripts/run-migrations.sh",
+    "migrate:remote": "./scripts/run-migrations.sh --remote"
   },
   "dependencies": {
     "@nuxthub/core": "^0.10.6",

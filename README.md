@@ -114,6 +114,39 @@ npm run dev
 
 The `npm run dev` command will automatically build the app and start Wrangler to simulate the Cloudflare environment. The app will be available at http://localhost:8787.
 
+## Development on a new machine
+
+When you clone the repo on a new machine (or a second dev environment), follow these steps so the app and local database are ready to run:
+
+1. **Clone and install**
+   ```bash
+   git clone <repo-url>
+   cd sefaria-tutor
+   npm install
+   ```
+
+2. **Copy and fill environment files**
+   - Copy `.env.example` to `.env` and set at least: `API_AUTH_TOKEN`, `OPENAI_API_KEY`, `NUXT_PUBLIC_API_AUTH_TOKEN`.
+   - Copy the same values (and any OAuth/CAPTCHA keys you use) into `.dev.vars` in the project root. Wrangler loads `.dev.vars` for local dev; do not commit it.
+   - See [Local Testing → Prerequisites](#local-testing) for the full list of optional keys (Google OAuth, Turnstile, etc.).
+
+3. **Install jq (for migration tracking)**
+   - The dev script runs pending D1 migrations before starting. That requires **jq** to be installed.
+   - **macOS:** `brew install jq`
+   - **WSL / Linux:** `sudo apt-get install jq`
+
+4. **Start the app**
+   ```bash
+   npm run dev
+   ```
+   - The first run will apply all local D1 migrations, then build and start Wrangler. The app will be at http://localhost:8787.
+   - On later runs, only new migrations (if any) are applied.
+
+5. **If something goes wrong**
+   - **“jq is required”** → Install jq (step 3).
+   - **Database / duplicate column errors** → Reset the local DB and re-run all migrations: `./scripts/run-migrations.sh --reset-local`, then `npm run dev` again.
+   - **Google login fails locally** → See [docs/GOOGLE-LOGIN-WSL.md](docs/GOOGLE-LOGIN-WSL.md) for redirect URL and WSL troubleshooting.
+
 ## Rapid UI development
 
 If you only need to work on the UI and do not need the translation cache:
@@ -148,28 +181,10 @@ Before testing locally, you need to:
    NUXT_PUBLIC_TURNSTILE_SITE_KEY=your-turnstile-site-key
    ```
 
-2. **Initialize the local D1 database** by running migrations:
-   ```bash
-   # Run all migrations in order
-   npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0001_initial_schema.sql
-   npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0002_add_cache_version.sql
-   npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0003_add_prompt_hash.sql
-   npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0004_add_malformed_stats.sql
-   npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0005_auth_schema.sql
-   npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0006_add_user_soft_delete.sql
-   npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0007_pronunciation_cache.sql
-   npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0008_user_word_list.sql
-   npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0009_user_notes.sql
-   npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0010_notes_book_title_path.sql
-   npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0011_password_reset.sql
-   npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0012_support_tickets.sql
-   npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0013_support_tickets_reference.sql
-   npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0014_root_translation_cache.sql
-   npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0015_flashcard_archive_progress_settings.sql
-   npx wrangler d1 execute sefaria-tutor-db --local --file=migrations/0016_system_settings.sql
-   ```
-
-   **Note:** The local D1 database is stored in `.wrangler/state/v3/d1/`. If you encounter duplicate column errors, you can reset the local database by deleting this directory and re-running the migrations.
+2. **Local D1 database:** `npm run dev` automatically runs pending migrations before starting, so the local DB stays current when you switch machines or pull new code. You need **jq** for migration tracking (e.g. `sudo apt-get install jq` on WSL).
+   - To run migrations manually: `npm run migrate:local` (local) or `npm run migrate:remote` (production).
+   - If you have an existing local DB from before tracking was added, or you see duplicate column errors, reset and re-run all: `./scripts/run-migrations.sh --reset-local`.
+   - Local D1 state is stored in `.wrangler/state/v3/d1/`.
 
 3. **Start the development server**:
    ```bash
@@ -180,7 +195,7 @@ Before testing locally, you need to:
 
 ### Troubleshooting
 
-- **Database errors:** Make sure all migrations have been run. If you see duplicate column errors, reset the local database and re-run migrations.
+- **Database errors:** Run `npm run migrate:local` or `./scripts/run-migrations.sh --reset-local` to fix. If you see "jq is required", install jq (e.g. `sudo apt-get install jq` on WSL).
 - **Missing environment variables:** Ensure `.dev.vars` contains all required keys (see Prerequisites above).
 - **Google OAuth errors:** If you're not using Google OAuth, the missing credentials error can be safely ignored—it won't affect other functionality.
 
