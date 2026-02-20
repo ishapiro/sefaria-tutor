@@ -21,7 +21,7 @@
         <p v-else-if="error" class="text-red-600">{{ error }}</p>
         <div
           v-else-if="explanationHtml"
-          class="grammar-explanation w-full leading-normal [&>p]:mt-0 [&>p]:mb-6 [&>p:last-child]:mb-0 [&>ul]:mt-4 [&>ul]:mb-6 [&>ul]:pl-6 [&>li]:my-1.5 [&>strong]:font-semibold [&>strong]:text-gray-900"
+          class="grammar-explanation w-full leading-normal [&>p]:mt-2 [&>p]:mb-6 [&>p:last-child]:mb-0 [&>ul]:mt-4 [&>ul]:mb-6 [&>ul]:pl-6 [&>ol]:mt-4 [&>ol]:mb-6 [&>ol]:pl-6 [&_li]:my-4 [&_li>p]:mb-2 [&_li>p:last-child]:mb-0 [&>strong]:font-semibold [&>strong]:text-gray-900"
           v-html="explanationHtml"
         />
       </div>

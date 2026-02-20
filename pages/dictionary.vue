@@ -386,20 +386,17 @@
                 {{ row.grammarNotes }}
               </div>
 
-              <!-- Modern Hebrew Example (visible on all screen sizes including mobile) -->
-              <div
-                v-if="row.modernHebrewExample && row.modernHebrewExample.sentence && row.modernHebrewExample.translation"
-                class="block w-full flex-shrink-0 mt-3 pt-3 border-t border-gray-100"
-              >
-                <div class="text-xs font-semibold text-gray-500 uppercase mb-2">Modern Hebrew Example</div>
-                <div class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 space-y-1">
-                  <div class="text-sm text-right text-slate-800 break-words" style="direction: rtl; word-break: break-word;">
-                    {{ row.modernHebrewExample.sentence }}
-                  </div>
-                  <div class="text-sm text-gray-700">
-                    {{ row.modernHebrewExample.translation }}
-                  </div>
-                </div>
+              <!-- Modern Hebrew Example button (Hebrew words only, not proper names) -->
+              <div v-if="showModernHebrewButton(row)" class="mt-3 pt-3 border-t border-gray-100">
+                <button
+                  type="button"
+                  class="px-2 py-1.5 text-sm font-medium border border-slate-300 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-slate-50 hover:border-slate-400 disabled:opacity-60 disabled:cursor-not-allowed"
+                  :disabled="modernHebrewLoading"
+                  @click="fetchModernHebrewExamples(row)"
+                >
+                  <span v-if="modernHebrewLoading && modernHebrewWord === row.word" class="animate-pulse">Loading…</span>
+                  <span v-else>Modern Hebrew Sentences</span>
+                </button>
               </div>
             </div>
           </div>
@@ -429,6 +426,15 @@
           :error="grammarError"
           :explanation="grammarExplanation"
           @close="showGrammarModal = false"
+        />
+
+        <WordExplorerModernHebrewExamplesModal
+          :open="showModernHebrewModal"
+          :loading="modernHebrewLoading"
+          :error="modernHebrewError"
+          :examples="modernHebrewExamples"
+          :explanation="modernHebrewExplanation"
+          @close="showModernHebrewModal = false"
         />
       </div>
     </div>
@@ -644,6 +650,51 @@ const showGrammarModal = ref(false)
 const grammarLoading = ref(false)
 const grammarError = ref<string | null>(null)
 const grammarExplanation = ref<string | null>(null)
+const showModernHebrewModal = ref(false)
+const modernHebrewLoading = ref(false)
+const modernHebrewError = ref<string | null>(null)
+const modernHebrewExamples = ref<Array<{ sentence: string; translation: string }> | null>(null)
+const modernHebrewExplanation = ref<string | null>(null)
+const modernHebrewWord = ref<string | undefined>(undefined)
+
+function showModernHebrewButton(row: { hebrewAramaic?: string; wordPartOfSpeech?: string }): boolean {
+  if (row.hebrewAramaic !== 'Hebrew') return false
+  const pos = (row.wordPartOfSpeech ?? '').trim()
+  if (/proper\s*noun/i.test(pos)) return false
+  return true
+}
+
+async function fetchModernHebrewExamples(row: { word?: string; wordTranslation?: string }) {
+  const word = row.word?.trim()
+  if (!word) return
+  const config = useRuntimeConfig()
+  const token = config.public.apiAuthToken as string
+  if (!token) {
+    modernHebrewError.value = 'API auth not configured.'
+    showModernHebrewModal.value = true
+    return
+  }
+  modernHebrewError.value = null
+  modernHebrewExamples.value = null
+  modernHebrewExplanation.value = null
+  modernHebrewWord.value = word
+  showModernHebrewModal.value = true
+  modernHebrewLoading.value = true
+  try {
+    const res = await $fetch<{ examples?: Array<{ sentence: string; translation: string }>; explanation?: string }>('/api/openai/modern-hebrew-examples', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: { word, wordTranslation: row.wordTranslation?.trim() ?? undefined }
+    })
+    modernHebrewExamples.value = res?.examples ?? null
+    modernHebrewExplanation.value = res?.explanation ?? null
+  } catch (e: unknown) {
+    const err = e as { data?: { message?: string }; message?: string }
+    modernHebrewError.value = err?.data?.message ?? (err as Error)?.message ?? 'Request failed'
+  } finally {
+    modernHebrewLoading.value = false
+  }
+}
 
 const hitRate = computed(() => {
   const totalCalls = stats.value.hits + stats.value.misses
@@ -876,6 +927,10 @@ async function doTranslateApiCall(plainText: string, fullSentence: boolean) {
   showGrammarModal.value = false
   grammarError.value = null
   grammarExplanation.value = null
+  showModernHebrewModal.value = false
+  modernHebrewError.value = null
+  modernHebrewExamples.value = null
+  modernHebrewExplanation.value = null
   const startTime = Date.now()
 
   try {
