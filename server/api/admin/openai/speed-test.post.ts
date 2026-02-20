@@ -34,7 +34,7 @@ Your JSON must include:
         - grammatical modifiers like prefixes/suffixes.
         - noun gender variants (masc/fem/plural).
         - verb conjugations (past/present/future/infinitive).
-    - modernHebrewExample: Optional. For Hebrew words only, you may include a short example of the word used in a modern Hebrew sentence, as an object with sentence (short modern Hebrew phrase with full vowel pointing / nikud) and translation (English). Omit for Aramaic or when not available.
+    - modernHebrewExample: Optional. For Hebrew words only, include a short example when available. Decide independently per word—if omitted for one word, still include for others in the same phrase when you have a natural short example. Sentence: short modern Hebrew with nikud; translation: English.
 
 CRITICAL: The wordTable must contain exactly one entry for every word in originalPhrase. Never stop early; include all words even for long passages.
 

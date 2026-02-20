@@ -44,7 +44,7 @@ Your JSON must include:
     - modernHebrewExample: Optional. For Hebrew words only, you may include a short example of the word used in a modern Hebrew sentence, as an object with:
         - sentence: A short modern Hebrew sentence (one short phrase or clause) that uses this word naturally. Write the Hebrew with full vowel pointing (nikud/niqqud).
         - translation: The English translation of that sentence.
-      Keep the example short (one brief phrase or simple sentence). Omit for Aramaic words or when a natural short example is not available.
+      Keep the example short (one brief phrase or simple sentence). Omit for Aramaic words or when a natural short example is not available for that specific word. CRITICAL: Decide modernHebrewExample independently for each word—if you omit it for one word, still include it for other words in the same phrase when you have a natural short example.
 
 CRITICAL: The wordTable must contain exactly one entry for every word in originalPhrase. Never stop early; include all words even for long passages.
 
