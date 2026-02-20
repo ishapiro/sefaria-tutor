@@ -1812,7 +1812,7 @@ async function fetchComplexBookToc (book: CategoryNode) {
           })
         }
 
-        // Torah portions (Parasha alt structure), when available.
+        // Torah portions (Parasha alt structure) with Aliyot when available.
         const parashaAlt = (indexData.alts?.Parasha as { nodes?: Array<Record<string, unknown>> } | undefined)?.nodes
         if (Array.isArray(parashaAlt) && parashaAlt.length > 0) {
           parashaBlock.push({
@@ -1822,6 +1822,9 @@ async function fetchComplexBookToc (book: CategoryNode) {
             isContainer: true,
           })
 
+          const aliyahLabels = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th'] as const
+          const aliyahLabelsHe = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז']
+
           for (const node of parashaAlt) {
             const wholeRef = typeof node.wholeRef === 'string' ? node.wholeRef : null
             if (!wholeRef) continue
@@ -1829,11 +1832,45 @@ async function fetchComplexBookToc (book: CategoryNode) {
             const enTitle = titles.find(t => t.lang === 'en' && t.text)?.text ?? (node.title as string | undefined) ?? ''
             const heTitle = titles.find(t => t.lang === 'he' && t.text)?.text ?? (node.heTitle as string | undefined)
 
-            parashaBlock.push({
-              ref: wholeRef,
-              title: enTitle,
-              heTitle,
-            })
+            // Flatten refs (Sefaria uses jagged array for aliyot: one ref per aliyah)
+            const rawRefs = node.refs as unknown
+            const aliyahRefs: string[] = []
+            if (Array.isArray(rawRefs)) {
+              for (const item of rawRefs) {
+                if (typeof item === 'string') aliyahRefs.push(item)
+                else if (Array.isArray(item)) {
+                  for (const r of item) {
+                    if (typeof r === 'string') aliyahRefs.push(r)
+                  }
+                }
+              }
+            }
+
+            if (aliyahRefs.length > 0) {
+              // Parasha as container, then each aliyah as clickable section
+              parashaBlock.push({
+                ref: wholeRef,
+                title: enTitle,
+                heTitle,
+                isContainer: true,
+              })
+              for (let i = 0; i < aliyahRefs.length; i++) {
+                const label = aliyahLabels[i] ?? `${i + 1}th`
+                const labelHe = aliyahLabelsHe[i] ?? String(i + 1)
+                parashaBlock.push({
+                  ref: aliyahRefs[i],
+                  title: `${label} Aliyah`,
+                  heTitle: `עלייה ${labelHe}`,
+                })
+              }
+            } else {
+              // No refs (aliyot): just the whole portion
+              parashaBlock.push({
+                ref: wholeRef,
+                title: enTitle,
+                heTitle,
+              })
+            }
           }
         }
 
