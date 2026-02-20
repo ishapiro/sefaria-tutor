@@ -55,7 +55,7 @@
             @click="$emit('open-word-list')"
           >
             <span class="text-sm leading-none">📚</span>
-            <span>Word List</span>
+            <span>Vocabulary</span>
           </button>
           <button
             type="button"
@@ -150,6 +150,7 @@
           </button>
           <span class="font-semibold text-sm text-gray-800">Select a section:</span>
           <button
+            v-if="isAdmin"
             type="button"
             class="ml-2 px-2 py-1 text-xs font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
             @click="$emit('open-section-list-debug')"
@@ -198,6 +199,7 @@
       <div v-else-if="showBookNotAvailable" class="text-center py-8 text-gray-500">
         <p class="mb-4">This book is not available via the API, or you need to select a section. Try another book or section.</p>
         <button
+          v-if="isAdmin"
           type="button"
           class="px-3 py-1.5 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
           @click="$emit('open-book-load-debug')"
@@ -212,7 +214,7 @@
         @touchmove="onSwipeMove"
         @touchend="onSwipeEnd"
       >
-        <div class="flex items-center gap-2 flex-wrap -mt-0.5">
+        <div v-if="isAdmin" class="flex items-center gap-2 flex-wrap -mt-0.5">
           <button
             type="button"
             class="px-2 py-1 text-xs font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
@@ -567,6 +569,7 @@ const props = defineProps<{
   prevSectionTitle: string | null
   wordToHighlight: string | null
   loggedIn: boolean
+  isAdmin: boolean
   showWordListModal: boolean
   showNotesListModal: boolean
   splitIntoPhrases: (segment: string) => string[]

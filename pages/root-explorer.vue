@@ -42,6 +42,7 @@
           {{ loading ? 'Loading…' : 'Search' }}
         </button>
         <button
+          v-if="isAdmin"
           type="button"
           class="px-4 py-2 border border-gray-300 rounded-lg font-medium bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           :disabled="!rootInput.trim() || loading"
@@ -90,7 +91,7 @@
             </option>
           </select>
         </label>
-        <label class="inline-flex items-center gap-2 text-gray-500">
+        <label v-if="isAdmin" class="inline-flex items-center gap-2 text-gray-500">
           <input v-model="showDebug" type="checkbox" class="rounded" />
           Include debug
         </label>
@@ -171,9 +172,9 @@
       </div>
     </div>
 
-    <!-- Debug info (when ?debug=1 or "Include debug" or Debug button used) -->
+    <!-- Debug info (when ?debug=1 or "Include debug" or Debug button used); admin only -->
     <div
-      v-if="tree?._debug"
+      v-if="isAdmin && tree?._debug"
       class="mt-6 p-4 bg-gray-100 border border-gray-300 rounded-lg text-sm font-mono overflow-auto"
     >
       <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
@@ -358,6 +359,7 @@ const SCOPE_BOOKS: Record<string, Array<{ title: string; path: string }>> = {
   Talmud: [], // Book sub-filter not populated for Talmud; user can use scope only.
 }
 
+const { isAdmin } = useAuth()
 const route = useRoute()
 const rootInput = ref('')
 const scope = ref<'books' | 'genres'>('genres')
@@ -519,7 +521,7 @@ async function buildTree () {
     if (scope.value === 'books' && selectedBookPath.value?.trim()) {
       q.set('book', selectedBookPath.value.trim())
     }
-    if (showDebug.value) q.set('debug', '1')
+    if (showDebug.value && isAdmin.value) q.set('debug', '1')
     const data = await $fetch<WordTreeResponse | { error: string }>(`/api/root-explorer/tree?${q}`)
     if (data && 'error' in data) {
       error.value = data.error
@@ -546,7 +548,7 @@ onMounted(() => {
     rootInput.value = decodeURIComponent(rootFromQuery)
   }
   const debugParam = route.query.debug as string | undefined
-  if (debugParam === '1' || debugParam === 'true') {
+  if ((debugParam === '1' || debugParam === 'true') && isAdmin.value) {
     showDebug.value = true
   }
   if (rootInput.value.trim()) {

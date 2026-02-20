@@ -8,10 +8,14 @@
       :estimated-word-count="translationLoading ? translationInProgressWordCount : 0"
     />
     <div class="mb-3 sm:mb-4 flex flex-wrap items-center gap-2">
-      <h1 class="text-lg sm:text-xl font-bold mb-0">
-        Word Explorer
-        <span class="pl-2 text-sm sm:text-base font-normal text-gray-600 hidden sm:inline">(Using OpenAI Model: {{ openaiModel }})</span>
-      </h1>
+      <div>
+        <h1 class="text-lg sm:text-xl font-bold mb-0">
+          Text and Vocabulary Study
+          <span class="pl-2 text-sm sm:text-base font-normal text-gray-600 hidden sm:inline">(Using OpenAI Model: {{ openaiModel }})</span>
+        </h1>
+        <p v-if="!selectedBook" class="text-sm text-gray-600 mt-0.5">Choose text to study</p>
+        <p v-else class="text-sm text-gray-600 mt-0.5">Reading · Vocabulary · Study</p>
+      </div>
       <button
         v-if="!selectedBook"
         type="button"
@@ -80,6 +84,7 @@
       :prev-section-title="prevSectionDisplayTitle"
       :word-to-highlight="wordToHighlight"
       :logged-in="loggedIn"
+      :is-admin="isAdmin"
       :show-word-list-modal="showWordListModal"
       :show-notes-list-modal="showNotesListModal"
       :split-into-phrases="splitIntoPhrases"
@@ -297,7 +302,7 @@
       </div>
     </div>
 
-    <!-- Usage modal (Word Explorer) -->
+    <!-- Usage modal (Text and Vocabulary Study) -->
     <div
       v-if="showUsageModal"
       class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50"
@@ -317,7 +322,7 @@
         </div>
         <div class="p-4 overflow-y-auto text-sm text-gray-600 space-y-3">
           <p>
-            <strong>What this page does:</strong> Word Explorer lets you browse Jewish texts (Tanakh, Talmud, and more), read them in Hebrew and English side by side, and get word-by-word translations and grammar for any phrase. Tap a phrase to see each word’s meaning, root, and part of speech.
+            <strong>What this page does:</strong> Text and Vocabulary Study lets you browse Jewish texts (Tanakh, Talmud, and more), read them in Hebrew and English side by side, and get word-by-word translations and grammar for any phrase. Tap a phrase to see each word’s meaning, root, and part of speech.
           </p>
           <p>
             <strong>Where the content comes from:</strong> The Hebrew and English source texts are loaded from the <a href="https://www.sefaria.org/" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline">Sefaria</a> API. When you tap a phrase, Shoresh sends it to <a href="https://openai.com/" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline">OpenAI</a> to generate the word-by-word breakdown; that translation is not from Sefaria.
@@ -467,6 +472,7 @@ const translationData = ref<{
     wordRoot?: string
     wordRootTranslation?: string
     rootExamples?: Array<{ word: string; translation: string }>
+    modernHebrewExample?: { sentence: string; translation: string }
     wordPartOfSpeech?: string
     wordGender?: string | null
     wordTense?: string | null
@@ -2417,6 +2423,7 @@ async function doTranslateApiCall (plainText: string, fullSentence: boolean, sef
       wordRoot?: string
       wordRootTranslation?: string
       rootExamples?: Array<{ word: string; translation: string }>
+      modernHebrewExample?: { sentence: string; translation: string }
       wordPartOfSpeech?: string
       wordGender?: string | null
       wordTense?: string | null

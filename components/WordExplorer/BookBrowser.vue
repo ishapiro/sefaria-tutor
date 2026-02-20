@@ -39,7 +39,7 @@
           @click="$emit('open-word-list')"
         >
           <span class="text-sm sm:text-base leading-none">📚</span>
-          <span class="sm:hidden">Words</span>
+          <span class="sm:hidden">Vocabulary</span>
           <span class="hidden sm:inline">My Word List</span>
         </button>
         <button
@@ -149,7 +149,7 @@
         <p class="font-semibold text-gray-800 mb-4">{{ errorMessage }}</p>
         <div class="flex gap-2 justify-center">
           <button
-            v-if="errorDetails"
+            v-if="errorDetails && isAdmin"
             type="button"
             class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 inline-flex items-center min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
             @click="$emit('open-error-debug')"
