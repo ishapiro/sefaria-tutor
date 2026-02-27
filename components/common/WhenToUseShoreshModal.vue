@@ -10,13 +10,13 @@
       </div>
       <div class="px-4 sm:px-8 pb-4 sm:pb-8 overflow-y-auto flex-1 min-h-0 overscroll-contain">
         <p class="text-gray-700 text-sm leading-relaxed break-words">
-          We obtain our Hebrew and Aramaic texts from <a href="https://www.sefaria.org/" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">Sefaria</a>. <strong>Shoresh</strong> is for vocabulary and reading skills: tap any phrase for AI breakdowns (meaning, root, grammar, pronunciation), save words to My Word List, and study with flashcards.
+          We obtain our Hebrew and Aramaic texts from <a href="https://www.sefaria.org/" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">Sefaria</a>. <strong>Shoresh</strong> is for building foundational text skills: learning the language itself, recognizing roots, and parsing grammar so you can read with confidence.
           <br /><br />
-          Word-by-word translations here are from AI (OpenAI) for vocabulary—not Sefaria’s published translations.
+          Word-by-word translations here are linear: AI (OpenAI) renders each word or small phrase in order to support language learning and vocabulary, not to produce a polished, idiomatic English translation or Sefaria’s published translations.
           <br /><br />
-          Use <strong>Sefaria.org</strong> for the full library: commentaries (Rashi, Ramban, etc.), study tracks (Daf Yomi, 929), source sheets, and offline.
+          Use <strong>Sefaria.org</strong> for deep Torah study: classic commentaries (Rashi, Ramban, etc.), responsa, study tracks (Daf Yomi, 929), source sheets, and offline learning.
           <br /><br />
-          <strong>In short:</strong> Sefaria = depth and commentary; Shoresh = vocabulary and reading confidence.
+          <strong>In short:</strong> Shoresh = language and grammar foundations; Sefaria = applying commentaries, responsa, and deeper analysis to the sources.
         </p>
       </div>
       <div class="px-4 sm:px-8 pb-5 sm:pb-8 pt-2 shrink-0 safe-area-buttons">
