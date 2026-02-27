@@ -11,6 +11,7 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "deploy": "nuxt build && npx wrangler deploy",
+    "deploy:with-migrations": "npm run d1:migrate:remote && npm run deploy",
     "migrate:local": "./scripts/run-migrations.sh",
     "migrate:remote": "./scripts/run-migrations.sh --remote",
     "d1:migrate:local": "node scripts/d1-migrate.cjs",
@@ -26,6 +27,8 @@
   },
   "devDependencies": {
     "@nuxtjs/tailwindcss": "^6.12.0",
+    "drizzle-kit": "^0.31.9",
+    "drizzle-orm": "^0.45.1",
     "wrangler": "^4.64.0"
   }
 }

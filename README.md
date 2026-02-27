@@ -6,6 +6,16 @@ The project is hosted at:
 
 https://shoresh.cogitations.com
 
+## Cursor AI setup
+
+If you are using Cursor’s AI agents with this repo:
+
+- **Project rules:** There is a Cursor rule at `.cursor/rules/database-migrations-d1-drizzle.mdc` that tells the AI how to manage the Cloudflare D1 schema:
+  - Use **Drizzle Kit as a headless migration generator** (dev-only).
+  - Keep **runtime code** using the native D1 API (`env.DB.prepare(...)`), not `drizzle-orm`.
+  - Generate new SQL files into `migrations/` and apply them via Wrangler / the existing `scripts/d1-migrate.cjs` wrapper.
+- **Database docs:** See `docs/DATABASE-MANAGEMENT-D1-DRIZZLE.md` for the step‑by‑step workflow (baseline sync, schema updates, and how Drizzle + Wrangler work together).
+
 ## Recent changes
 
 See [CHANGELOG.md](CHANGELOG.md) for features and fixes added in recent releases, including admin-configurable default model, translation speed testing, and translation modal statistics.
