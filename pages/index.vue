@@ -362,8 +362,10 @@
       :loading="commentariesLoading"
       :list="commentariesList"
       :additional-links="additionalLinksList"
+      :allow-deep-search="true"
       @close="showCommentariesModal = false"
       @select-link="onCommentaryLinkClick"
+      @deep-search="onCommentariesDeepSearch"
     />
 
     <!-- Clarify reference: book not found, pick from index suggestions -->
@@ -583,6 +585,8 @@ const returnToBookTitle = ref<string | null>(null)
 /** Original verse (he/en) when viewing a Torah/Tanakh commentary; shown at top of reader. */
 const originVerseContent = ref<{ he: string; en: string } | null>(null)
 const originVerseIsTanakh = ref(false)
+/** Source paragraph/verse text used for deep search (he/en). */
+const commentariesSourceContent = ref<{ he?: string; en?: string } | null>(null)
 /** Clarify reference modal: shown when requested book not found; user picks from index suggestions. */
 const showClarifyRefModal = ref(false)
 const clarifyRefRequestedTitle = ref<string>('')
@@ -3130,6 +3134,45 @@ async function navigateToNoteReference(note: {
   })
 }
 
+/** Determine whether a Sefaria link is a commentary entry vs. other related link. */
+function isCommentaryLink (l: { type?: string; category?: string }): boolean {
+  const t = (l.type || '').toLowerCase()
+  const c = (l.category || '').toLowerCase()
+  return t === 'commentary' || c === 'commentary'
+}
+
+/** Build a shorter, search-friendly phrase from the source verse/paragraph for deep search. */
+function buildDeepSearchQueryText (source: { he?: string; en?: string } | null): string {
+  if (!source) return ''
+
+  const heRaw = (source.he ?? '').trim()
+  if (heRaw) {
+    // Strip bracketed labels like "[א]" and punctuation/quotes that can hurt matching.
+    const normalizedHe = heRaw
+      .replace(/\[[^\]]*]/g, ' ')
+      .replace(/["'“”„‚’–—\-:,.;!?()/\u2026]/g, ' ')
+    const tokens = normalizedHe.split(/\s+/).filter(Boolean)
+    const phraseTokens = tokens.slice(0, 8)
+    if (phraseTokens.length >= 3) {
+      return phraseTokens.join(' ')
+    }
+  }
+
+  const enRaw = (source.en ?? '').trim()
+  if (enRaw) {
+    const normalizedEn = enRaw.replace(/["'“”’–—\-:,.;!?()/\u2026]/g, ' ')
+    const tokens = normalizedEn.split(/\s+/).filter(Boolean)
+    const phraseTokens = tokens.slice(0, 8)
+    if (phraseTokens.length >= 3) {
+      return phraseTokens.join(' ')
+    }
+    // Fallback: short prefix of the English text.
+    return normalizedEn.slice(0, 120)
+  }
+
+  return ''
+}
+
 /** Open commentaries modal for the verse at sectionIndex and fetch Sefaria links. */
 async function onOpenCommentaries (sectionIndex: number) {
   if (!loggedIn.value) {
@@ -3143,9 +3186,11 @@ async function onOpenCommentaries (sectionIndex: number) {
   if (section) {
     originVerseContent.value = { he: section.he, en: section.en }
     originVerseIsTanakh.value = selectedBook.value?.categories?.includes('Tanakh') ?? false
+    commentariesSourceContent.value = { he: section.he, en: section.en }
   } else {
     originVerseContent.value = null
     originVerseIsTanakh.value = false
+    commentariesSourceContent.value = null
   }
   showCommentariesModal.value = true
   commentariesList.value = []
@@ -3158,15 +3203,125 @@ async function onOpenCommentaries (sectionIndex: number) {
       { params: { with_text: 1 } }
     )
     const raw = Array.isArray(links) ? links : []
-    const isCommentary = (l: { type?: string; category?: string }) => {
-      const t = (l.type || '').toLowerCase()
-      const c = (l.category || '').toLowerCase()
-      return t === 'commentary' || c === 'commentary'
-    }
-    commentariesList.value = raw.filter(isCommentary)
-    additionalLinksList.value = raw.filter(l => !isCommentary(l))
+    commentariesList.value = raw.filter(isCommentaryLink)
+    additionalLinksList.value = raw.filter(l => !isCommentaryLink(l))
   } catch (err) {
     console.warn('[Commentaries] Failed to fetch links:', err)
+    commentariesList.value = []
+    additionalLinksList.value = []
+  } finally {
+    commentariesLoading.value = false
+  }
+}
+
+/** User requested a deeper search for related content via the commentaries modal. */
+async function onCommentariesDeepSearch () {
+  const tref = commentariesRef.value
+  if (!tref) return
+  const source = commentariesSourceContent.value
+  const queryText = buildDeepSearchQueryText(source)
+
+  commentariesLoading.value = true
+  commentariesList.value = []
+  additionalLinksList.value = []
+  try {
+    if (!queryText) {
+      const apiTref = sefariaRefToApiTref(tref)
+      const related = await $fetch<{ links?: Array<{ ref: string; index_title: string; type?: string; category?: string; text?: string[] | string[][]; he?: string }> }>(
+        `/api/sefaria/related/${encodeURIComponent(apiTref)}`,
+        { params: { with_text: 1 } }
+      )
+      const rawFallback = Array.isArray(related?.links) ? related.links : []
+      commentariesList.value = rawFallback.filter(isCommentaryLink)
+      additionalLinksList.value = rawFallback.filter(l => !isCommentaryLink(l))
+      return
+    }
+
+    const esBody = {
+      from: 0,
+      size: 30,
+      query: {
+        multi_match: {
+          query: queryText,
+          fields: ['naive_lemmatizer^3', 'exact^2', 'he', 'content'],
+          type: 'best_fields',
+          operator: 'or'
+        }
+      },
+      highlight: {
+        fields: {
+          he: {},
+          content: {},
+          naive_lemmatizer: {}
+        }
+      }
+    }
+
+    const searchResponse = await $fetch<{
+      hits?: {
+        hits?: Array<{
+          _source?: {
+            ref?: string
+            index_title?: string
+            title?: string
+            type?: string
+            category?: string
+            he?: string | string[]
+            content?: string | string[]
+          }
+          highlight?: {
+            content?: string[]
+            he?: string[]
+            naive_lemmatizer?: string[]
+          }
+        }>
+      }
+    }>('/api/sefaria/search/text/_search', {
+      method: 'POST',
+      body: esBody
+    })
+
+    const esHits = searchResponse?.hits?.hits ?? []
+
+    const mapped = esHits.map((hit) => {
+      const src = (hit?._source ?? {}) as {
+        ref?: string
+        index_title?: string
+        title?: string
+        type?: string
+        category?: string
+        he?: string | string[]
+        content?: string | string[]
+      }
+      const ref = String(src.ref ?? '').trim()
+      const indexTitle = String((src.index_title ?? src.title ?? '') || '').trim()
+
+      const highlightSnippet =
+        hit?.highlight?.content?.[0] ??
+        hit?.highlight?.he?.[0] ??
+        hit?.highlight?.naive_lemmatizer?.[0]
+      const heField = src.he
+      const heText = Array.isArray(heField) ? heField[0] : heField
+      const contentField = src.content
+      const contentText = Array.isArray(contentField) ? contentField[0] : contentField
+      const snippet = highlightSnippet || heText || contentText || ''
+
+      return {
+        ref,
+        index_title: indexTitle || ref || '(Unknown source)',
+        type: src.type,
+        category: src.category,
+        text: snippet ? [snippet] : undefined,
+        he: snippet || undefined
+      }
+    }).filter(item => item.ref)
+
+    commentariesList.value = mapped.filter(isCommentaryLink)
+    additionalLinksList.value = mapped.filter(l => !isCommentaryLink(l))
+  } catch (err) {
+    console.warn('[Commentaries] Deep search failed:', err, {
+      tref
+    })
     commentariesList.value = []
     additionalLinksList.value = []
   } finally {

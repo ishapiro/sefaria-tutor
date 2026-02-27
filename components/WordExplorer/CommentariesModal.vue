@@ -23,7 +23,24 @@
       <div class="overflow-y-auto max-h-[70vh] sm:max-h-none sm:flex-1 sm:min-h-0 p-4 min-h-0 flex flex-col">
         <div v-if="loading" class="text-gray-500 py-4 shrink-0">Searching thousands of pages—give me a moment …</div>
         <template v-else>
-          <div v-if="!list.length && !additionalLinks.length" class="text-gray-500 py-4 shrink-0">No related commentaries or links for this reference.</div>
+          <div
+            v-if="!list.length && !additionalLinks.length"
+            class="text-gray-500 py-4 shrink-0 space-y-3"
+          >
+            <p>No related commentaries or links for this reference.</p>
+            <div v-if="allowDeepSearch" class="space-y-2">
+              <p class="text-gray-600 text-sm">
+                You can run a deeper search across Sefaria to look for related sources.
+              </p>
+              <button
+                type="button"
+                class="px-3 py-2 text-sm font-medium border border-gray-300 rounded-lg bg-white text-blue-700 hover:bg-blue-50 hover:border-blue-200 transition-colors"
+                @click="$emit('deep-search')"
+              >
+                Run deep search
+              </button>
+            </div>
+          </div>
           <template v-else>
             <ul v-if="list.length" class="space-y-1.5 sm:space-y-3 flex flex-col shrink-0">
               <li
@@ -112,7 +129,8 @@ const props = withDefaults(defineProps<{
   loading: boolean
   list: CommentariesLink[]
   additionalLinks?: CommentariesLink[]
-}>(), { additionalLinks: () => [] })
+  allowDeepSearch?: boolean
+}>(), { additionalLinks: () => [], allowDeepSearch: false })
 
 const showAdditionalLinks = ref(false)
 watch(() => props.open, (isOpen) => { if (!isOpen) showAdditionalLinks.value = false })
@@ -120,6 +138,7 @@ watch(() => props.open, (isOpen) => { if (!isOpen) showAdditionalLinks.value = f
 defineEmits<{
   close: []
   'select-link': [link: CommentariesLink]
+  'deep-search': []
 }>()
 
 /** First displayable text from a link (Sefaria may return nested JaggedArray). */

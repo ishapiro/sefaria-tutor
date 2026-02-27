@@ -29,6 +29,15 @@ export default defineEventHandler(async (event): Promise<unknown> => {
   try {
     const startTime = Date.now()
     const sefariaUserAgent = 'SefariaTutor/0.1.0 (Cogitations; educational Torah study app; https://cogitations.com)'
+    // Forward JSON body for non-GET requests (e.g. search-wrapper POST).
+    let forwardBody: unknown
+    if (event.method && event.method !== 'GET' && event.method !== 'HEAD') {
+      try {
+        forwardBody = await readBody(event)
+      } catch {
+        forwardBody = undefined
+      }
+    }
     const response: unknown = await $fetch(sefariaUrl, {
       method: event.method,
       headers: {
@@ -36,6 +45,7 @@ export default defineEventHandler(async (event): Promise<unknown> => {
         'Content-Type': 'application/json',
         'User-Agent': sefariaUserAgent, // Descriptive User-Agent per Sefaria's request for usage tracking
       },
+      body: forwardBody
     })
     const duration = Date.now() - startTime
     console.log(`[Sefaria API] Success: ${pathStr} (${duration}ms)`)
