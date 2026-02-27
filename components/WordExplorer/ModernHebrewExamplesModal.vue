@@ -17,7 +17,7 @@
         </button>
       </div>
       <div class="p-5 sm:p-6 overflow-y-auto flex-1 min-h-0 text-sm text-gray-800">
-        <p v-if="loading" class="text-gray-500">Loading modern Hebrew examples…</p>
+        <p v-if="loading" class="text-gray-500">Loading modern Hebrew examples from OpenAI…</p>
         <p v-else-if="error" class="text-red-600">{{ error }}</p>
         <div v-else-if="explanation" class="leading-normal">
           {{ explanation }}

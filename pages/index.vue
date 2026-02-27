@@ -667,7 +667,7 @@ const apiLoading = computed(() => loading.value || openaiLoading.value)
 
 const apiLoadingMessage = computed(() => {
   if (loading.value) return 'Calling Sefaria…'
-  if (ttsLoading.value) return 'Generating audio pronunciation…'
+  if (ttsLoading.value) return 'Asking OpenAI for an audio pronunciation…'
   if (translationLoading.value) {
     return 'Getting word-by-word translation from OpenAI.\n\nProcessing takes approximately 3 seconds per word—please be patient.\n\nResults are saved so future translations will be faster.'
   }
