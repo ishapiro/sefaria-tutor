@@ -240,6 +240,9 @@
       :loading="grammarLoading"
       :error="grammarError"
       :explanation="grammarExplanation"
+      :original-phrase="translationData?.originalPhrase ?? null"
+      :translated-phrase="translationData?.translatedPhrase ?? null"
+      :reference="translationSefariaRef ?? null"
       @close="showGrammarModal = false"
     />
 
@@ -341,6 +344,8 @@ const props = defineProps<{
   getWordListButtonClass: (index: number) => string
   getWordListButtonText: (index: number) => string
   isAdmin?: boolean
+  /** Sefaria ref for the sentence being translated; shown in the grammar modal. */
+  translationSefariaRef?: string | null
 }>()
 
 const canCopy = computed(() => !props.translationLoading && !!props.translationData)

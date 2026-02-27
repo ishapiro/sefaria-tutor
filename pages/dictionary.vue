@@ -426,6 +426,9 @@
           :loading="grammarLoading"
           :error="grammarError"
           :explanation="grammarExplanation"
+          :original-phrase="translationData?.originalPhrase ?? null"
+          :translated-phrase="translationData?.translatedPhrase ?? null"
+          :reference="null"
           @close="showGrammarModal = false"
         />
 

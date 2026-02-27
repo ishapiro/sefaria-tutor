@@ -150,6 +150,7 @@
     <!-- Translation dialog -->
     <WordExplorerTranslationDialog
       :open="showTranslationDialog"
+      :translation-sefaria-ref="translationSefariaRef"
       :translation-loading="translationLoading"
       :translation-error="translationError"
       :translation-data="translationData"

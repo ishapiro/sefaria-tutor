@@ -12,7 +12,9 @@
     "postinstall": "nuxt prepare",
     "deploy": "nuxt build && npx wrangler deploy",
     "migrate:local": "./scripts/run-migrations.sh",
-    "migrate:remote": "./scripts/run-migrations.sh --remote"
+    "migrate:remote": "./scripts/run-migrations.sh --remote",
+    "d1:migrate:local": "node scripts/d1-migrate.cjs",
+    "d1:migrate:remote": "node scripts/d1-migrate.cjs --remote"
   },
   "dependencies": {
     "@nuxthub/core": "^0.10.6",
