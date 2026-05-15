@@ -40,6 +40,41 @@ else
   exit 1
 fi
 
+# Wrangler may print non-JSON lines to stdout (e.g. proxy notice); jq needs pure JSON.
+extract_wrangler_json() {
+  awk '/^\[/ { found=1 } found { print }'
+}
+
+wrangler_d1_json() {
+  local sql="$1"
+  npx wrangler d1 execute "$DB_NAME" $EXTRA_ARGS --json --command "$sql" 2>/dev/null | extract_wrangler_json
+}
+
+# Run a migration file; return 0 on success or if schema already matches (SQLite duplicate column/table).
+apply_migration_file() {
+  local f="$1"
+  local output
+  local status
+  set +e
+  output=$(npx wrangler d1 execute "$DB_NAME" $EXTRA_ARGS --file="$f" 2>&1)
+  status=$?
+  set -e
+  if [[ $status -eq 0 ]]; then
+    return 0
+  fi
+  if echo "$output" | grep -qiE 'duplicate column name|duplicate column|already exists'; then
+    echo "  (schema already has this change — treating as applied)"
+    return 0
+  fi
+  echo "$output" >&2
+  return 1
+}
+
+record_migration_applied() {
+  local name="$1"
+  npx wrangler d1 execute "$DB_NAME" $EXTRA_ARGS --command "INSERT OR REPLACE INTO $TRACKING_TABLE (filename) VALUES ('$name')" >/dev/null 2>&1
+}
+
 # --- Reset local: remove state, run all migrations, then record them so next migrate:local skips them ---
 if [[ "$RESET_LOCAL" == true ]]; then
   if [[ -d "$WRANGLER_D1_STATE" ]]; then
@@ -53,7 +88,7 @@ if [[ "$RESET_LOCAL" == true ]]; then
     [[ -f "$f" ]] || continue
     name="$(basename "$f")"
     echo "  Applying $name ..."
-    npx wrangler d1 execute "$DB_NAME" $EXTRA_ARGS --file="$f"
+    apply_migration_file "$f" || exit 1
     echo "  OK"
   done
   echo "Recording applied migrations so next run skips them..."
@@ -77,7 +112,7 @@ if ! command -v jq &>/dev/null; then
   exit 1
 fi
 
-APPLIED_JSON=$(npx wrangler d1 execute "$DB_NAME" $EXTRA_ARGS --json --command "SELECT filename FROM $TRACKING_TABLE" 2>/dev/null || echo '[]')
+APPLIED_JSON=$(wrangler_d1_json "SELECT filename FROM $TRACKING_TABLE" || echo '[]')
 APPLIED_LIST=$(echo "$APPLIED_JSON" | jq -r '.[0].results[]?.filename // empty' 2>/dev/null || true)
 
 # --- Run only pending migrations ---
@@ -93,8 +128,8 @@ for f in "$MIGRATIONS_DIR"/*.sql; do
     continue
   fi
   echo "  Applying $name ..."
-  npx wrangler d1 execute "$DB_NAME" $EXTRA_ARGS --file="$f"
-  npx wrangler d1 execute "$DB_NAME" $EXTRA_ARGS --command "INSERT OR REPLACE INTO $TRACKING_TABLE (filename) VALUES ('$name')" >/dev/null 2>&1
+  apply_migration_file "$f" || exit 1
+  record_migration_applied "$name"
   echo "  OK"
   ((RUN_COUNT++)) || true
 done

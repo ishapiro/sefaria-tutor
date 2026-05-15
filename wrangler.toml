@@ -3,6 +3,10 @@ main = ".output/server/index.mjs"
 compatibility_date = "2024-09-19"
 compatibility_flags = ["nodejs_compat"]
 
+# Required for Nitro cloudflare preset: index.mjs imports __STATIC_CONTENT_MANIFEST
+[site]
+bucket = ".output/public"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "sefaria-tutor-db"
