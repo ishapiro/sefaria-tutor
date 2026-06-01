@@ -310,9 +310,16 @@
             </p>
           </div>
           <div>
-            <h4 class="font-semibold text-gray-900 mb-1">Your study results</h4>
+            <h4 class=”font-semibold text-gray-900 mb-1”>Your study results</h4>
             <p>
               All-time stats for words you’ve studied at least once (including words you’ve since archived). Words studied is the number of distinct words; Total shown and Total correct are how many times cards were shown and how many times you answered “Know it.” The table below lists each word with its stats; you can archive or restore words from My Word List.
+            </p>
+          </div>
+          <div>
+            <h4 class=”font-semibold text-gray-900 mb-1”>My Class</h4>
+            <p>
+              <strong>Students:</strong> Enter the invite code from your teacher to join a class. Once joined, word lists your teacher shares with the class appear automatically in your My Word List as a read-only class list. You can leave a class here at any time, and rejoin (or join a different class) using a new code.
+              <strong>Teachers</strong> manage classes from the Teacher Dashboard (link above the class section).
             </p>
           </div>
         </div>

@@ -1,10 +1,10 @@
 <template>
   <div
     v-if="open"
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto py-8"
+    class="fixed inset-0 z-50 flex items-stretch sm:items-center sm:justify-center bg-black/50 overflow-hidden"
     @click.self="$emit('close')"
   >
-    <div class="bg-white rounded-lg shadow-xl p-6 w-[90vw] max-w-3xl max-h-[90vh] overflow-auto">
+    <div class="bg-white shadow-xl flex flex-col w-full overflow-hidden p-4 sm:rounded-lg sm:p-6 sm:w-[90vw] sm:max-w-3xl sm:h-auto sm:max-h-[90vh]">
       <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
         <h2 class="text-2xl font-bold">My Word Lists</h2>
         <div class="flex items-center gap-2">
@@ -207,31 +207,30 @@
       </div>
 
       <!-- Word list -->
-      <div v-else class="space-y-3">
-        <div class="overflow-y-auto max-h-[60vh] pr-1">
+      <div v-else class="flex-1 min-h-0 flex flex-col space-y-3">
+        <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pr-1 touch-pan-y">
           <div class="space-y-3">
             <div
               v-for="word in filteredWordList"
               :key="word.id"
-              class="border border-gray-200 rounded-lg p-4 bg-white shadow-sm hover:border-blue-200 transition-colors relative"
+              class="w-full border border-gray-200 rounded-lg p-4 bg-white shadow-sm hover:border-blue-200 transition-colors relative"
             >
           <!-- Source text reference (clickable) -->
-          <div v-if="word.wordData.sourceText || word.wordData.bookTitle" class="mb-2 text-xs text-blue-600 font-medium border-b border-gray-100 pb-2 pr-8 sm:pr-0 sm:flex sm:justify-between sm:items-center">
-            <button
-              v-if="word.wordData.sourceText || word.wordData.bookTitle"
-              type="button"
-              class="hover:underline cursor-pointer text-left"
-              @click="$emit('navigate-to-word', word)"
-            >
-              <span v-if="word.wordData.sourceText">
-                {{ word.wordData.sourceText }}
-                <span v-if="word.wordData.bookPath" class="text-gray-500 font-normal">({{ word.wordData.bookPath }})</span>
-              </span>
-              <span v-else-if="word.wordData.bookTitle">
-                {{ word.wordData.bookTitle }}
-                <span v-if="word.wordData.bookPath" class="text-gray-500 font-normal">({{ word.wordData.bookPath }})</span>
-              </span>
-            </button>
+          <div v-if="word.wordData.sourceText || word.wordData.bookTitle" class="mb-2 text-xs text-blue-600 font-medium border-b border-gray-100 pb-2 sm:flex sm:justify-between sm:items-start">
+            <div class="sm:flex-1 sm:min-w-0">
+              <button
+                v-if="word.wordData.sourceText || word.wordData.bookTitle"
+                type="button"
+                class="block w-full truncate [direction:rtl] hover:underline cursor-pointer"
+                @click="$emit('navigate-to-word', word)"
+              >
+                <bdi v-if="word.wordData.sourceText">{{ word.wordData.sourceText }}</bdi>
+                <bdi v-else-if="word.wordData.bookTitle">{{ word.wordData.bookTitle }}</bdi>
+              </button>
+              <div v-if="word.wordData.bookPath" class="text-gray-500 font-normal mt-0.5">
+                {{ word.wordData.bookPath }}
+              </div>
+            </div>
             <div class="hidden sm:flex sm:flex-col sm:items-end text-xs text-gray-500 font-normal gap-0.5">
               <span>Saved: {{ formatDate(word.createdAt) }}</span>
               <span v-if="word.addedBy" class="text-indigo-500">
@@ -249,43 +248,9 @@
             </div>
           </div>
 
-          <!-- Archive / Restore / Reset - Mobile: top-right absolute -->
-          <div class="sm:hidden absolute top-4 right-4 flex flex-wrap gap-1 justify-end">
-            <template v-if="viewMode === 'active'">
-              <button
-                v-if="word.progress && (word.progress.timesShown > 0 || word.progress.timesCorrect > 0)"
-                type="button"
-                class="px-2 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100 text-gray-700 shrink-0"
-                :disabled="resettingProgressWordId === word.id"
-                @click="$emit('reset-stats', word.id)"
-              >
-                <span v-if="resettingProgressWordId === word.id" class="animate-pulse">…</span>
-                <span v-else>Reset stats</span>
-              </button>
-              <button
-                type="button"
-                class="px-2 py-1.5 text-sm border border-gray-300 rounded hover:bg-amber-50 hover:text-amber-700 hover:border-amber-300 transition-colors shrink-0"
-                :disabled="deletingWordId === word.id"
-                @click="$emit('confirm-delete-word', word.id)"
-              >
-                <span v-if="deletingWordId === word.id" class="animate-pulse">…</span>
-                <span v-else aria-label="Archive">Archive</span>
-              </button>
-            </template>
-            <button
-              v-else
-              type="button"
-              class="px-2 py-1.5 text-sm border border-green-300 rounded hover:bg-green-50 hover:text-green-700 shrink-0"
-              :disabled="restoringWordId === word.id"
-              @click="$emit('restore-word', word.id)"
-            >
-              <span v-if="restoringWordId === word.id" class="animate-pulse">…</span>
-              <span v-else>Restore</span>
-            </button>
-          </div>
 
           <!-- Context phrase (smaller, at top) -->
-          <div v-if="word.wordData.originalPhrase || word.wordData.translatedPhrase" class="mb-2 text-xs text-gray-500 border-b border-gray-100 pb-2 pr-8 sm:pr-0">
+          <div v-if="word.wordData.originalPhrase || word.wordData.translatedPhrase" class="mb-2 text-xs text-gray-500 border-b border-gray-100 pb-2">
             <div v-if="word.wordData.originalPhrase" class="text-right" style="direction: rtl">
               {{ word.wordData.originalPhrase }}
             </div>
@@ -295,7 +260,7 @@
           </div>
 
           <!-- Word entry -->
-          <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+          <div class="flex flex-col gap-y-1 sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-4">
             <div
               v-if="word.wordData.wordEntry?.word"
               class="text-2xl font-bold text-blue-700"
@@ -323,13 +288,13 @@
             </NuxtLink>
           </div>
 
-          <!-- Archive / Restore / Reset (desktop) -->
-          <div class="mt-2 hidden sm:flex sm:flex-wrap sm:justify-end sm:gap-2">
+          <!-- Archive / Restore / Reset -->
+          <div class="mt-2 flex flex-wrap justify-end gap-2">
             <template v-if="viewMode === 'active'">
               <button
                 v-if="word.progress && (word.progress.timesShown > 0 || word.progress.timesCorrect > 0)"
                 type="button"
-                class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 text-gray-700 shrink-0"
+                class="min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded hover:bg-gray-100 text-gray-700 shrink-0"
                 :disabled="resettingProgressWordId === word.id"
                 @click="$emit('reset-stats', word.id)"
               >
@@ -338,7 +303,7 @@
               </button>
               <button
                 type="button"
-                class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-amber-50 hover:text-amber-700 hover:border-amber-300 transition-colors shrink-0"
+                class="min-h-[44px] px-3 py-2 text-sm border border-gray-300 rounded hover:bg-amber-50 hover:text-amber-700 hover:border-amber-300 transition-colors shrink-0"
                 :disabled="deletingWordId === word.id"
                 @click="$emit('confirm-delete-word', word.id)"
               >
@@ -349,7 +314,7 @@
             <button
               v-else
               type="button"
-              class="px-3 py-1 text-sm border border-green-300 rounded hover:bg-green-50 hover:text-green-700 shrink-0"
+              class="min-h-[44px] px-3 py-2 text-sm border border-green-300 rounded hover:bg-green-50 hover:text-green-700 shrink-0"
               :disabled="restoringWordId === word.id"
               @click="$emit('restore-word', word.id)"
             >
@@ -642,6 +607,18 @@
           </p>
           <p>
             <strong>Study:</strong> When you have words in your list, click <strong>Study</strong> to start a flashcard session. Cards show the Hebrew word; tap to reveal the translation, then choose “Need practice” or “Know it.” You can archive words you’ve mastered and restore them later from the Archived tab.
+          </p>
+          <p>
+            <strong>On mobile:</strong> The word list opens full-screen for comfortable reading. Only the card list scrolls — the toolbar and search bar stay fixed at the top. Each card shows the Hebrew word, translation, and root stacked on separate lines. The source reference at the top of each card shows the clickable book title on one line and the category/section path on the line below; long titles are trimmed from the left so the specific chapter or section stays visible.
+          </p>
+          <p>
+            <strong>Multiple lists:</strong> Use the dropdown at the top to switch between your word lists. Click <strong>+ New List</strong> to create a list, and use the <strong>Rename</strong> button to rename it. Each list is independent — words, study stats, and sharing are all per-list.
+          </p>
+          <p>
+            <strong>Sharing:</strong> Any named list (not the Default list) can be shared with other Shoresh users by email. Click <strong>Share</strong> next to the list selector, enter an email address, and choose <strong>Read only</strong> or <strong>Read &amp; write</strong>. Recipients see the shared list in their own My Word List dropdown. You can update permissions or remove access at any time from the Share panel.
+          </p>
+          <p>
+            <strong>Share with Class:</strong> Teachers can click <strong>📚 Share with Class</strong> to push a named list to all students in a class at once. Students see it automatically in their My Word List as a read-only class list. Progress on those words is tracked and visible to the teacher in the Teacher Dashboard.
           </p>
           <p>
             <strong>Concordance icon</strong>

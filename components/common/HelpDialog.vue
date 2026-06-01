@@ -77,6 +77,9 @@
             <li>Click any word to navigate back to its source text</li>
             <li>Archive words you no longer need (or restore archived words from the Archived tab)</li>
             <li>Reset study stats for a word to start fresh</li>
+            <li>Create multiple named lists to organize words by topic, text, or study goal — use the dropdown in My Word List to switch between them</li>
+            <li>Share any named list with another user by email, or push it to a whole class (teacher feature) — recipients see it automatically in their own My Word List</li>
+            <li>On mobile, the list opens full-screen with only the card list scrolling — the toolbar stays pinned at the top</li>
           </ul>
         </section>
 
@@ -130,6 +133,18 @@
             <li>Click reference links to navigate back to the source text</li>
             <li>Notes are private to your account and sync across devices</li>
           </ul>
+        </section>
+
+        <section class="rounded-xl bg-indigo-50/60 p-5">
+          <h3 class="font-semibold text-slate-900 mb-2 text-base">Classes</h3>
+          <p class="text-slate-600 text-sm leading-relaxed mb-2">
+            <strong class="text-slate-900">For teachers (requires teacher role):</strong>
+            Open the <strong>Teacher Dashboard</strong> from the Settings page to create a class and get a unique invite code. Share any of your word lists with the whole class using the <strong>📚 Share with Class</strong> button in My Word List. The Teacher Dashboard shows a progress matrix — for each shared word, you can see which students have studied it and how many times they answered correctly.
+          </p>
+          <p class="text-slate-600 text-sm leading-relaxed">
+            <strong class="text-slate-900">For students:</strong>
+            Go to <strong>Settings</strong> and enter the invite code your teacher gave you to join a class. Once enrolled, any word lists your teacher shares with the class will appear automatically in your My Word List as a read-only class list. You can leave a class from the Settings page at any time.
+          </p>
         </section>
 
         <section class="rounded-xl border-2 border-blue-200 bg-blue-50/80 p-5">
