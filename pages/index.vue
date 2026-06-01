@@ -48,12 +48,15 @@
       :show-notes-list-modal="showNotesListModal"
       :logged-in="loggedIn"
       :is-admin="isAdmin"
+      :is-teacher="isTeacher"
+      :user-team-id="(user as any)?.teamId ?? null"
       :copied-status="copiedStatus"
       @update:search-query="searchQuery = $event"
       @refresh-index="refreshIndex"
       @open-help="showHelpDialog = true"
       @open-word-list="onOpenWordList"
       @open-notes-list="onOpenNotesList"
+      @open-class-notes="onOpenClassNotes"
       @book-select="onBookSelectFromBrowser"
       @tab-open="onTabOpen"
       @close-category-dialog="showCategoryDialog = false"
@@ -85,6 +88,8 @@
       :word-to-highlight="wordToHighlight"
       :logged-in="loggedIn"
       :is-admin="isAdmin"
+      :is-teacher="isTeacher"
+      :user-team-id="(user as any)?.teamId ?? null"
       :show-word-list-modal="showWordListModal"
       :show-notes-list-modal="showNotesListModal"
       :split-into-phrases="splitIntoPhrases"
@@ -99,6 +104,7 @@
       @close-book="handleCloseBook"
       @open-word-list="onOpenWordList"
       @open-notes-list="onOpenNotesList"
+      @open-class-notes="onOpenClassNotes"
       @select-section="onSelectSection"
       @go-back-section="goBackSection"
       @open-section-list-debug="showSectionListDebugDialog = true"
@@ -202,6 +208,8 @@
       :active-list-id="activeWordListId"
       :active-list-shares="activeListShares"
       :shares-loading="sharesLoading"
+      :teacher-classes="teacherClasses"
+      :is-teacher="isTeacher"
       @close="wordListViewMode = 'active'; showWordListModal = false"
       @update:view-mode="onWordListViewModeChange"
       @update:search-query="wordListSearchQuery = $event"
@@ -219,7 +227,40 @@
       @add-share="addShare"
       @remove-share="removeShare"
       @update-share-permission="updateSharePermission"
+      @share-with-class="shareWithClass"
+      @unshare-from-class="unshareFromClass"
     />
+
+    <!-- Class Notes Modal (student view) -->
+    <div
+      v-if="showClassNotesModal"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto py-8"
+      @click.self="showClassNotesModal = false"
+    >
+      <div class="bg-white rounded-lg shadow-xl p-6 w-[90vw] max-w-2xl max-h-[90vh] overflow-auto">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-2xl font-bold">🏫 Class Notes</h2>
+          <button type="button" class="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50" @click="showClassNotesModal = false">Close</button>
+        </div>
+        <div v-if="classNotesLoading" class="text-center py-8 text-gray-500">Loading class notes…</div>
+        <div v-else-if="classNotes.length === 0" class="text-center py-8 text-gray-500">No notes have been published by your teacher yet.</div>
+        <div v-else class="space-y-4">
+          <div
+            v-for="note in classNotes"
+            :key="note.id"
+            class="border border-indigo-200 rounded-lg p-4 bg-indigo-50"
+          >
+            <div class="flex justify-between items-start mb-2 text-xs text-indigo-600">
+              <span>{{ note.refDisplay }}</span>
+              <span>{{ note.teacherName || note.teacherEmail }}</span>
+            </div>
+            <div class="text-lg text-right font-semibold text-gray-900 mb-1" style="direction: rtl">{{ note.hePhrase }}</div>
+            <div class="text-sm text-gray-700 mb-2">{{ note.enPhrase }}</div>
+            <div class="text-sm text-gray-800 italic border-t border-indigo-100 pt-2">{{ note.noteText }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Study Session Modal -->
     <WordExplorerStudySessionModal
@@ -519,7 +560,7 @@ const longPhraseWords = ref<string[]>([])
 const longPhraseWordSelected = ref<boolean[]>([])
 const showRawData = ref(false)
 const rawTranslationData = ref<unknown>(null)
-const { isAdmin, fetch: fetchSession, user, loggedIn } = useAuth()
+const { isAdmin, isTeacher, fetch: fetchSession, user, loggedIn } = useAuth()
 const route = useRoute()
 const router = useRouter()
 const openaiModel = ref('gpt-5.1-chat-latest')
@@ -646,10 +687,16 @@ const restoringWordId = ref<number | null>(null)
 const resettingProgressWordId = ref<number | null>(null)
 
 // Named word lists
-const namedLists = ref<Array<{ id: number; name: string; createdAt: number; updatedAt: number; wordCount: number; isShared?: boolean; ownerEmail?: string | null; ownerName?: string | null; sharedPermission?: 'read' | 'write' }>>([])
+const namedLists = ref<Array<{ id: number; name: string; createdAt: number; updatedAt: number; wordCount: number; isShared?: boolean; isClassShared?: boolean; ownerEmail?: string | null; ownerName?: string | null; sharedPermission?: 'read' | 'write' }>>([])
 const activeWordListId = ref<number | null>(null)
-const activeListShares = ref<Array<{ id: number; email: string; hasAccount: boolean; createdAt: number }>>([])
+const activeListShares = ref<Array<{ id: number; email: string; hasAccount: boolean; createdAt: number; permission: 'read' | 'write' }>>([])
 const sharesLoading = ref(false)
+const teacherClasses = ref<Array<{ id: string; name: string; inviteCode: string; studentCount: number }>>([])
+
+// Class Notes (student view)
+const showClassNotesModal = ref(false)
+const classNotes = ref<Array<{ id: number; hePhrase: string; enPhrase: string; refDisplay: string; noteText: string; teacherName: string | null; teacherEmail: string; publishedAt: number }>>([])
+const classNotesLoading = ref(false)
 const wordToHighlight = ref<string | null>(null) // Hebrew word to highlight after navigation
 
 // Study session (flashcards)
@@ -1587,6 +1634,12 @@ function onPhraseClick (phrase: string) {
 function onOpenWordList () {
   if (loggedIn.value) showWordListModal.value = true
   else showSignInRequiredModal.value = true
+}
+
+async function onOpenClassNotes () {
+  if (!loggedIn.value) return
+  showClassNotesModal.value = true
+  await fetchClassNotes()
 }
 function onOpenNotesList () {
   if (loggedIn.value) showNotesListModal.value = true
@@ -2822,8 +2875,14 @@ function loadMoreWordList() {
 async function fetchNamedLists() {
   if (!loggedIn.value) return
   try {
-    const response = await $fetch<{ lists: typeof namedLists.value }>('/api/word-lists')
-    namedLists.value = response.lists || []
+    const [listsRes, classesRes] = await Promise.all([
+      $fetch<{ lists: typeof namedLists.value }>('/api/word-lists'),
+      isTeacher.value
+        ? $fetch<{ classes: typeof teacherClasses.value }>('/api/teacher/classes').catch(() => ({ classes: [] }))
+        : Promise.resolve({ classes: [] }),
+    ])
+    namedLists.value = listsRes.lists || []
+    teacherClasses.value = classesRes.classes || []
   } catch (err) {
     console.error('Failed to fetch named lists:', err)
   }
@@ -2898,6 +2957,37 @@ async function removeShare(listId: number, shareId: number) {
     activeListShares.value = activeListShares.value.filter(s => s.id !== shareId)
   } catch (err: any) {
     alert(err?.data?.message || 'Failed to remove share')
+  }
+}
+
+async function shareWithClass(listId: number, classId: string) {
+  try {
+    await $fetch(`/api/word-lists/${listId}/share-class`, { method: 'POST', body: { classId } })
+    await fetchNamedLists()
+  } catch (err: any) {
+    alert(err?.data?.message || 'Failed to share with class')
+  }
+}
+
+async function unshareFromClass(listId: number, classId: string) {
+  try {
+    await $fetch(`/api/word-lists/${listId}/share-class`, { method: 'DELETE', body: { classId } })
+    await fetchNamedLists()
+  } catch (err: any) {
+    alert(err?.data?.message || 'Failed to unshare from class')
+  }
+}
+
+async function fetchClassNotes() {
+  if (!loggedIn.value) return
+  classNotesLoading.value = true
+  try {
+    const res = await $fetch<{ notes: typeof classNotes.value }>('/api/class/notes')
+    classNotes.value = res.notes || []
+  } catch {
+    classNotes.value = []
+  } finally {
+    classNotesLoading.value = false
   }
 }
 

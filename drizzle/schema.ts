@@ -76,7 +76,18 @@ export const wordListShares = sqliteTable('word_list_shares', {
   sharedWithEmail: text('shared_with_email').notNull(),
   sharedWithUserId: text('shared_with_user_id'),
   permission: text('permission').notNull().default('read'),
+  sharedWithTeamId: text('shared_with_team_id'),
   createdAt: integer('created_at').notNull(),
+})
+
+// Teacher-published class notes
+
+export const classNotes = sqliteTable('class_notes', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  teamId: text('team_id').notNull(),
+  teacherId: text('teacher_id').notNull(),
+  noteId: integer('note_id').notNull(),
+  publishedAt: integer('published_at').notNull(),
 })
 
 // Named word lists (one user may have many)

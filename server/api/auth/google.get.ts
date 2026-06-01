@@ -51,7 +51,8 @@ export default defineOAuthGoogleEventHandler({
           email: user.email,
           name: user.name,
           role: user.role,
-          isVerified: Boolean(user.is_verified)
+          isVerified: Boolean(user.is_verified),
+          teamId: user.team_id ?? null,
         },
         loggedInAt: Date.now()
       }, { maxAge: sessionMaxAge })

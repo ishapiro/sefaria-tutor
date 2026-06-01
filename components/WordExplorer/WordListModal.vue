@@ -92,6 +92,14 @@
           Share
         </button>
         <button
+          v-if="activeListIsOwned && isTeacher && teacherClasses && teacherClasses.length > 0"
+          type="button"
+          class="px-3 py-1.5 text-sm border border-green-400 text-green-700 rounded-lg hover:bg-green-50 whitespace-nowrap"
+          @click="showShareClassModal = true"
+        >
+          📚 Share with Class
+        </button>
+        <button
           v-if="activeListIsOwned"
           type="button"
           class="px-3 py-1.5 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 whitespace-nowrap"
@@ -104,9 +112,11 @@
       <!-- Shared-list banner -->
       <div
         v-if="activeListId !== null && namedLists.find(l => l.id === activeListId)?.isShared"
-        class="mb-3 px-3 py-2 bg-indigo-50 border border-indigo-200 rounded-lg text-xs text-indigo-700"
+        class="mb-3 px-3 py-2 bg-indigo-50 border border-indigo-200 rounded-lg text-xs text-indigo-700 flex items-center gap-2"
       >
-        Shared by {{ namedLists.find(l => l.id === activeListId)?.ownerName || namedLists.find(l => l.id === activeListId)?.ownerEmail }}
+        <span v-if="namedLists.find(l => l.id === activeListId)?.isClassShared">📚 Class list from</span>
+        <span v-else>Shared by</span>
+        {{ namedLists.find(l => l.id === activeListId)?.ownerName || namedLists.find(l => l.id === activeListId)?.ownerEmail }}
         ·
         <span v-if="isReadOnly">read-only</span>
         <span v-else class="font-medium">read &amp; write</span>
@@ -575,6 +585,39 @@
       </div>
     </div>
 
+    <!-- Share with Class modal -->
+    <div
+      v-if="showShareClassModal"
+      class="absolute inset-0 z-[55] flex items-center justify-center p-4 bg-black/50 rounded-lg"
+      @click.self="showShareClassModal = false"
+    >
+      <div class="bg-white rounded-lg shadow-xl max-w-sm w-full p-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-base font-semibold text-gray-900">📚 Share "{{ activeListName }}" with a Class</h3>
+          <button type="button" class="p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg" @click="showShareClassModal = false">
+            <span class="text-lg leading-none">×</span>
+          </button>
+        </div>
+        <p class="text-xs text-gray-500">Students in the selected class will be able to view and study this list (read-only).</p>
+        <div class="space-y-2">
+          <div
+            v-for="cls in teacherClasses"
+            :key="cls.id"
+            class="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg border border-gray-200"
+          >
+            <span class="text-sm font-medium text-gray-800">{{ cls.name }}</span>
+            <button
+              type="button"
+              class="px-3 py-1 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700"
+              @click="emit('share-with-class', activeListId!, cls.id); showShareClassModal = false"
+            >
+              Share
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Usage modal (My Word List) -->
     <div
       v-if="showUsageModal"
@@ -625,6 +668,7 @@ const showUsageModal = ref(false)
 const showCreateListModal = ref(false)
 const showDeleteListConfirm = ref(false)
 const showShareModal = ref(false)
+const showShareClassModal = ref(false)
 const newListName = ref('')
 const renamingList = ref(false)
 const renameValue = ref('')
@@ -638,6 +682,7 @@ export interface NamedList {
   updatedAt: number
   wordCount: number
   isShared?: boolean
+  isClassShared?: boolean
   ownerEmail?: string | null
   ownerName?: string | null
   sharedPermission?: 'read' | 'write'
@@ -689,8 +734,10 @@ const props = withDefaults(
     activeListId?: number | null
     activeListShares?: ListShare[]
     sharesLoading?: boolean
+    teacherClasses?: Array<{ id: string; name: string }>
+    isTeacher?: boolean
   }>(),
-  { viewMode: 'active', restoringWordId: null, resettingProgressWordId: null, namedLists: () => [], activeListId: null, activeListShares: () => [], sharesLoading: false }
+  { viewMode: 'active', restoringWordId: null, resettingProgressWordId: null, namedLists: () => [], activeListId: null, activeListShares: () => [], sharesLoading: false, teacherClasses: () => [], isTeacher: false }
 )
 
 const activeListName = computed(() => {
@@ -722,6 +769,8 @@ const emit = defineEmits<{
   'add-share': [listId: number, email: string]
   'remove-share': [listId: number, shareId: number]
   'update-share-permission': [listId: number, shareId: number, permission: 'read' | 'write']
+  'share-with-class': [listId: number, classId: string]
+  'unshare-from-class': [listId: number, classId: string]
 }>()
 
 const hasMore = computed(() => props.wordListLength < props.wordListTotal)
@@ -770,13 +819,13 @@ const activeListIsOwned = computed(() => {
   return list ? !list.isShared : false
 })
 
-// True when viewing a shared list that was shared read-only with the current user
+// True when viewing a shared list that is read-only (class shares always are)
 const isReadOnly = computed(() => {
   if (props.activeListId === null || props.activeListId === undefined) return false
   const list = props.namedLists.find(l => l.id === props.activeListId)
   if (!list?.isShared) return false
-  // The parent passes the resolved permission via the namedList entry
-  return (list as any).sharedPermission !== 'write'
+  if (list.isClassShared) return true
+  return list.sharedPermission !== 'write'
 })
 
 function openShares() {

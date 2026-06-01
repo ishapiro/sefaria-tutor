@@ -3,7 +3,9 @@ export const useAuth = () => {
 
   const isAdmin = computed(() => user.value?.role === 'admin')
   const isTeamLeader = computed(() => user.value?.role === 'team' || user.value?.role === 'admin')
+  const isTeacher = computed(() => user.value?.role === 'team' || user.value?.role === 'admin')
   const isGeneral = computed(() => user.value?.role === 'general' || user.value?.role === 'team' || user.value?.role === 'admin')
+  const userTeamId = computed(() => (user.value as any)?.teamId ?? null)
   const isVerified = computed(() => user.value?.isVerified === true)
 
   const loginWithGoogle = () => {
@@ -22,8 +24,10 @@ export const useAuth = () => {
     session,
     isAdmin,
     isTeamLeader,
+    isTeacher,
     isGeneral,
     isVerified,
+    userTeamId,
     fetch,
     clear,
     loginWithGoogle,

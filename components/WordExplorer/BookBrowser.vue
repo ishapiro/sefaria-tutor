@@ -53,6 +53,25 @@
           <span class="text-sm sm:text-base leading-none">📝</span>
           <span>My Notes</span>
         </button>
+        <!-- Class Notes: show for students in a class -->
+        <button
+          v-if="loggedIn && userTeamId && !isTeacher"
+          type="button"
+          class="px-2 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium border border-indigo-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center justify-center gap-1 sm:gap-2 min-h-[32px] sm:min-h-[36px] bg-white text-indigo-700 hover:bg-indigo-50"
+          @click="$emit('open-class-notes')"
+        >
+          <span class="text-sm sm:text-base leading-none">🏫</span>
+          <span>Class Notes</span>
+        </button>
+        <!-- Teacher dashboard link -->
+        <NuxtLink
+          v-if="loggedIn && isTeacher"
+          to="/teacher"
+          class="px-2 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium border border-indigo-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center justify-center gap-1 sm:gap-2 min-h-[32px] sm:min-h-[36px] bg-white text-indigo-700 hover:bg-indigo-50"
+        >
+          <span class="text-sm sm:text-base leading-none">🏫</span>
+          <span>Teacher</span>
+        </NuxtLink>
       </div>
       <NuxtLink
         v-if="isAdmin"
@@ -215,6 +234,8 @@ const props = defineProps<{
   showNotesListModal: boolean
   loggedIn: boolean
   isAdmin: boolean
+  isTeacher?: boolean
+  userTeamId?: string | null
   copiedStatus: string | null
 }>()
 
@@ -224,6 +245,7 @@ const emit = defineEmits<{
   'open-help': []
   'open-word-list': []
   'open-notes-list': []
+  'open-class-notes': []
   'book-select': [event: { data: CategoryNode }]
   'tab-open': [category: CategoryNode]
   'close-category-dialog': []

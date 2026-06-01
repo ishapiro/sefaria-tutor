@@ -215,6 +215,67 @@
           <p v-else class="text-gray-500 text-sm">No studied words yet. Use Study from My Word List to start.</p>
         </div>
       </section>
+
+      <!-- My Class section (students and teachers) -->
+      <section class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+        <h2 class="text-lg sm:text-xl font-semibold text-gray-800 mb-4">My Class</h2>
+
+        <!-- Teacher: link to dashboard -->
+        <div v-if="isTeacher" class="space-y-3">
+          <p class="text-sm text-gray-600">You are a teacher. Manage your classes and view student progress from the Teacher Dashboard.</p>
+          <NuxtLink
+            to="/teacher"
+            class="inline-flex items-center gap-2 min-h-[44px] px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium"
+          >
+            Open Teacher Dashboard
+          </NuxtLink>
+        </div>
+
+        <!-- Student: current class + join/leave -->
+        <div v-else class="space-y-4">
+          <div v-if="currentClassName" class="flex items-center justify-between gap-3 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+            <div>
+              <p class="text-sm font-semibold text-indigo-800">{{ currentClassName }}</p>
+              <p class="text-xs text-indigo-600">You are enrolled in this class</p>
+            </div>
+            <button
+              type="button"
+              class="px-3 py-1.5 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50"
+              :disabled="classActionLoading"
+              @click="leaveClass"
+            >
+              Leave
+            </button>
+          </div>
+          <div v-else class="text-sm text-gray-500">You are not enrolled in a class.</div>
+
+          <div class="space-y-2">
+            <label class="text-sm font-medium text-gray-700">
+              {{ currentClassName ? 'Switch to a different class:' : 'Join a class:' }}
+            </label>
+            <div class="flex gap-2">
+              <input
+                v-model="inviteCodeInput"
+                type="text"
+                placeholder="Enter invite code"
+                maxlength="20"
+                class="flex-1 min-h-[44px] px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm uppercase"
+                @keyup.enter="joinClass"
+              />
+              <button
+                type="button"
+                class="min-h-[44px] px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium disabled:opacity-50"
+                :disabled="!inviteCodeInput.trim() || classActionLoading"
+                @click="joinClass"
+              >
+                {{ classActionLoading ? 'Joining…' : 'Join' }}
+              </button>
+            </div>
+            <p v-if="classActionError" class="text-xs text-red-500">{{ classActionError }}</p>
+            <p v-if="classActionSuccess" class="text-xs text-green-600">{{ classActionSuccess }}</p>
+          </div>
+        </div>
+      </section>
     </div>
 
     <!-- Usage modal (Settings) -->
@@ -261,7 +322,61 @@
 </template>
 
 <script setup lang="ts">
-const { loggedIn } = useAuth()
+const { loggedIn, isTeacher, userTeamId, fetch: refreshSession } = useAuth()
+
+// My Class
+const inviteCodeInput = ref('')
+const classActionLoading = ref(false)
+const classActionError = ref('')
+const classActionSuccess = ref('')
+const currentClassName = ref<string | null>(null)
+
+async function fetchCurrentClass () {
+  if (!loggedIn.value || isTeacher.value) return
+  try {
+    const res = await $fetch<{ enrolled: boolean; teamName: string | null }>('/api/class/info')
+    currentClassName.value = res.enrolled ? res.teamName : null
+  } catch {
+    currentClassName.value = null
+  }
+}
+
+async function joinClass () {
+  const code = inviteCodeInput.value.trim()
+  if (!code) return
+  classActionError.value = ''
+  classActionSuccess.value = ''
+  classActionLoading.value = true
+  try {
+    const res = await $fetch<{ teamName: string }>('/api/class/join', { method: 'POST', body: { inviteCode: code } })
+    currentClassName.value = res.teamName
+    inviteCodeInput.value = ''
+    classActionSuccess.value = `Joined "${res.teamName}"!`
+    await refreshSession()
+  } catch (err: any) {
+    classActionError.value = err?.data?.message || 'Invalid invite code'
+  } finally {
+    classActionLoading.value = false
+  }
+}
+
+async function leaveClass () {
+  classActionError.value = ''
+  classActionSuccess.value = ''
+  classActionLoading.value = true
+  try {
+    await $fetch('/api/class/leave', { method: 'DELETE' })
+    currentClassName.value = null
+    classActionSuccess.value = 'You have left the class.'
+    await refreshSession()
+  } catch (err: any) {
+    classActionError.value = err?.data?.message || 'Failed to leave class'
+  } finally {
+    classActionLoading.value = false
+  }
+}
+
+watch(loggedIn, (v) => { if (v) fetchCurrentClass() }, { immediate: true })
 const showUsageModal = ref(false)
 
 const flashcardCorrectRepetitions = ref(2)

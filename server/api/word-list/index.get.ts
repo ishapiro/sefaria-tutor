@@ -70,17 +70,19 @@ export default defineEventHandler(async (event) => {
     }
 
     if (ownership.user_id !== userData.id) {
-      // Check share access by user_id or email
-      const userRow = await db.prepare('SELECT email FROM users WHERE id = ? AND deleted_at IS NULL')
-        .bind(userData.id).first() as { email: string } | null
+      // Check individual share access by user_id or email, or class-based access
+      const userRow = await db.prepare('SELECT email, team_id FROM users WHERE id = ? AND deleted_at IS NULL')
+        .bind(userData.id).first() as { email: string; team_id: string | null } | null
       const shareRow = await db.prepare(
-        'SELECT id FROM word_list_shares WHERE list_id = ? AND (shared_with_user_id = ? OR shared_with_email = ?)'
-      ).bind(resolvedListId, userData.id, userRow?.email ?? '').first()
+        `SELECT id FROM word_list_shares
+         WHERE list_id = ?
+           AND (shared_with_user_id = ? OR shared_with_email = ?
+                OR (shared_with_team_id IS NOT NULL AND shared_with_team_id = ?))`
+      ).bind(resolvedListId, userData.id, userRow?.email ?? '', userRow?.team_id ?? '').first()
 
       if (!shareRow) {
         throw createError({ statusCode: 403, message: 'You do not have access to this list' })
       }
-      // Query words using the owner's user_id
       effectiveUserId = ownership.user_id
     }
   }
