@@ -2,9 +2,18 @@
   <div class="container mx-auto p-3 sm:p-4 max-w-5xl">
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
       <h1 class="text-2xl sm:text-3xl font-bold text-gray-800">🏫 Teacher Dashboard</h1>
-      <NuxtLink to="/" class="text-blue-600 hover:underline flex items-center gap-1 min-h-[44px] items-center text-sm">
-        ← Back to App
-      </NuxtLink>
+      <div class="flex items-center gap-2">
+        <button
+          type="button"
+          class="px-2 py-1 text-xs font-medium border border-green-500 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-green-50 hover:border-green-600"
+          @click="showUsageModal = true"
+        >
+          Usage
+        </button>
+        <NuxtLink to="/" class="text-blue-600 hover:underline flex items-center gap-1 min-h-[44px] items-center text-sm">
+          ← Back to App
+        </NuxtLink>
+      </div>
     </div>
 
     <div v-if="!loggedIn || !isTeacher" class="bg-amber-50 border border-amber-200 rounded-lg p-6 text-amber-800">
@@ -216,6 +225,53 @@
       </div>
     </div>
   </div>
+
+  <!-- Usage modal -->
+  <div
+    v-if="showUsageModal"
+    class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50"
+    @click.self="showUsageModal = false"
+  >
+    <div class="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[85vh] overflow-hidden flex flex-col">
+      <div class="flex items-center justify-between p-4 border-b border-gray-200">
+        <h3 class="text-sm font-semibold text-gray-900">Usage</h3>
+        <button
+          type="button"
+          class="p-1.5 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+          aria-label="Close"
+          @click="showUsageModal = false"
+        >
+          <span class="text-lg leading-none">×</span>
+        </button>
+      </div>
+      <div class="p-4 overflow-y-auto text-sm text-gray-600 space-y-4">
+        <div>
+          <h4 class="font-semibold text-gray-900 mb-1">My Classes</h4>
+          <p>
+            Click <strong>+ New Class</strong> to create a class — each class gets a unique invite code. Share that code with your students; they enter it on their <strong>Settings</strong> page to join. You can have multiple classes and switch between them using the class buttons. Use <strong>Delete Class</strong> to permanently remove a class and unenroll all its students.
+          </p>
+        </div>
+        <div>
+          <h4 class="font-semibold text-gray-900 mb-1">Students</h4>
+          <p>
+            The student roster shows everyone who has joined the selected class, along with their all-time study stats: words studied (distinct words), correct answers, and total card views. Use <strong>Remove</strong> to unenroll a student — they can rejoin with the same invite code if needed.
+          </p>
+        </div>
+        <div>
+          <h4 class="font-semibold text-gray-900 mb-1">Sharing Word Lists with the Class</h4>
+          <p>
+            To share a word list with your class, go to <strong>My Word List</strong> (from any book page), select a named list, and click <strong>📚 Share with Class</strong>. Students will see the shared list automatically in their own My Word List as a read-only class list. You can share multiple lists with the same class.
+          </p>
+        </div>
+        <div>
+          <h4 class="font-semibold text-gray-900 mb-1">Word List Progress</h4>
+          <p>
+            Once a list is shared with a class, the progress matrix shows each word as a row and each student as a column. <strong>✅</strong> means the student answered correctly at least once; <strong>⭕</strong> means they've attempted it but not gotten it right yet; <strong>—</strong> means they haven't studied it at all. Hover over any cell to see exact correct/shown counts. Use the dropdown to filter by a specific shared list.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -224,6 +280,7 @@ const { loggedIn, isTeacher } = useAuth()
 const classes = ref<Array<{ id: string; name: string; inviteCode: string; createdAt: number; studentCount: number }>>([])
 const classesLoading = ref(false)
 const activeClassId = ref<string | null>(null)
+const showUsageModal = ref(false)
 const showCreateClassModal = ref(false)
 const newClassName = ref('')
 const classToDelete = ref<string | null>(null)
