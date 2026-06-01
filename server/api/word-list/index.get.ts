@@ -32,20 +32,38 @@ export default defineEventHandler(async (event) => {
   const offset = Math.max(0, parseInt(String(query.offset || 0), 10) || 0)
   const archivedOnly = String(query.archived || '').toLowerCase() === '1' || String(query.archived || '').toLowerCase() === 'true'
 
+  // listId: absent or "default" → null list (implicit default); number → named list
+  const listIdParam = query.listId
+  let listFilter: string
+  let listBindArgs: unknown[]
+  if (listIdParam !== undefined && listIdParam !== 'default' && listIdParam !== '') {
+    const parsedListId = parseInt(String(listIdParam), 10)
+    if (!isNaN(parsedListId)) {
+      listFilter = 'AND list_id = ?'
+      listBindArgs = [parsedListId]
+    } else {
+      listFilter = 'AND list_id IS NULL'
+      listBindArgs = []
+    }
+  } else {
+    listFilter = 'AND list_id IS NULL'
+    listBindArgs = []
+  }
+
   const archiveFilter = archivedOnly
     ? 'AND archived_at IS NOT NULL'
     : 'AND archived_at IS NULL'
-  const countSql = `SELECT COUNT(*) as total FROM user_word_list WHERE user_id = ? ${archiveFilter}`
-  const listSql = `SELECT id, word_data, created_at, archived_at FROM user_word_list WHERE user_id = ? ${archiveFilter} ORDER BY created_at DESC LIMIT ? OFFSET ?`
+  const countSql = `SELECT COUNT(*) as total FROM user_word_list WHERE user_id = ? ${listFilter} ${archiveFilter}`
+  const listSql = `SELECT id, word_data, created_at, archived_at FROM user_word_list WHERE user_id = ? ${listFilter} ${archiveFilter} ORDER BY created_at DESC LIMIT ? OFFSET ?`
 
   try {
     const countResult = await db.prepare(countSql)
-      .bind(userData.id)
+      .bind(userData.id, ...listBindArgs)
       .first()
     const total = (countResult as { total: number } | null)?.total ?? 0
 
     const { results } = await db.prepare(listSql)
-      .bind(userData.id, limit, offset)
+      .bind(userData.id, ...listBindArgs, limit, offset)
       .all()
 
     const rows = (results || []) as Array<{ id: number; word_data: string; created_at: number; archived_at: number | null }>

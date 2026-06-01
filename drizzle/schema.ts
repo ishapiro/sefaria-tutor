@@ -67,6 +67,16 @@ export const teams = sqliteTable('teams', {
   createdAt: integer('created_at').default(0),
 })
 
+// Named word lists (one user may have many)
+
+export const wordLists = sqliteTable('word_lists', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('user_id').notNull(),
+  name: text('name').notNull(),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+})
+
 // User word list and flashcard-related tables
 
 export const userWordList = sqliteTable('user_word_list', {
@@ -75,6 +85,7 @@ export const userWordList = sqliteTable('user_word_list', {
   wordData: text('word_data').notNull(),
   createdAt: integer('created_at').notNull(),
   archivedAt: integer('archived_at'),
+  listId: integer('list_id'),
 })
 
 export const wordListProgress = sqliteTable('word_list_progress', {

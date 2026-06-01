@@ -164,12 +164,15 @@
       :get-word-list-button-class="getWordListButtonClass"
       :get-word-list-button-text="getWordListButtonText"
       :is-admin="isAdmin"
+      :named-lists="namedLists"
+      :active-list-id="activeWordListId"
       @close="showTranslationDialog = false"
       @copy="onTranslationCopy"
       @view-raw="showRawData = true"
       @play-phrase-tts="playWordTts($event)"
       @play-word-tts="playWordTts($event)"
       @add-word-to-list="addWordToList($event)"
+      @update:active-list-id="onActiveListChange"
     />
 
     <!-- My Note Modal (logged-in users) -->
@@ -195,15 +198,21 @@
       :deleting-word-id="deletingWordId"
       :restoring-word-id="restoringWordId"
       :resetting-progress-word-id="resettingProgressWordId"
+      :named-lists="namedLists"
+      :active-list-id="activeWordListId"
       @close="wordListViewMode = 'active'; showWordListModal = false"
       @update:view-mode="onWordListViewModeChange"
       @update:search-query="wordListSearchQuery = $event"
+      @update:active-list-id="onActiveListChange"
       @navigate-to-word="navigateToWordReference($event)"
       @confirm-delete-word="confirmDeleteWord($event)"
       @restore-word="restoreWord($event)"
       @reset-stats="resetWordProgress($event)"
       @load-more="loadMoreWordList"
       @start-study="startStudy"
+      @create-list="createWordList"
+      @rename-list="renameWordList"
+      @confirm-delete-list="deleteWordList"
     />
 
     <!-- Study Session Modal -->
@@ -628,6 +637,10 @@ const archivedWordListTotal = ref(0)
 const archivedWordListLoading = ref(false)
 const restoringWordId = ref<number | null>(null)
 const resettingProgressWordId = ref<number | null>(null)
+
+// Named word lists
+const namedLists = ref<Array<{ id: number; name: string; createdAt: number; updatedAt: number; wordCount: number }>>([])
+const activeWordListId = ref<number | null>(null)
 const wordToHighlight = ref<string | null>(null) // Hebrew word to highlight after navigation
 
 // Study session (flashcards)
@@ -2688,7 +2701,7 @@ async function addWordToList(index: number) {
 
     await $fetch('/api/word-list/add', {
       method: 'POST',
-      body: { wordData }
+      body: { wordData, listId: activeWordListId.value }
     })
 
     // Success state
@@ -2715,7 +2728,7 @@ async function addWordToList(index: number) {
 
 const WORD_LIST_PAGE_SIZE = 100
 
-async function fetchWordList(offset = 0, append = false, archived = false) {
+async function fetchWordList(offset = 0, append = false, archived = false, listId: number | null = activeWordListId.value) {
   if (!loggedIn.value) return
 
   const isArchived = archived
@@ -2727,11 +2740,12 @@ async function fetchWordList(offset = 0, append = false, archived = false) {
     wordListLoading.value = true
   }
   try {
-    const params: { limit: number; offset: number; archived?: string } = {
+    const params: { limit: number; offset: number; archived?: string; listId?: string } = {
       limit: WORD_LIST_PAGE_SIZE,
       offset
     }
     if (isArchived) params.archived = '1'
+    params.listId = listId !== null ? String(listId) : 'default'
 
     const response = await $fetch<{
       words: WordListWord[]
@@ -2788,6 +2802,55 @@ function fetchArchivedWordList() {
 
 function loadMoreWordList() {
   fetchWordList(wordList.value.length, true)
+}
+
+async function fetchNamedLists() {
+  if (!loggedIn.value) return
+  try {
+    const response = await $fetch<{ lists: typeof namedLists.value }>('/api/word-lists')
+    namedLists.value = response.lists || []
+  } catch (err) {
+    console.error('Failed to fetch named lists:', err)
+  }
+}
+
+async function onActiveListChange(id: number | null) {
+  activeWordListId.value = id
+  wordList.value = []
+  archivedWordList.value = []
+  await fetchWordList(0, false, false, id)
+}
+
+async function createWordList(name: string) {
+  try {
+    const newList = await $fetch<{ id: number; name: string; createdAt: number; updatedAt: number }>(
+      '/api/word-lists', { method: 'POST', body: { name } }
+    )
+    namedLists.value.push({ ...newList, wordCount: 0 })
+    await onActiveListChange(newList.id)
+  } catch (err: any) {
+    alert(err?.data?.message || 'Failed to create list')
+  }
+}
+
+async function renameWordList(id: number, name: string) {
+  try {
+    await $fetch(`/api/word-lists/${id}`, { method: 'PUT', body: { name } })
+    const list = namedLists.value.find(l => l.id === id)
+    if (list) list.name = name
+  } catch (err: any) {
+    alert(err?.data?.message || 'Failed to rename list')
+  }
+}
+
+async function deleteWordList(id: number) {
+  try {
+    await $fetch(`/api/word-lists/${id}`, { method: 'DELETE', body: { confirm: true } })
+    namedLists.value = namedLists.value.filter(l => l.id !== id)
+    await onActiveListChange(null)
+  } catch (err: any) {
+    alert(err?.data?.message || 'Failed to delete list')
+  }
 }
 
 async function archiveWord(wordId: number) {
@@ -3423,14 +3486,14 @@ const filteredWordList = computed(() => {
 // Watch for translation dialog opening to check which words are already in list
 watch(showTranslationDialog, async (isOpen) => {
   if (isOpen && loggedIn.value) {
-    await fetchWordList()
+    await Promise.all([fetchNamedLists(), fetchWordList()])
   }
 })
 
-// Watch for word list modal opening to fetch words
+// Watch for word list modal opening to fetch words and named lists
 watch(showWordListModal, async (isOpen) => {
   if (isOpen && loggedIn.value) {
-    await fetchWordList()
+    await Promise.all([fetchNamedLists(), fetchWordList()])
   }
 })
 

@@ -91,6 +91,21 @@
         >
           <strong>Incomplete word table.</strong> The AI returned only {{ (translationData.wordTable ?? []).length }} entries for {{ (translationData.originalPhrase ?? '').split(/\s+/).filter(Boolean).length }} words. For long texts, try selecting a shorter passage.
         </div>
+        <!-- List selector: only shown when user is logged in and can add words -->
+        <div v-if="showAddToWordList" class="flex items-center gap-2 py-1">
+          <span class="text-xs text-gray-500 whitespace-nowrap">Adding to:</span>
+          <select
+            :value="activeListId === null || activeListId === undefined ? 'default' : String(activeListId)"
+            class="text-xs border border-gray-300 rounded-md px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+            @change="onListChange(($event.target as HTMLSelectElement).value)"
+          >
+            <option value="default">Default</option>
+            <option v-for="list in (namedLists ?? [])" :key="list.id" :value="String(list.id)">
+              {{ list.name }}
+            </option>
+          </select>
+        </div>
+
         <h3 class="text-lg sm:text-xl font-semibold text-gray-800">Word Analysis</h3>
         <div class="space-y-2 sm:space-y-3">
           <div
@@ -346,6 +361,8 @@ const props = defineProps<{
   isAdmin?: boolean
   /** Sefaria ref for the sentence being translated; shown in the grammar modal. */
   translationSefariaRef?: string | null
+  namedLists?: Array<{ id: number; name: string }>
+  activeListId?: number | null
 }>()
 
 const canCopy = computed(() => !props.translationLoading && !!props.translationData)
@@ -469,7 +486,17 @@ const emit = defineEmits<{
   'play-phrase-tts': [text: string | undefined]
   'play-word-tts': [word: string | undefined]
   'add-word-to-list': [index: number]
+  'update:activeListId': [id: number | null]
 }>()
+
+function onListChange(value: string) {
+  if (value === 'default') {
+    emit('update:activeListId', null)
+  } else {
+    const id = parseInt(value, 10)
+    if (!isNaN(id)) emit('update:activeListId', id)
+  }
+}
 
 function copyHebrew () {
   if (props.translationData) emit('copy', props.translationData.originalPhrase ?? '', 'he')

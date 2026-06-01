@@ -6,7 +6,7 @@
   >
     <div class="bg-white rounded-lg shadow-xl p-6 w-[90vw] max-w-3xl max-h-[90vh] overflow-auto">
       <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
-        <h2 class="text-2xl font-bold">My Word List</h2>
+        <h2 class="text-2xl font-bold">My Word Lists</h2>
         <div class="flex items-center gap-2">
           <button
             type="button"
@@ -23,6 +23,74 @@
             Close
           </button>
         </div>
+      </div>
+
+      <!-- List selector -->
+      <div class="mb-4 flex flex-wrap items-center gap-2">
+        <select
+          :value="activeListId === null ? 'default' : String(activeListId)"
+          class="flex-1 min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          @change="onListSelectChange(($event.target as HTMLSelectElement).value)"
+        >
+          <option value="default">Default</option>
+          <option v-for="list in namedLists" :key="list.id" :value="String(list.id)">
+            {{ list.name }}
+          </option>
+        </select>
+
+        <!-- Rename inline (named lists only) -->
+        <template v-if="activeListId !== null">
+          <template v-if="renamingList">
+            <input
+              v-model="renameValue"
+              type="text"
+              maxlength="100"
+              class="border border-blue-400 rounded-lg px-2 py-1.5 text-sm w-40 focus:ring-2 focus:ring-blue-500"
+              placeholder="New name"
+              @keyup.enter="submitRename"
+              @keyup.escape="renamingList = false"
+            />
+            <button
+              type="button"
+              class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              :disabled="!renameValue.trim()"
+              @click="submitRename"
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+              @click="renamingList = false"
+            >
+              Cancel
+            </button>
+          </template>
+          <button
+            v-else
+            type="button"
+            class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+            @click="startRename"
+          >
+            Rename
+          </button>
+        </template>
+
+        <button
+          type="button"
+          class="px-3 py-1.5 text-sm border border-blue-400 text-blue-600 rounded-lg hover:bg-blue-50 whitespace-nowrap"
+          @click="showCreateListModal = true"
+        >
+          + New List
+        </button>
+        <button
+          v-if="activeListId !== null"
+          type="button"
+          class="px-3 py-1.5 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 whitespace-nowrap"
+          @click="showDeleteListConfirm = true"
+        >
+          Delete List
+        </button>
       </div>
 
       <!-- Active / Archived tabs -->
@@ -332,6 +400,74 @@
       </div>
     </div>
 
+    <!-- Create list modal -->
+    <div
+      v-if="showCreateListModal"
+      class="absolute inset-0 z-[55] flex items-center justify-center p-4 bg-black/50 rounded-lg"
+      @click.self="showCreateListModal = false"
+    >
+      <div class="bg-white rounded-lg shadow-xl max-w-sm w-full p-6 space-y-4">
+        <h3 class="text-base font-semibold text-gray-900">Create New List</h3>
+        <input
+          v-model="newListName"
+          type="text"
+          maxlength="100"
+          placeholder="List name"
+          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          @keyup.enter="submitCreateList"
+        />
+        <div class="flex justify-end gap-2">
+          <button
+            type="button"
+            class="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+            @click="showCreateListModal = false; newListName = ''"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            :disabled="!newListName.trim()"
+            @click="submitCreateList"
+          >
+            Create
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delete list confirmation modal -->
+    <div
+      v-if="showDeleteListConfirm"
+      class="absolute inset-0 z-[55] flex items-center justify-center p-4 bg-black/50 rounded-lg"
+      @click.self="showDeleteListConfirm = false"
+    >
+      <div class="bg-white rounded-lg shadow-xl max-w-sm w-full p-6 space-y-4">
+        <h3 class="text-base font-semibold text-gray-900">Delete List</h3>
+        <p class="text-sm text-gray-700">
+          Delete list <strong>{{ activeListName }}</strong> and all
+          <strong>{{ wordListTotal }}</strong> word{{ wordListTotal === 1 ? '' : 's' }} in it?
+          This cannot be undone.
+        </p>
+        <div class="flex justify-end gap-2">
+          <button
+            type="button"
+            class="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+            @click="showDeleteListConfirm = false"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700"
+            @click="confirmDeleteList"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Usage modal (My Word List) -->
     <div
       v-if="showUsageModal"
@@ -373,12 +509,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { substantiveWord } from '~/utils/text'
 import { useSupportPageContext } from '~/composables/useSupportPageContext'
 import { SUPPORT_VIEW_NAMES } from '~/constants/supportViewNames'
 
 const showUsageModal = ref(false)
+const showCreateListModal = ref(false)
+const showDeleteListConfirm = ref(false)
+const newListName = ref('')
+const renamingList = ref(false)
+const renameValue = ref('')
+
+export interface NamedList {
+  id: number
+  name: string
+  createdAt: number
+  updatedAt: number
+  wordCount: number
+}
 
 export interface WordListEntry {
   id: number
@@ -413,9 +562,16 @@ const props = withDefaults(
     deletingWordId: number | null
     restoringWordId?: number | null
     resettingProgressWordId?: number | null
+    namedLists?: NamedList[]
+    activeListId?: number | null
   }>(),
-  { viewMode: 'active', restoringWordId: null, resettingProgressWordId: null }
+  { viewMode: 'active', restoringWordId: null, resettingProgressWordId: null, namedLists: () => [], activeListId: null }
 )
+
+const activeListName = computed(() => {
+  if (props.activeListId === null || props.activeListId === undefined) return 'Default'
+  return props.namedLists.find(l => l.id === props.activeListId)?.name ?? 'List'
+})
 
 const { setSupportView, clearSupportView } = useSupportPageContext()
 watch(() => props.open, (isOpen) => {
@@ -423,7 +579,7 @@ watch(() => props.open, (isOpen) => {
   else clearSupportView()
 }, { immediate: true })
 
-defineEmits<{
+const emit = defineEmits<{
   close: []
   'update:viewMode': [mode: 'active' | 'archived']
   'update:searchQuery': [value: string]
@@ -433,9 +589,51 @@ defineEmits<{
   'reset-stats': [wordId: number]
   'load-more': []
   'start-study': []
+  'update:activeListId': [id: number | null]
+  'create-list': [name: string]
+  'rename-list': [id: number, name: string]
+  'confirm-delete-list': [id: number]
 }>()
 
 const hasMore = computed(() => props.wordListLength < props.wordListTotal)
+
+function onListSelectChange(value: string) {
+  renamingList.value = false
+  if (value === 'default') {
+    emit('update:activeListId', null)
+  } else {
+    const id = parseInt(value, 10)
+    if (!isNaN(id)) emit('update:activeListId', id)
+  }
+}
+
+function startRename() {
+  renameValue.value = (props.activeListId !== null && props.activeListId !== undefined)
+    ? (props.namedLists.find(l => l.id === props.activeListId)?.name ?? '')
+    : ''
+  renamingList.value = true
+}
+
+function submitRename() {
+  const name = renameValue.value.trim()
+  if (!name || props.activeListId === null || props.activeListId === undefined) return
+  emit('rename-list', props.activeListId, name)
+  renamingList.value = false
+}
+
+function submitCreateList() {
+  const name = newListName.value.trim()
+  if (!name) return
+  emit('create-list', name)
+  showCreateListModal.value = false
+  newListName.value = ''
+}
+
+function confirmDeleteList() {
+  if (props.activeListId === null || props.activeListId === undefined) return
+  emit('confirm-delete-list', props.activeListId)
+  showDeleteListConfirm.value = false
+}
 
 function formatDate (unixSeconds: number) {
   return new Date(unixSeconds * 1000).toLocaleDateString()

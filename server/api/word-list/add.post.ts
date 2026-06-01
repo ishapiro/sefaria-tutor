@@ -23,7 +23,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readBody(event)
-  const { wordData } = body
+  const { wordData, listId } = body
 
   if (!wordData || !wordData.wordEntry) {
     throw createError({
@@ -40,20 +40,37 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  // Validate listId if provided
+  const resolvedListId: number | null = (typeof listId === 'number' && Number.isInteger(listId)) ? listId : null
+
+  if (resolvedListId !== null) {
+    const listRow = await db.prepare(
+      'SELECT id FROM word_lists WHERE id = ? AND user_id = ?'
+    ).bind(resolvedListId, userData.id).first()
+    if (!listRow) {
+      throw createError({ statusCode: 404, message: 'Word list not found' })
+    }
+  }
+
   try {
-    // Store the word data as JSON string
     const wordDataJson = JSON.stringify(wordData)
     const createdAt = Math.floor(Date.now() / 1000)
 
-    // Insert into database
     const result = await db.prepare(
-      'INSERT INTO user_word_list (user_id, word_data, created_at) VALUES (?, ?, ?) RETURNING id'
+      'INSERT INTO user_word_list (user_id, word_data, created_at, list_id) VALUES (?, ?, ?, ?) RETURNING id'
     )
-      .bind(userData.id, wordDataJson, createdAt)
+      .bind(userData.id, wordDataJson, createdAt, resolvedListId)
       .first()
 
     if (!result || typeof result !== 'object' || !('id' in result)) {
       throw new Error('Failed to insert word')
+    }
+
+    // Bump updated_at on the named list
+    if (resolvedListId !== null) {
+      await db.prepare(
+        'UPDATE word_lists SET updated_at = ? WHERE id = ? AND user_id = ?'
+      ).bind(createdAt, resolvedListId, userData.id).run()
     }
 
     return {
@@ -62,7 +79,6 @@ export default defineEventHandler(async (event) => {
       wordId: (result as { id: number }).id
     }
   } catch (err: any) {
-    // Check if it's a duplicate (SQLite unique constraint violation)
     if (err.message?.includes('UNIQUE constraint') || err.message?.includes('duplicate')) {
       throw createError({
         statusCode: 409,
