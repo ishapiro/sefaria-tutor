@@ -55,31 +55,33 @@ export default defineEventHandler(async (event) => {
 
   try {
     const existing = await db.prepare(
-      'SELECT id FROM user_word_list WHERE id = ? AND user_id = ?'
-    )
-      .bind(wordId, userData.id)
-      .first()
+      'SELECT id, user_id, list_id FROM user_word_list WHERE id = ?'
+    ).bind(wordId).first() as { id: number; user_id: string; list_id: number | null } | null
 
     if (!existing) {
-      throw createError({
-        statusCode: 404,
-        message: 'Word not found or does not belong to you'
-      })
+      throw createError({ statusCode: 404, message: 'Word not found' })
+    }
+
+    // Owner or write-share user can archive/restore
+    if (existing.user_id !== userData.id) {
+      const userRow = await db.prepare('SELECT email FROM users WHERE id = ? AND deleted_at IS NULL')
+        .bind(userData.id).first() as { email: string } | null
+      const shareRow = existing.list_id ? await db.prepare(
+        `SELECT id FROM word_list_shares WHERE list_id = ? AND permission = 'write'
+           AND (shared_with_user_id = ? OR shared_with_email = ?)`
+      ).bind(existing.list_id, userData.id, userRow?.email ?? '').first() : null
+      if (!shareRow) {
+        throw createError({ statusCode: 403, message: 'You do not have write access to this list' })
+      }
     }
 
     const now = Math.floor(Date.now() / 1000)
     if (archived) {
-      await db.prepare(
-        'UPDATE user_word_list SET archived_at = ? WHERE id = ? AND user_id = ?'
-      )
-        .bind(now, wordId, userData.id)
-        .run()
+      await db.prepare('UPDATE user_word_list SET archived_at = ? WHERE id = ?')
+        .bind(now, wordId).run()
     } else {
-      await db.prepare(
-        'UPDATE user_word_list SET archived_at = NULL WHERE id = ? AND user_id = ?'
-      )
-        .bind(wordId, userData.id)
-        .run()
+      await db.prepare('UPDATE user_word_list SET archived_at = NULL WHERE id = ?')
+        .bind(wordId).run()
     }
 
     return {

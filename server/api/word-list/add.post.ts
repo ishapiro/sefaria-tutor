@@ -43,12 +43,24 @@ export default defineEventHandler(async (event) => {
   // Validate listId if provided
   const resolvedListId: number | null = (typeof listId === 'number' && Number.isInteger(listId)) ? listId : null
 
+  // Determine the effective owner whose list receives the word
+  let effectiveOwnerId = userData.id
   if (resolvedListId !== null) {
-    const listRow = await db.prepare(
-      'SELECT id FROM word_lists WHERE id = ? AND user_id = ?'
-    ).bind(resolvedListId, userData.id).first()
-    if (!listRow) {
-      throw createError({ statusCode: 404, message: 'Word list not found' })
+    const listRow = await db.prepare('SELECT id, user_id FROM word_lists WHERE id = ?')
+      .bind(resolvedListId).first() as { id: number; user_id: string } | null
+    if (!listRow) throw createError({ statusCode: 404, message: 'Word list not found' })
+
+    if (listRow.user_id !== userData.id) {
+      // Check write share access
+      const userRow = await db.prepare('SELECT email FROM users WHERE id = ? AND deleted_at IS NULL')
+        .bind(userData.id).first() as { email: string } | null
+      const shareRow = await db.prepare(
+        `SELECT permission FROM word_list_shares
+         WHERE list_id = ? AND permission = 'write'
+           AND (shared_with_user_id = ? OR shared_with_email = ?)`
+      ).bind(resolvedListId, userData.id, userRow?.email ?? '').first()
+      if (!shareRow) throw createError({ statusCode: 403, message: 'You do not have write access to this list' })
+      effectiveOwnerId = listRow.user_id
     }
   }
 
@@ -57,9 +69,9 @@ export default defineEventHandler(async (event) => {
     const createdAt = Math.floor(Date.now() / 1000)
 
     const result = await db.prepare(
-      'INSERT INTO user_word_list (user_id, word_data, created_at, list_id) VALUES (?, ?, ?, ?) RETURNING id'
+      'INSERT INTO user_word_list (user_id, word_data, created_at, list_id, added_by_user_id) VALUES (?, ?, ?, ?, ?) RETURNING id'
     )
-      .bind(userData.id, wordDataJson, createdAt, resolvedListId)
+      .bind(effectiveOwnerId, wordDataJson, createdAt, resolvedListId, userData.id)
       .first()
 
     if (!result || typeof result !== 'object' || !('id' in result)) {
@@ -69,8 +81,8 @@ export default defineEventHandler(async (event) => {
     // Bump updated_at on the named list
     if (resolvedListId !== null) {
       await db.prepare(
-        'UPDATE word_lists SET updated_at = ? WHERE id = ? AND user_id = ?'
-      ).bind(createdAt, resolvedListId, userData.id).run()
+        'UPDATE word_lists SET updated_at = ? WHERE id = ?'
+      ).bind(createdAt, resolvedListId).run()
     }
 
     return {

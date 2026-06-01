@@ -67,6 +67,18 @@ export const teams = sqliteTable('teams', {
   createdAt: integer('created_at').default(0),
 })
 
+// Word list sharing
+
+export const wordListShares = sqliteTable('word_list_shares', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  listId: integer('list_id').notNull(),
+  ownerId: text('owner_id').notNull(),
+  sharedWithEmail: text('shared_with_email').notNull(),
+  sharedWithUserId: text('shared_with_user_id'),
+  permission: text('permission').notNull().default('read'),
+  createdAt: integer('created_at').notNull(),
+})
+
 // Named word lists (one user may have many)
 
 export const wordLists = sqliteTable('word_lists', {
@@ -86,6 +98,7 @@ export const userWordList = sqliteTable('user_word_list', {
   createdAt: integer('created_at').notNull(),
   archivedAt: integer('archived_at'),
   listId: integer('list_id'),
+  addedByUserId: text('added_by_user_id'),
 })
 
 export const wordListProgress = sqliteTable('word_list_progress', {

@@ -34,7 +34,7 @@
         >
           <option value="default">Default</option>
           <option v-for="list in namedLists" :key="list.id" :value="String(list.id)">
-            {{ list.name }}
+            {{ list.name }}{{ list.isShared ? ' (shared)' : '' }}
           </option>
         </select>
 
@@ -84,13 +84,32 @@
           + New List
         </button>
         <button
-          v-if="activeListId !== null"
+          v-if="activeListIsOwned"
+          type="button"
+          class="px-3 py-1.5 text-sm border border-indigo-300 text-indigo-600 rounded-lg hover:bg-indigo-50 whitespace-nowrap"
+          @click="openShares"
+        >
+          Share
+        </button>
+        <button
+          v-if="activeListIsOwned"
           type="button"
           class="px-3 py-1.5 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 whitespace-nowrap"
           @click="showDeleteListConfirm = true"
         >
           Delete List
         </button>
+      </div>
+
+      <!-- Shared-list banner -->
+      <div
+        v-if="activeListId !== null && namedLists.find(l => l.id === activeListId)?.isShared"
+        class="mb-3 px-3 py-2 bg-indigo-50 border border-indigo-200 rounded-lg text-xs text-indigo-700"
+      >
+        Shared by {{ namedLists.find(l => l.id === activeListId)?.ownerName || namedLists.find(l => l.id === activeListId)?.ownerEmail }}
+        ·
+        <span v-if="isReadOnly">read-only</span>
+        <span v-else class="font-medium">read &amp; write</span>
       </div>
 
       <!-- Active / Archived tabs -->
@@ -203,14 +222,20 @@
                 <span v-if="word.wordData.bookPath" class="text-gray-500 font-normal">({{ word.wordData.bookPath }})</span>
               </span>
             </button>
-            <div class="hidden sm:block text-xs text-gray-500 font-normal">
-              Saved: {{ formatDate(word.createdAt) }}
+            <div class="hidden sm:flex sm:flex-col sm:items-end text-xs text-gray-500 font-normal gap-0.5">
+              <span>Saved: {{ formatDate(word.createdAt) }}</span>
+              <span v-if="word.addedBy" class="text-indigo-500">
+                by {{ word.addedBy.name || word.addedBy.email }}
+              </span>
             </div>
           </div>
           <!-- Saved date row (when no source text reference) -->
           <div v-else class="mb-2 hidden sm:flex sm:justify-end border-b border-gray-100 pb-2">
-            <div class="text-xs text-gray-500 font-normal">
-              Saved: {{ formatDate(word.createdAt) }}
+            <div class="flex flex-col items-end text-xs text-gray-500 font-normal gap-0.5">
+              <span>Saved: {{ formatDate(word.createdAt) }}</span>
+              <span v-if="word.addedBy" class="text-indigo-500">
+                by {{ word.addedBy.name || word.addedBy.email }}
+              </span>
             </div>
           </div>
 
@@ -468,6 +493,88 @@
       </div>
     </div>
 
+    <!-- Share list modal -->
+    <div
+      v-if="showShareModal"
+      class="absolute inset-0 z-[55] flex items-center justify-center p-4 bg-black/50 rounded-lg"
+      @click.self="showShareModal = false"
+    >
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-base font-semibold text-gray-900">Share "{{ activeListName }}"</h3>
+          <button
+            type="button"
+            class="p-1.5 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+            @click="showShareModal = false"
+          >
+            <span class="text-lg leading-none">×</span>
+          </button>
+        </div>
+
+        <!-- Add email input -->
+        <div class="space-y-1">
+          <label class="text-xs font-medium text-gray-600">Add person by email</label>
+          <div class="flex gap-2">
+            <input
+              v-model="newShareEmail"
+              type="email"
+              placeholder="name@example.com"
+              class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              :class="shareEmailError ? 'border-red-400' : ''"
+              @keyup.enter="submitAddShare"
+            />
+            <button
+              type="button"
+              class="px-3 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 whitespace-nowrap"
+              :disabled="!newShareEmail.trim()"
+              @click="submitAddShare"
+            >
+              Add
+            </button>
+          </div>
+          <p v-if="shareEmailError" class="text-xs text-red-500">{{ shareEmailError }}</p>
+        </div>
+
+        <!-- Current shares -->
+        <div class="space-y-2">
+          <p class="text-xs font-medium text-gray-600">
+            {{ sharesLoading ? 'Loading…' : (activeListShares.length === 0 ? 'Not shared with anyone yet.' : `Shared with ${activeListShares.length} person${activeListShares.length === 1 ? '' : 's'}`) }}
+          </p>
+          <div
+            v-for="share in activeListShares"
+            :key="share.id"
+            class="flex items-center gap-2 py-2 px-3 bg-gray-50 rounded-lg border border-gray-200"
+          >
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium text-gray-800 truncate">{{ share.email }}</p>
+              <p class="text-xs text-gray-400">
+                {{ share.hasAccount ? 'Has account' : 'No account yet' }}
+              </p>
+            </div>
+            <!-- Permission toggle -->
+            <select
+              :value="share.permission"
+              class="text-xs border border-gray-300 rounded-md px-2 py-1 bg-white shrink-0"
+              @change="emit('update-share-permission', activeListId!, share.id, ($event.target as HTMLSelectElement).value as 'read' | 'write')"
+            >
+              <option value="read">Read only</option>
+              <option value="write">Read &amp; write</option>
+            </select>
+            <button
+              type="button"
+              class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+              title="Remove access"
+              @click="emit('remove-share', activeListId!, share.id)"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Usage modal (My Word List) -->
     <div
       v-if="showUsageModal"
@@ -517,9 +624,12 @@ import { SUPPORT_VIEW_NAMES } from '~/constants/supportViewNames'
 const showUsageModal = ref(false)
 const showCreateListModal = ref(false)
 const showDeleteListConfirm = ref(false)
+const showShareModal = ref(false)
 const newListName = ref('')
 const renamingList = ref(false)
 const renameValue = ref('')
+const newShareEmail = ref('')
+const shareEmailError = ref('')
 
 export interface NamedList {
   id: number
@@ -527,6 +637,18 @@ export interface NamedList {
   createdAt: number
   updatedAt: number
   wordCount: number
+  isShared?: boolean
+  ownerEmail?: string | null
+  ownerName?: string | null
+  sharedPermission?: 'read' | 'write'
+}
+
+export interface ListShare {
+  id: number
+  email: string
+  hasAccount: boolean
+  permission: 'read' | 'write'
+  createdAt: number
 }
 
 export interface WordListEntry {
@@ -546,6 +668,7 @@ export interface WordListEntry {
     }
   }
   createdAt: number
+  addedBy?: { userId: string; name: string | null; email: string } | null
   progress?: { timesShown: number; timesCorrect: number; attemptsUntilFirstCorrect: number | null }
 }
 
@@ -564,8 +687,10 @@ const props = withDefaults(
     resettingProgressWordId?: number | null
     namedLists?: NamedList[]
     activeListId?: number | null
+    activeListShares?: ListShare[]
+    sharesLoading?: boolean
   }>(),
-  { viewMode: 'active', restoringWordId: null, resettingProgressWordId: null, namedLists: () => [], activeListId: null }
+  { viewMode: 'active', restoringWordId: null, resettingProgressWordId: null, namedLists: () => [], activeListId: null, activeListShares: () => [], sharesLoading: false }
 )
 
 const activeListName = computed(() => {
@@ -593,6 +718,10 @@ const emit = defineEmits<{
   'create-list': [name: string]
   'rename-list': [id: number, name: string]
   'confirm-delete-list': [id: number]
+  'open-shares': [id: number]
+  'add-share': [listId: number, email: string]
+  'remove-share': [listId: number, shareId: number]
+  'update-share-permission': [listId: number, shareId: number, permission: 'read' | 'write']
 }>()
 
 const hasMore = computed(() => props.wordListLength < props.wordListTotal)
@@ -633,6 +762,42 @@ function confirmDeleteList() {
   if (props.activeListId === null || props.activeListId === undefined) return
   emit('confirm-delete-list', props.activeListId)
   showDeleteListConfirm.value = false
+}
+
+const activeListIsOwned = computed(() => {
+  if (props.activeListId === null || props.activeListId === undefined) return false
+  const list = props.namedLists.find(l => l.id === props.activeListId)
+  return list ? !list.isShared : false
+})
+
+// True when viewing a shared list that was shared read-only with the current user
+const isReadOnly = computed(() => {
+  if (props.activeListId === null || props.activeListId === undefined) return false
+  const list = props.namedLists.find(l => l.id === props.activeListId)
+  if (!list?.isShared) return false
+  // The parent passes the resolved permission via the namedList entry
+  return (list as any).sharedPermission !== 'write'
+})
+
+function openShares() {
+  if (props.activeListId === null || props.activeListId === undefined) return
+  newShareEmail.value = ''
+  shareEmailError.value = ''
+  showShareModal.value = true
+  emit('open-shares', props.activeListId)
+}
+
+function submitAddShare() {
+  const email = newShareEmail.value.trim().toLowerCase()
+  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!email || !emailRe.test(email)) {
+    shareEmailError.value = 'Please enter a valid email address'
+    return
+  }
+  if (props.activeListId === null || props.activeListId === undefined) return
+  shareEmailError.value = ''
+  emit('add-share', props.activeListId, email)
+  newShareEmail.value = ''
 }
 
 function formatDate (unixSeconds: number) {

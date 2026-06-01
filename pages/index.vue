@@ -200,6 +200,8 @@
       :resetting-progress-word-id="resettingProgressWordId"
       :named-lists="namedLists"
       :active-list-id="activeWordListId"
+      :active-list-shares="activeListShares"
+      :shares-loading="sharesLoading"
       @close="wordListViewMode = 'active'; showWordListModal = false"
       @update:view-mode="onWordListViewModeChange"
       @update:search-query="wordListSearchQuery = $event"
@@ -213,6 +215,10 @@
       @create-list="createWordList"
       @rename-list="renameWordList"
       @confirm-delete-list="deleteWordList"
+      @open-shares="openShares"
+      @add-share="addShare"
+      @remove-share="removeShare"
+      @update-share-permission="updateSharePermission"
     />
 
     <!-- Study Session Modal -->
@@ -620,6 +626,7 @@ type WordListWord = {
     wordEntry: { word?: string; wordTranslation?: string; [key: string]: any }
   }
   createdAt: number
+  addedBy?: { userId: string; name: string | null; email: string } | null
   progress?: { timesShown: number; timesCorrect: number; attemptsUntilFirstCorrect: number | null }
 }
 const wordList = ref<WordListWord[]>([])
@@ -639,8 +646,10 @@ const restoringWordId = ref<number | null>(null)
 const resettingProgressWordId = ref<number | null>(null)
 
 // Named word lists
-const namedLists = ref<Array<{ id: number; name: string; createdAt: number; updatedAt: number; wordCount: number }>>([])
+const namedLists = ref<Array<{ id: number; name: string; createdAt: number; updatedAt: number; wordCount: number; isShared?: boolean; ownerEmail?: string | null; ownerName?: string | null; sharedPermission?: 'read' | 'write' }>>([])
 const activeWordListId = ref<number | null>(null)
+const activeListShares = ref<Array<{ id: number; email: string; hasAccount: boolean; createdAt: number }>>([])
+const sharesLoading = ref(false)
 const wordToHighlight = ref<string | null>(null) // Hebrew word to highlight after navigation
 
 // Study session (flashcards)
@@ -653,7 +662,13 @@ const showAddToWordList = computed(() => {
   // Show to guests to drive sign-ups (click opens sign-in modal); show to logged-in users with permission
   if (!loggedIn.value) return true
   const u = user.value as SessionUser | null
-  return !!(u?.role && ['general', 'team', 'admin'].includes(String(u.role)))
+  if (!(u?.role && ['general', 'team', 'admin'].includes(String(u.role)))) return false
+  // Hide Add button when viewing a read-only shared list
+  if (activeWordListId.value !== null) {
+    const list = namedLists.value.find(l => l.id === activeWordListId.value)
+    if (list?.isShared && list.sharedPermission !== 'write') return false
+  }
+  return true
 })
 
 // Debug logging for admin status
@@ -2850,6 +2865,49 @@ async function deleteWordList(id: number) {
     await onActiveListChange(null)
   } catch (err: any) {
     alert(err?.data?.message || 'Failed to delete list')
+  }
+}
+
+async function openShares(listId: number) {
+  sharesLoading.value = true
+  activeListShares.value = []
+  try {
+    const response = await $fetch<{ shares: typeof activeListShares.value }>(`/api/word-lists/${listId}/shares`)
+    activeListShares.value = response.shares || []
+  } catch (err: any) {
+    alert(err?.data?.message || 'Failed to load shares')
+  } finally {
+    sharesLoading.value = false
+  }
+}
+
+async function addShare(listId: number, email: string) {
+  try {
+    const share = await $fetch<{ id: number; email: string; hasAccount: boolean; createdAt: number }>(
+      `/api/word-lists/${listId}/shares`, { method: 'POST', body: { email } }
+    )
+    activeListShares.value.push(share)
+  } catch (err: any) {
+    alert(err?.data?.message || 'Failed to add share')
+  }
+}
+
+async function removeShare(listId: number, shareId: number) {
+  try {
+    await $fetch(`/api/word-lists/${listId}/shares/${shareId}`, { method: 'DELETE' })
+    activeListShares.value = activeListShares.value.filter(s => s.id !== shareId)
+  } catch (err: any) {
+    alert(err?.data?.message || 'Failed to remove share')
+  }
+}
+
+async function updateSharePermission(listId: number, shareId: number, permission: 'read' | 'write') {
+  try {
+    await $fetch(`/api/word-lists/${listId}/shares/${shareId}`, { method: 'PATCH', body: { permission } })
+    const share = activeListShares.value.find(s => s.id === shareId)
+    if (share) share.permission = permission
+  } catch (err: any) {
+    alert(err?.data?.message || 'Failed to update permission')
   }
 }
 
