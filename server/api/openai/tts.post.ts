@@ -11,6 +11,7 @@ import {
   getMaxCacheSizeBytes,
   getR2Key,
 } from '~/server/utils/pronunciation-cache'
+import { getDefaultTtsModel } from '~/server/utils/system-settings'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig(event)
@@ -96,6 +97,8 @@ export default defineEventHandler(async (event) => {
     }
   }
 
+  const ttsModel = await getDefaultTtsModel(db)
+
   // Cache miss - generate new audio
   // Replace יהוה (Tetragrammaton) with אדוני (Adonai) for correct pronunciation
   // This is transparent to the user - display text remains unchanged
@@ -115,7 +118,7 @@ export default defineEventHandler(async (event) => {
         Authorization: `Bearer ${openaiApiKey}`,
       },
       body: {
-        model: 'gpt-4o-mini-tts',
+        model: ttsModel,
         // Use a deeper, more masculine voice for all pronunciations
         voice: 'onyx',
         input: textForTts,

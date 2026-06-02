@@ -6,6 +6,7 @@
       :message="apiLoadingMessage"
       :rotating-messages="translationLoading ? translationLoadingRotatingMessages : undefined"
       :estimated-word-count="translationLoading ? translationInProgressWordCount : 0"
+      :seconds-per-word="translationSecondsPerWord"
     />
     <div class="mb-3 sm:mb-4 flex flex-wrap items-center gap-2">
       <div>
@@ -172,6 +173,7 @@
       :is-admin="isAdmin"
       :named-lists="namedLists"
       :active-list-id="activeWordListId"
+      :grammar-total-ms="grammarTotalMs"
       @close="showTranslationDialog = false"
       @copy="onTranslationCopy"
       @view-raw="showRawData = true"
@@ -745,11 +747,15 @@ const openaiLoading = computed(() =>
 
 const apiLoading = computed(() => loading.value || openaiLoading.value)
 
+const translationSecondsPerWord = ref(3)
+const grammarTotalMs = ref(15000)
+
 const apiLoadingMessage = computed(() => {
   if (loading.value) return 'Calling Sefaria…'
   if (ttsLoading.value) return 'Asking OpenAI for an audio pronunciation…'
   if (translationLoading.value) {
-    return 'Getting word-by-word translation from OpenAI.\n\nProcessing takes approximately 3 seconds per word—please be patient.\n\nResults are saved so future translations will be faster.'
+    const secs = Math.ceil(translationSecondsPerWord.value)
+    return `Getting word-by-word translation from OpenAI.\n\nProcessing takes approximately ${secs} second${secs === 1 ? '' : 's'} per word—please be patient.\n\nResults are saved so future translations will be faster.`
   }
   return 'Loading…'
 })
@@ -3707,6 +3713,14 @@ onUnmounted(() => {
 })
 
 onMounted(async () => {
+  // Load translation speed estimate (non-blocking)
+  $fetch<{ secondsPerWord: number; grammarMs: number }>('/api/translation-speed')
+    .then(r => {
+      if (r?.secondsPerWord > 0) translationSecondsPerWord.value = r.secondsPerWord
+      if (r?.grammarMs > 0) grammarTotalMs.value = r.grammarMs
+    })
+    .catch(() => {}) // keep default on failure
+
   // Fetch user session to ensure isAdmin is properly computed
   console.log('[Auth Debug] Fetching session...')
   try {

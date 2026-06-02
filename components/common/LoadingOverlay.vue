@@ -26,7 +26,7 @@
           />
         </div>
         <p class="mt-1 text-xs text-gray-500 text-center">
-          {{ Math.round(progressPercent) }}% · ~{{ estimatedTotalSeconds }}s estimated
+          {{ Math.round(progressPercent) }}% · ~{{ Math.ceil(estimatedTotalSeconds) }}s estimated
         </p>
       </div>
     </div>
@@ -34,16 +34,15 @@
 </template>
 
 <script setup lang="ts">
-const SECONDS_PER_WORD = 3
-
 const props = withDefaults(
   defineProps<{
     open: boolean
     message: string
     rotatingMessages?: string[]
     estimatedWordCount?: number
+    secondsPerWord?: number
   }>(),
-  { rotatingMessages: () => [], estimatedWordCount: 0 }
+  { rotatingMessages: () => [], estimatedWordCount: 0, secondsPerWord: 3 }
 )
 
 const currentRotatingIndex = ref(0)
@@ -52,7 +51,7 @@ const startTime = ref(0)
 let progressIntervalId: ReturnType<typeof setInterval> | null = null
 
 const estimatedTotalSeconds = computed(() =>
-  Math.max(1, (props.estimatedWordCount ?? 0) * SECONDS_PER_WORD)
+  Math.max(1, (props.estimatedWordCount ?? 0) * props.secondsPerWord)
 )
 
 function updateProgress () {

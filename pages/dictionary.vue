@@ -429,6 +429,7 @@
           :original-phrase="translationData?.originalPhrase ?? null"
           :translated-phrase="translationData?.translatedPhrase ?? null"
           :reference="null"
+          :total-ms="grammarTotalMs"
           @close="showGrammarModal = false"
         />
 
@@ -655,6 +656,7 @@ const showGrammarModal = ref(false)
 const grammarLoading = ref(false)
 const grammarError = ref<string | null>(null)
 const grammarExplanation = ref<string | null>(null)
+const grammarTotalMs = ref(15000)
 const showModernHebrewModal = ref(false)
 const modernHebrewLoading = ref(false)
 const modernHebrewError = ref<string | null>(null)
@@ -1110,6 +1112,9 @@ function translatePhrase(text: string) {
 onMounted(() => {
   setSupportView(SUPPORT_VIEW_NAMES.DICTIONARY)
   refresh()
+  $fetch<{ grammarMs: number }>('/api/translation-speed')
+    .then(r => { if (r?.grammarMs > 0) grammarTotalMs.value = r.grammarMs })
+    .catch(() => {})
 })
 onUnmounted(() => {
   clearSupportView()

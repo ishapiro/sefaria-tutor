@@ -2,6 +2,8 @@ import { createError, defineEventHandler, getQuery } from 'h3'
 import { useRuntimeConfig } from 'nitropack/runtime/internal/config'
 import { $fetch } from 'ofetch'
 import { normalizeRootForSearch, toDisplayRoot } from '~/server/utils/rootNormalize'
+import { getCachedEffort, markEffortUnsupported, isUnsupportedEffortError } from '~/server/utils/openai-reasoning'
+import { getDefaultTranslationModel } from '~/server/utils/system-settings'
 
 const ROOT_MEANING_INSTRUCTIONS = `You are a Hebrew language expert. Given a Hebrew root (shoresh), reply with ONLY a brief English meaning: one short phrase (e.g. "holy, sanctify" or "say, speak"). No explanation, no punctuation at the end, no quotes.`
 
@@ -63,25 +65,41 @@ export default defineEventHandler(async (event): Promise<{ meaning: string } | {
     return { meaning: '' }
   }
 
-  try {
-    interface OpenAIOutputItem {
-      content?: Array<{ type?: string; text?: string }>
-    }
-    const response = await $fetch<{ output?: OpenAIOutputItem[] }>('https://api.openai.com/v1/responses', {
+  const meaningModel = await getDefaultTranslationModel(db)
+  const meaningInput = `Hebrew root: ${toDisplayRoot(normalized)} (${normalized})`
+
+  interface OpenAIOutputItem { content?: Array<{ type?: string; text?: string }> }
+  async function callOpenAI(effort: string) {
+    return $fetch<{ output?: OpenAIOutputItem[] }>('https://api.openai.com/v1/responses', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${openaiApiKey}`,
-      },
-      body: {
-        model: 'gpt-5.1',
-        instructions: ROOT_MEANING_INSTRUCTIONS,
-        input: `Hebrew root: ${toDisplayRoot(normalized)} (${normalized})`,
-        max_output_tokens: 60,
-        reasoning: { effort: 'none' },
-        text: { verbosity: 'low' },
-      },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${openaiApiKey}` },
+      body: { model: meaningModel, instructions: ROOT_MEANING_INSTRUCTIONS, input: meaningInput, max_output_tokens: 60, reasoning: { effort }, text: { verbosity: 'low' } },
     })
+  }
+
+  try {
+    let effort = getCachedEffort(meaningModel, 'none')
+    let response: { output?: OpenAIOutputItem[] }
+    try {
+      response = await callOpenAI(effort)
+    } catch (err) {
+      if (isUnsupportedEffortError(err)) {
+        markEffortUnsupported(meaningModel, effort)
+        effort = getCachedEffort(meaningModel, 'none')
+        try {
+          response = await callOpenAI(effort)
+        } catch (err2) {
+          if (isUnsupportedEffortError(err2)) {
+            markEffortUnsupported(meaningModel, effort)
+            response = await callOpenAI(getCachedEffort(meaningModel, 'none'))
+          } else {
+            throw err2
+          }
+        }
+      } else {
+        throw err
+      }
+    }
 
     const raw = extractTextFromOpenAIResponse(response)
     const meaning = raw.replace(/^["']|["']$/g, '').trim() || raw.trim()

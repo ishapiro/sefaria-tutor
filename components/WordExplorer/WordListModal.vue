@@ -3,6 +3,9 @@
     v-if="open"
     class="fixed inset-0 z-50 flex items-stretch sm:items-center sm:justify-center bg-black/50 overflow-hidden"
     @click.self="$emit('close')"
+    @mousedown.stop
+    @touchstart.stop
+    @touchmove.stop
   >
     <div class="bg-white shadow-xl flex flex-col w-full overflow-hidden p-4 sm:rounded-lg sm:p-6 sm:w-[90vw] sm:max-w-3xl sm:h-auto sm:max-h-[90vh]">
       <div class="flex justify-between items-center mb-4 flex-wrap gap-2">

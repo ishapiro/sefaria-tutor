@@ -72,22 +72,60 @@
               </div>
 
               <p class="text-xs text-gray-500 mt-1">
-                The list below shows only the users that match your current search and page. Use the search box to
-                narrow results, and the Previous/Next buttons to move through additional pages of users.
+                Click any row to select a user for editing. Use the search box to narrow results and Previous/Next to page through users.
               </p>
 
-              <select
-                id="user-select"
-                v-model="selectedUserId"
-                class="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                @change="loadUserDetails"
-              >
-                <option value="">-- Select a user --</option>
-                <option v-for="user in users" :key="user.id" :value="user.id">
-                  {{ user.name || user.email }} ({{ user.email }}) - {{ user.role }}
-                  <span v-if="user.deleted_at">[DELETED]</span>
-                </option>
-              </select>
+              <!-- User table -->
+              <div class="mt-2 border border-gray-200 rounded-lg overflow-hidden">
+                <div class="overflow-y-auto max-h-72">
+                  <table class="w-full text-sm">
+                    <thead class="bg-gray-50 sticky top-0 z-10 border-b border-gray-200">
+                      <tr>
+                        <th class="text-left px-3 py-2 font-medium text-gray-600 text-xs uppercase tracking-wide">Name / Email</th>
+                        <th class="text-left px-3 py-2 font-medium text-gray-600 text-xs uppercase tracking-wide">Role</th>
+                        <th class="text-left px-3 py-2 font-medium text-gray-600 text-xs uppercase tracking-wide">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                      <tr v-if="users.length === 0">
+                        <td colspan="3" class="px-3 py-4 text-center text-gray-400 text-sm">No users found</td>
+                      </tr>
+                      <tr
+                        v-for="user in users"
+                        :key="user.id"
+                        class="cursor-pointer transition-colors"
+                        :class="selectedUserId === user.id
+                          ? 'bg-blue-50 ring-1 ring-inset ring-blue-300'
+                          : user.deleted_at
+                            ? 'opacity-60 hover:bg-gray-50'
+                            : 'hover:bg-gray-50'"
+                        @click="selectedUserId = user.id; loadUserDetails()"
+                      >
+                        <td class="px-3 py-2.5">
+                          <p class="font-medium text-gray-900 truncate max-w-xs">{{ user.name || user.email }}</p>
+                          <p v-if="user.name" class="text-xs text-gray-400 truncate max-w-xs">{{ user.email }}</p>
+                        </td>
+                        <td class="px-3 py-2.5">
+                          <span
+                            class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold"
+                            :class="{
+                              'bg-red-100 text-red-700': user.role === 'admin',
+                              'bg-indigo-100 text-indigo-700': user.role === 'team',
+                              'bg-gray-100 text-gray-600': user.role === 'general',
+                            }"
+                          >
+                            {{ user.role === 'team' ? '🏫 Teacher' : user.role === 'admin' ? '⚙️ Admin' : 'General' }}
+                          </span>
+                        </td>
+                        <td class="px-3 py-2.5 text-xs">
+                          <span v-if="user.deleted_at" class="text-red-500 font-medium">Deleted</span>
+                          <span v-else class="text-green-600">Active</span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
 
               <div class="flex items-center justify-between text-xs text-gray-500 mt-1">
                 <div>
@@ -118,107 +156,129 @@
               </div>
             </div>
 
-            <!-- User Edit Form -->
-            <div v-if="selectedUser" class="bg-gray-50 rounded-lg p-4 space-y-4">
-              <h3 class="text-lg font-semibold text-gray-800">
-                Edit User: {{ selectedUser.email }}
-                <span v-if="selectedUser.deleted_at" class="text-red-600 text-sm font-normal">(Deleted)</span>
-              </h3>
-              
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                <input
-                  v-model="editingUser.name"
-                  type="text"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
+            <!-- User Edit Modal -->
+            <div
+              v-if="selectedUser"
+              class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50"
+              @click.self="cancelEdit"
+            >
+              <div class="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+                <!-- Modal header -->
+                <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+                  <div>
+                    <h3 class="text-base font-semibold text-gray-900">Edit User</h3>
+                    <p class="text-xs text-gray-500 mt-0.5 truncate max-w-xs">{{ selectedUser.email }}</p>
+                  </div>
+                  <button
+                    type="button"
+                    class="p-1.5 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                    aria-label="Close"
+                    @click="cancelEdit"
+                  >
+                    <span class="text-lg leading-none">×</span>
+                  </button>
+                </div>
 
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input
-                  v-model="editingUser.email"
-                  type="email"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
+                <!-- Modal body -->
+                <div class="px-5 py-4 space-y-4">
+                  <div v-if="selectedUser.deleted_at" class="bg-red-50 border border-red-200 rounded-lg p-3 text-red-700">
+                    <p class="font-semibold">⚠️ This user is deleted</p>
+                    <p class="text-sm">Deleted on: {{ new Date(selectedUser.deleted_at * 1000).toLocaleString() }}</p>
+                  </div>
 
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                <select
-                  v-model="editingUser.role"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="general">General</option>
-                  <option value="team">Team</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                    <input
+                      v-model="editingUser.name"
+                      type="text"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
 
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Verified</label>
-                <label class="flex items-center gap-2">
-                  <input
-                    v-model="editingUser.is_verified"
-                    type="checkbox"
-                    class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                  />
-                  <span>Email verified</span>
-                </label>
-              </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input
+                      v-model="editingUser.email"
+                      type="email"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
 
-              <div v-if="selectedUser.deleted_at" class="bg-red-50 border border-red-200 rounded-lg p-3 text-red-700">
-                <p class="font-semibold">⚠️ This user is deleted</p>
-                <p class="text-sm">Deleted on: {{ new Date(selectedUser.deleted_at * 1000).toLocaleString() }}</p>
-              </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                    <select
+                      v-model="editingUser.role"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="general">General</option>
+                      <option value="team">Teacher</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                    <p class="mt-1 text-xs text-gray-500">Teacher role grants access to the Teacher Dashboard and class management features.</p>
+                  </div>
 
-              <div class="flex gap-3 flex-wrap">
-                <button
-                  type="button"
-                  @click="saveUser"
-                  :disabled="savingUser || selectedUser.deleted_at"
-                  class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
-                >
-                  {{ savingUser ? 'Saving...' : 'Save Changes' }}
-                </button>
-                <button
-                  v-if="!selectedUser.deleted_at"
-                  type="button"
-                  @click="deleteUser"
-                  :disabled="deletingUser"
-                  class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
-                >
-                  {{ deletingUser ? 'Deleting...' : 'Delete User' }}
-                </button>
-                <button
-                  v-if="selectedUser.deleted_at"
-                  type="button"
-                  @click="restoreUser"
-                  :disabled="restoringUser"
-                  class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                >
-                  {{ restoringUser ? 'Restoring...' : 'Restore User' }}
-                </button>
-                <button
-                  v-if="selectedUser.deleted_at"
-                  type="button"
-                  @click="purgeUser"
-                  :disabled="purgingUser"
-                  class="px-4 py-2 bg-red-800 text-white rounded-lg hover:bg-red-900 disabled:opacity-50 transition-colors"
-                >
-                  {{ purgingUser ? 'Purging...' : 'Purge Permanently' }}
-                </button>
-                <button
-                  type="button"
-                  @click="cancelEdit"
-                  class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Verified</label>
+                    <label class="flex items-center gap-2">
+                      <input
+                        v-model="editingUser.is_verified"
+                        type="checkbox"
+                        class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <span class="text-sm text-gray-700">Email verified</span>
+                    </label>
+                  </div>
 
-              <div v-if="saveMessage" class="mt-2 p-3 rounded-lg" :class="saveMessageType === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'">
-                {{ saveMessage }}
+                  <div v-if="saveMessage" class="p-3 rounded-lg" :class="saveMessageType === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'">
+                    {{ saveMessage }}
+                  </div>
+                </div>
+
+                <!-- Modal footer -->
+                <div class="px-5 py-4 border-t border-gray-200 flex gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    @click="saveUser"
+                    :disabled="savingUser || !!selectedUser.deleted_at"
+                    class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors text-sm font-medium"
+                  >
+                    {{ savingUser ? 'Saving...' : 'Save Changes' }}
+                  </button>
+                  <button
+                    v-if="!selectedUser.deleted_at"
+                    type="button"
+                    @click="deleteUser"
+                    :disabled="deletingUser"
+                    class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors text-sm font-medium"
+                  >
+                    {{ deletingUser ? 'Deleting...' : 'Delete User' }}
+                  </button>
+                  <button
+                    v-if="selectedUser.deleted_at"
+                    type="button"
+                    @click="restoreUser"
+                    :disabled="restoringUser"
+                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm font-medium"
+                  >
+                    {{ restoringUser ? 'Restoring...' : 'Restore User' }}
+                  </button>
+                  <button
+                    v-if="selectedUser.deleted_at"
+                    type="button"
+                    @click="purgeUser"
+                    :disabled="purgingUser"
+                    class="px-4 py-2 bg-red-800 text-white rounded-lg hover:bg-red-900 disabled:opacity-50 transition-colors text-sm font-medium"
+                  >
+                    {{ purgingUser ? 'Purging...' : 'Purge Permanently' }}
+                  </button>
+                  <button
+                    type="button"
+                    @click="cancelEdit"
+                    class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm font-medium ml-auto"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -834,7 +894,7 @@
             :disabled="!defaultModelSelected || defaultModelSaving || defaultModelSelected === defaultModelCurrent"
             @click="saveDefaultModel"
           >
-            {{ defaultModelSaving ? 'Saving...' : 'Save' }}
+            {{ defaultModelSaving ? 'Saving & Benchmarking…' : 'Save' }}
           </button>
         </div>
         <div v-if="defaultModelModelsLoading" class="text-sm text-gray-500 mb-2">Loading models...</div>
@@ -845,13 +905,31 @@
         <p v-if="defaultModelCurrent" class="text-sm text-gray-500">
           Current default: <span class="font-mono font-medium text-gray-700">{{ defaultModelCurrent }}</span>
         </p>
+
+        <div v-if="defaultModelSaving" class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-3">
+          <div class="w-4 h-4 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin shrink-0" />
+          <span class="text-sm text-blue-800">Saving model and running benchmarks — please wait…</span>
+        </div>
+        <div v-else-if="benchmarkMsPerWord > 0" class="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <p class="text-xs font-semibold text-green-700 uppercase mb-2">Benchmark results</p>
+          <div class="grid grid-cols-2 gap-3 text-sm">
+            <div class="bg-white border border-green-100 rounded-lg p-3">
+              <p class="text-xs font-medium text-gray-500 uppercase mb-1">Translation</p>
+              <p class="text-lg font-semibold text-gray-800">{{ benchmarkMsPerWord }} ms<span class="text-xs font-normal text-gray-400 ml-1">/ word</span></p>
+            </div>
+            <div class="bg-white border border-green-100 rounded-lg p-3">
+              <p class="text-xs font-medium text-gray-500 uppercase mb-1">Grammar</p>
+              <p class="text-lg font-semibold text-gray-800">{{ benchmarkGrammarMs }} ms<span class="text-xs font-normal text-gray-400 ml-1">total</span></p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- GPT Model Speed Test Section -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h2 class="text-xl font-semibold text-gray-800 mb-4">GPT Model Speed Test</h2>
         <p class="text-sm text-gray-600 mb-4">
-          Test translation speed by model. Uses the standard translation prompt with the phrase "הילד אכל תפוח" (The boy ate an apple).
+          Test translation speed by model. Uses the standard translation prompt with the phrase "וַיֹּ֧אמֶר אֵלָ֛יו יְהֹוָ֖ה מַה־זֶּ֣ה בְיָדֶ֑ךָ" (And the LORD said to him, What is that in your hand?).
           Results are tracked so you can compare models.
         </p>
         <div class="flex flex-wrap items-end gap-3 mb-4">
@@ -864,7 +942,7 @@
               :disabled="speedTestModelsLoading"
             >
               <option value="">-- Select a model --</option>
-              <option v-for="m in speedTestModels" :key="m" :value="m">{{ m }}</option>
+              <option v-for="m in speedTestModels" :key="m" :value="m">{{ m }}{{ modelCost(m) ? ` — $${modelCost(m)!.input}/$${modelCost(m)!.output} per 1M` : '' }}</option>
             </select>
           </div>
           <button
@@ -875,6 +953,11 @@
           >
             {{ speedTestRunning ? 'Running...' : 'Run Test' }}
           </button>
+        </div>
+        <div v-if="speedTestModel && modelCost(speedTestModel)" class="mb-3 text-sm text-gray-600">
+          <span class="font-medium">{{ speedTestModel }}</span> pricing:
+          <span class="text-green-700 font-medium">${{ modelCost(speedTestModel)!.input }}</span> input /
+          <span class="text-orange-600 font-medium">${{ modelCost(speedTestModel)!.output }}</span> output per 1M tokens
         </div>
         <div v-if="speedTestModelsLoading" class="text-sm text-gray-500 mb-2">Loading models...</div>
         <div v-if="speedTestModelsError" class="text-sm text-red-600 mb-2">{{ speedTestModelsError }}</div>
@@ -889,6 +972,8 @@
                 <tr>
                   <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Model</th>
                   <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Time (ms)</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Input $/1M</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Output $/1M</th>
                   <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Status</th>
                   <th class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Timestamp</th>
                 </tr>
@@ -897,6 +982,8 @@
                 <tr v-for="(r, i) in speedTestResults" :key="i" class="hover:bg-gray-50">
                   <td class="px-4 py-2 text-sm font-mono text-gray-900">{{ r.model }}</td>
                   <td class="px-4 py-2 text-sm text-gray-700">{{ r.durationMs }} ms</td>
+                  <td class="px-4 py-2 text-sm text-green-700">{{ modelCost(r.model) ? `$${modelCost(r.model)!.input}` : '—' }}</td>
+                  <td class="px-4 py-2 text-sm text-orange-600">{{ modelCost(r.model) ? `$${modelCost(r.model)!.output}` : '—' }}</td>
                   <td class="px-4 py-2 text-sm">
                     <span v-if="r.success" class="text-green-600 font-medium">OK</span>
                     <span v-else class="text-red-600" :title="r.error">Error</span>
@@ -1697,6 +1784,25 @@ watch(showPronunciationCache, (newVal) => {
 })
 
 // GPT Model Speed Test
+const modelPricing = ref<Record<string, { input: number; output: number }>>({})
+const modelPricingLoading = ref(false)
+
+function modelCost(model: string) {
+  return modelPricing.value[model] ?? null
+}
+
+const loadModelPricing = async () => {
+  modelPricingLoading.value = true
+  try {
+    const res = await $fetch<{ pricing: Record<string, { input: number; output: number }> }>('/api/admin/openai/model-pricing')
+    modelPricing.value = res.pricing ?? {}
+  } catch {
+    // non-fatal — pricing columns will show '—'
+  } finally {
+    modelPricingLoading.value = false
+  }
+}
+
 const speedTestModel = ref('')
 const speedTestModels = ref<string[]>([])
 const speedTestModelsLoading = ref(false)
@@ -1765,6 +1871,8 @@ const defaultModelSaving = ref(false)
 const defaultModelError = ref('')
 const defaultModelMessage = ref('')
 const defaultModelMessageType = ref<'success' | 'error'>('success')
+const benchmarkMsPerWord = ref(0)
+const benchmarkGrammarMs = ref(0)
 
 const loadDefaultModel = async () => {
   defaultModelError.value = ''
@@ -1795,12 +1903,14 @@ const saveDefaultModel = async () => {
   defaultModelSaving.value = true
   defaultModelMessage.value = ''
   try {
-    await $fetch('/api/admin/default-model', {
+    const res = await $fetch<{ success: boolean; model: string; msPerWord: number | null; grammarMs: number | null }>('/api/admin/default-model', {
       method: 'PUT',
       body: { model: defaultModelSelected.value },
     })
     defaultModelCurrent.value = defaultModelSelected.value
-    defaultModelMessage.value = 'Default model updated'
+    if (res.msPerWord != null) benchmarkMsPerWord.value = res.msPerWord
+    if (res.grammarMs != null) benchmarkGrammarMs.value = res.grammarMs
+    defaultModelMessage.value = 'Default model updated and benchmarked'
     defaultModelMessageType.value = 'success'
   } catch (e: any) {
     defaultModelMessage.value = e.data?.message || 'Failed to save'
@@ -1812,7 +1922,15 @@ const saveDefaultModel = async () => {
 
 onMounted(() => {
   loadSpeedTestModels()
+  loadModelPricing()
   loadDefaultModel()
   loadDefaultModelModels()
+  // Load stored benchmark results from a previous session.
+  $fetch<{ msPerWord: number; grammarMs: number }>('/api/translation-speed')
+    .then(r => {
+      if (r.msPerWord > 0) benchmarkMsPerWord.value = r.msPerWord
+      if (r.grammarMs > 0) benchmarkGrammarMs.value = r.grammarMs
+    })
+    .catch(() => {})
 })
 </script>

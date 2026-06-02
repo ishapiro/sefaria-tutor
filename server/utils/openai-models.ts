@@ -3,6 +3,9 @@ import { $fetch } from 'ofetch'
 /** Primary model for translation: fast, no thinking, optimized for scripture. */
 export const TRANSLATION_PRIMARY_MODEL = 'gpt-5.1-chat-latest'
 
+/** Primary model for TTS audio generation. */
+export const TTS_PRIMARY_MODEL = 'gpt-4o-mini-tts'
+
 /** Model IDs that are general-purpose chat models (excludes embeddings, TTS, etc.) */
 const GENERAL_PURPOSE_PREFIXES = ['gpt-3.5', 'gpt-4', 'gpt-5']
 
@@ -48,5 +51,5 @@ export async function getTranslationFallbackModel (openaiApiKey: string, primary
     .filter(m => isGeneralPurposeModel(m.id))
     .sort((a, b) => (b.created ?? 0) - (a.created ?? 0))
 
-  return generalPurpose[0]?.id ?? 'gpt-4o'
+  return generalPurpose[0]?.id ?? TRANSLATION_PRIMARY_MODEL
 }

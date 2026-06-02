@@ -4,6 +4,7 @@ import { $fetch } from 'ofetch'
 import { validateAuth } from '~/server/utils/auth'
 import { getDefaultTranslationModel } from '~/server/utils/system-settings'
 import { normalizePhrase, computePhraseHash, computeHash, CACHE_TTL_SECONDS } from '~/server/utils/cache'
+import { getCachedEffort, markEffortUnsupported, isUnsupportedEffortError, type ReasoningEffort } from '~/server/utils/openai-reasoning'
 
 const SENTENCE_GRAMMAR_INSTRUCTIONS = `You are a Hebrew and Aramaic grammar expert. You will be given a phrase or sentence in Hebrew or Aramaic (and optionally its English translation).
 
@@ -120,24 +121,29 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  try {
-    const response = await $fetch<{
-      output?: Array<{ type?: string; content?: Array<{ type?: string; text?: string }> }>
-    }>('https://api.openai.com/v1/responses', {
+  type GrammarResponse = { output?: Array<{ type?: string; content?: Array<{ type?: string; text?: string }> }> }
+
+  async function callOpenAI(effort: ReasoningEffort) {
+    return $fetch<GrammarResponse>('https://api.openai.com/v1/responses', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${openaiApiKey}`,
-      },
-      body: {
-        model,
-        instructions: SENTENCE_GRAMMAR_INSTRUCTIONS,
-        input,
-        max_output_tokens: 1024,
-        reasoning: { effort: 'medium' as const },
-        text: { verbosity: 'medium' as const },
-      },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${openaiApiKey}` },
+      body: { model, instructions: SENTENCE_GRAMMAR_INSTRUCTIONS, input, max_output_tokens: 1024, reasoning: { effort }, text: { verbosity: 'medium' as const } },
     })
+  }
+
+  try {
+    const effort = getCachedEffort(model)
+    let response: GrammarResponse
+    try {
+      response = await callOpenAI(effort)
+    } catch (err) {
+      if (isUnsupportedEffortError(err)) {
+        markEffortUnsupported(model, effort)
+        response = await callOpenAI(getCachedEffort(model))
+      } else {
+        throw err
+      }
+    }
 
     const explanation = extractTextFromResponse(response)
     if (!explanation) {

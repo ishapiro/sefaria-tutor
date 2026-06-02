@@ -2,6 +2,7 @@ import { createError, defineEventHandler, getHeader } from 'h3'
 import { useRuntimeConfig } from 'nitropack/runtime/internal/config'
 import { $fetch } from 'ofetch'
 import { getDefaultTranslationModel } from '~/server/utils/system-settings'
+import { TRANSLATION_PRIMARY_MODEL } from '~/server/utils/openai-models'
 
 /** Model IDs that are general-purpose chat/completion models (excludes embeddings, TTS, etc.) */
 const GENERAL_PURPOSE_PREFIXES = ['gpt-3.5', 'gpt-4', 'gpt-5', 'o1', 'o3']
@@ -122,7 +123,7 @@ export default defineEventHandler(async (event) => {
 
       if (best) return { model: best.id }
     }
-    return { model: 'gpt-4o' }
+    return { model: TRANSLATION_PRIMARY_MODEL }
   } catch (err: unknown) {
     const status = (err as { statusCode?: number })?.statusCode ?? 500
     const data = (err as { data?: { error?: { message?: string } } })?.data

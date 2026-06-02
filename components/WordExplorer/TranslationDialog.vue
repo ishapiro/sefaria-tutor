@@ -258,6 +258,7 @@
       :original-phrase="translationData?.originalPhrase ?? null"
       :translated-phrase="translationData?.translatedPhrase ?? null"
       :reference="translationSefariaRef ?? null"
+      :total-ms="grammarTotalMs"
       @close="showGrammarModal = false"
     />
 
@@ -363,6 +364,7 @@ const props = defineProps<{
   translationSefariaRef?: string | null
   namedLists?: Array<{ id: number; name: string }>
   activeListId?: number | null
+  grammarTotalMs?: number
 }>()
 
 const canCopy = computed(() => !props.translationLoading && !!props.translationData)

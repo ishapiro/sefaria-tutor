@@ -5,6 +5,7 @@ import { normalizePhrase, computePhraseHash, computeHash, CURRENT_CACHE_VERSION,
 import { validateAuth } from '~/server/utils/auth'
 import { getTranslationFallbackModel } from '~/server/utils/openai-models'
 import { getDefaultTranslationModel } from '~/server/utils/system-settings'
+import { getCachedEffort, markEffortUnsupported, isUnsupportedEffortError, estimateMaxOutputTokens } from '~/server/utils/openai-reasoning'
 
 /**
  * ATTENTION: If you modify the JSON structure (fields) in the SYSTEM_PROMPT below,
@@ -133,34 +134,43 @@ export default defineEventHandler(async (event) => {
   }
 
   async function callOpenAI (model: string) {
-    console.log('[openai/chat] Calling OpenAI with model:', model, 'promptLength:', body.prompt?.length ?? 0)
-    return $fetch<{
-      id: string
-      object: string
-      created_at: number
-      status: string
-      model: string
-      output: Array<{
-        type: string
-        content?: Array<{ type: string; text?: string }>
-      }>
+    const maxOutputTokens = estimateMaxOutputTokens(body.prompt ?? '', body.fullSentence ?? false)
+    console.log('[openai/chat] Calling OpenAI with model:', model, 'promptLength:', body.prompt?.length ?? 0, 'maxOutputTokens:', maxOutputTokens)
+    const effort = getCachedEffort(model)
+
+    type OpenAIResponse = {
+      id: string; object: string; created_at: number; status: string; model: string
+      output: Array<{ type: string; content?: Array<{ type: string; text?: string }> }>
       usage?: { input_tokens: number; output_tokens: number; total_tokens: number }
-    }>('https://api.openai.com/v1/responses', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${openaiApiKey}`,
-      },
-      body: {
-        model,
-        instructions: SYSTEM_PROMPT,
-        input: body.prompt,
-        max_output_tokens: body.fullSentence ? 20000 : 4096,
-        reasoning: { effort: 'medium' as const }, // gpt-5.2-chat-latest requires 'medium'; 'none' not supported
-        text: { verbosity: 'medium' as const }, // gpt-5.2-chat-latest requires 'medium'
-        // temperature not supported by gpt-5.2-chat-latest
-      },
+    }
+
+    const makeBody = (e: 'low' | 'medium') => ({
+      model,
+      instructions: SYSTEM_PROMPT,
+      input: body.prompt,
+      max_output_tokens: maxOutputTokens,
+      reasoning: { effort: e },
+      text: { verbosity: 'medium' as const },
     })
+
+    try {
+      return await $fetch<OpenAIResponse>('https://api.openai.com/v1/responses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${openaiApiKey}` },
+        body: makeBody(effort),
+      })
+    } catch (err) {
+      if (effort === 'low' && isUnsupportedEffortError(err)) {
+        console.log('[openai/chat] Model', model, 'does not support effort:', effort, '— retrying')
+        markEffortUnsupported(model, effort)
+        return $fetch<OpenAIResponse>('https://api.openai.com/v1/responses', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${openaiApiKey}` },
+          body: makeBody(getCachedEffort(model, 'low')),
+        })
+      }
+      throw err
+    }
   }
 
   function isModelError (err: unknown): boolean {

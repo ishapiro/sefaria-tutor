@@ -3,6 +3,7 @@ import { useRuntimeConfig } from 'nitropack/runtime/internal/config'
 import { $fetch } from 'ofetch'
 import { validateAuth } from '~/server/utils/auth'
 import { getDefaultTranslationModel } from '~/server/utils/system-settings'
+import { getCachedEffort, markEffortUnsupported, isUnsupportedEffortError, type ReasoningEffort } from '~/server/utils/openai-reasoning'
 
 const MODERN_HEBREW_EXAMPLES_INSTRUCTIONS = `You are a modern Hebrew teacher. You will be given a single Hebrew word and its English translation (from Biblical or liturgical context).
 
@@ -77,24 +78,29 @@ export default defineEventHandler(async (event) => {
     ? `Hebrew word: ${word}\nEnglish translation: ${wordTranslation}`
     : `Hebrew word: ${word}`
 
-  try {
-    const response = await $fetch<{
-      output?: Array<{ type?: string; content?: Array<{ type?: string; text?: string }> }>
-    }>('https://api.openai.com/v1/responses', {
+  type ExamplesResponse = { output?: Array<{ type?: string; content?: Array<{ type?: string; text?: string }> }> }
+
+  async function callOpenAI(effort: ReasoningEffort) {
+    return $fetch<ExamplesResponse>('https://api.openai.com/v1/responses', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${openaiApiKey}`,
-      },
-      body: {
-        model,
-        instructions: MODERN_HEBREW_EXAMPLES_INSTRUCTIONS,
-        input,
-        max_output_tokens: 1024,
-        reasoning: { effort: 'medium' as const },
-        text: { verbosity: 'medium' as const },
-      },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${openaiApiKey}` },
+      body: { model, instructions: MODERN_HEBREW_EXAMPLES_INSTRUCTIONS, input, max_output_tokens: 1024, reasoning: { effort }, text: { verbosity: 'medium' as const } },
     })
+  }
+
+  try {
+    const effort = getCachedEffort(model)
+    let response: ExamplesResponse
+    try {
+      response = await callOpenAI(effort)
+    } catch (err) {
+      if (isUnsupportedEffortError(err)) {
+        markEffortUnsupported(model, effort)
+        response = await callOpenAI(getCachedEffort(model))
+      } else {
+        throw err
+      }
+    }
 
     const raw = extractTextFromResponse(response)
     if (!raw) {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import SupportSupportModal from '~/components/Support/SupportModal.vue'
 
-const { loggedIn, user, logout, fetch: fetchSession } = useAuth()
+const { loggedIn, user, logout, fetch: fetchSession, isAdmin } = useAuth()
 
 const displayName = computed(() => {
   const u = (user as any)?.value ?? user
@@ -91,6 +91,7 @@ function handleLogout () {
         </button>
         <template v-if="loggedIn">
           <NuxtLink to="/settings" class="text-xs sm:text-sm font-medium text-blue-600 hover:text-blue-800 whitespace-nowrap px-1 sm:px-0">Settings</NuxtLink>
+          <NuxtLink v-if="isAdmin" to="/admin" class="text-xs sm:text-sm font-medium text-blue-600 hover:text-blue-800 whitespace-nowrap px-1 sm:px-0">Admin</NuxtLink>
           <span class="hidden sm:inline text-gray-600 text-xs sm:text-sm truncate max-w-[80px] sm:max-w-[140px] md:max-w-none">{{ displayName }}</span>
           <button @click="handleLogout" class="text-xs sm:text-sm font-medium text-blue-600 hover:text-blue-800 whitespace-nowrap px-1 sm:px-0">Logout</button>
         </template>

@@ -25,7 +25,7 @@
               :style="{ width: progressPercent + '%' }"
             />
           </div>
-          <p class="text-xs text-gray-500">~15 seconds (cached for future requests)</p>
+          <p class="text-xs text-gray-500">~{{ Math.ceil(totalMs / 1000) }} seconds (cached for future requests)</p>
         </div>
         <p v-else-if="error" class="text-red-600">{{ error }}</p>
         <div v-else-if="explanationHtml" class="space-y-4">
@@ -61,7 +61,7 @@ import { computed, onUnmounted, ref, watch } from 'vue'
 import { marked } from 'marked'
 import { sanitizeMarkdownHtml } from '~/utils/text'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   open: boolean
   loading: boolean
   error: string | null
@@ -69,7 +69,8 @@ const props = defineProps<{
   originalPhrase?: string | null
   translatedPhrase?: string | null
   reference?: string | null
-}>()
+  totalMs?: number
+}>(), { totalMs: 15000 })
 
 defineEmits<{
   close: []
@@ -78,10 +79,9 @@ defineEmits<{
 const progress = ref(0)
 const progressPercent = computed(() => Math.max(0, Math.min(100, progress.value)))
 
-const TOTAL_MS = 15000
 const TICK_MS = 250
 const MAX_BEFORE_DONE = 95
-const STEP = (100 * TICK_MS) / TOTAL_MS
+const STEP = computed(() => (100 * TICK_MS) / props.totalMs)
 
 let timer: ReturnType<typeof setInterval> | null = null
 
@@ -93,7 +93,7 @@ watch(
       if (timer) clearInterval(timer)
       timer = setInterval(() => {
         if (progress.value < MAX_BEFORE_DONE) {
-          progress.value = Math.min(MAX_BEFORE_DONE, progress.value + STEP)
+          progress.value = Math.min(MAX_BEFORE_DONE, progress.value + STEP.value)
         }
       }, TICK_MS)
     } else {

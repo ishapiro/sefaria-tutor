@@ -73,13 +73,6 @@
           <span>Teacher</span>
         </NuxtLink>
       </div>
-      <NuxtLink
-        v-if="isAdmin"
-        to="/admin"
-        class="px-2 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center min-h-[32px] sm:min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
-      >
-        Admin
-      </NuxtLink>
     </div>
 
     <!-- When searching: show full-index search results in a dedicated panel -->
