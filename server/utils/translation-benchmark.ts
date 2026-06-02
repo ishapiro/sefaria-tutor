@@ -119,6 +119,8 @@ export async function runTranslationBenchmark (
   }
 }
 
+const GRAMMAR_BENCHMARK_PROMPT = 'וַיֹּ֥אמֶר יְהוֹשֻׁ֖עַ אֶל־בְּנֵ֣י יִשְׂרָאֵ֑ל עַד־אָ֙נָה֙ אַתֶּ֣ם מִתְרַפִּ֔ים לָבוֹא֙ לָרֶ֣שֶׁת אֶת־הָאָ֔רֶץ אֲשֶׁר֙ נָתַ֣ן לָכֶ֔ם יְהֹוָ֖ה אֱלֹהֵ֥י אֲבוֹתֵיכֶֽם׃'
+
 const GRAMMAR_INSTRUCTIONS = `You are a Hebrew and Aramaic grammar expert. You will be given a phrase or sentence in Hebrew or Aramaic (and optionally its English translation).
 
 Write your explanation so it is clear and accessible to a 6th grader in a Jewish day school. Use simple, everyday English. Whenever you use a grammatical or technical term—such as "narrative clause," "construct chain," "definite article," "binyan," or "subject-verb agreement"—explain in one short phrase what it means right when you first use it (e.g. "a narrative clause—a part of the sentence that tells what happened"). They have some Hebrew background but are still learning.
@@ -139,7 +141,7 @@ export async function runGrammarBenchmark (
   openaiApiKey: string,
   db: unknown,
 ): Promise<{ success: boolean; model: string; durationMs: number; error?: string }> {
-  const input = `Hebrew/Aramaic phrase: ${BENCHMARK_PROMPT}`
+  const input = `Hebrew/Aramaic phrase: ${GRAMMAR_BENCHMARK_PROMPT}`
 
   async function callWithEffort (effort: string) {
     return $fetch('https://api.openai.com/v1/responses', {

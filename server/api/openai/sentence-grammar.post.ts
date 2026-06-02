@@ -131,9 +131,17 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  const wordCount = phrase.trim().split(/\s+/).filter(Boolean).length
+  console.log('[openai/sentence-grammar] START', {
+    phrase,
+    wordCount,
+    model,
+  })
+
   try {
     const effort = getCachedEffort(model)
     let response: GrammarResponse
+    const callStart = Date.now()
     try {
       response = await callOpenAI(effort)
     } catch (err) {
@@ -144,6 +152,12 @@ export default defineEventHandler(async (event) => {
         throw err
       }
     }
+    console.log('[openai/sentence-grammar] DONE', {
+      phrase,
+      wordCount,
+      durationMs: Date.now() - callStart,
+      model,
+    })
 
     const explanation = extractTextFromResponse(response)
     if (!explanation) {
