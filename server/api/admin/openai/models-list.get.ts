@@ -28,10 +28,10 @@ function getBaseModelId (id: string): string {
   return id
 }
 
-/** Preference: chat-latest > instant > mini > turbo > base; codex excluded. Higher = better. */
+/** Preference: instant > chat-latest > mini > turbo > base; codex excluded. Higher = better. */
 function modelPreferenceScore (id: string, baseId: string): number {
+  if (id.includes('-instant')) return 6
   if (id.includes('-chat-latest')) return 5
-  if (id.includes('-instant')) return 4
   if (id.includes('-mini')) return 3
   if (id.includes('-turbo')) return 2
   if (id === baseId) return 1
@@ -81,7 +81,7 @@ export default defineEventHandler(async (event) => {
       return maxB - maxA
     })
 
-    // Flatten to sorted list of model IDs (prefer chat-latest, instant, mini, turbo; skip codex)
+    // Flatten to sorted list of model IDs (prefer instant, chat-latest, mini, turbo; skip codex)
     const modelIds: string[] = []
     for (const [baseId, family] of sortedBases) {
       if (!baseId || family.length === 0) continue

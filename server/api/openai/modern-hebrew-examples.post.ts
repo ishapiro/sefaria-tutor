@@ -2,7 +2,8 @@ import { createError, defineEventHandler, readBody } from 'h3'
 import { useRuntimeConfig } from 'nitropack/runtime/internal/config'
 import { $fetch } from 'ofetch'
 import { validateAuth } from '~/server/utils/auth'
-import { getDefaultTranslationModel } from '~/server/utils/system-settings'
+import { resolveTranslationModel } from '~/server/utils/translation-model'
+import { getDefaultTranslationModel, saveDefaultTranslationModel } from '~/server/utils/system-settings'
 import { getCachedEffort, markEffortUnsupported, isUnsupportedEffortError, type ReasoningEffort } from '~/server/utils/openai-reasoning'
 import { createOpenAIError, parseOpenAIError } from '~/server/utils/openai-errors'
 
@@ -73,7 +74,17 @@ export default defineEventHandler(async (event) => {
 
   // @ts-ignore - Cloudflare D1 binding
   const db = event.context.cloudflare?.env?.DB
-  const model = await getDefaultTranslationModel(db)
+  const configuredModel = await getDefaultTranslationModel(db)
+  const resolvedModel = await resolveTranslationModel(openaiApiKey, db, configuredModel)
+  const model = resolvedModel.model
+
+  if (resolvedModel.source === 'auto' && configuredModel !== model) {
+    try {
+      await saveDefaultTranslationModel(db, model)
+    } catch (e) {
+      console.error('[openai/modern-hebrew-examples] Failed to persist auto-selected model:', e)
+    }
+  }
 
   const input = wordTranslation
     ? `Hebrew word: ${word}\nEnglish translation: ${wordTranslation}`

@@ -566,7 +566,7 @@ const rawTranslationData = ref<unknown>(null)
 const { isAdmin, isTeacher, fetch: fetchSession, user, loggedIn } = useAuth()
 const route = useRoute()
 const router = useRouter()
-const openaiModel = ref('gpt-5.1-chat-latest')
+const openaiModel = useOpenAiModel()
 
 // In-memory cache of Sefaria index responses, keyed by book title.
 type SefariaIndexData = {
@@ -3698,8 +3698,18 @@ async function fetchLatestModel () {
       headers: { Authorization: `Bearer ${token}` },
     })
     if (res?.model) openaiModel.value = res.model
-  } catch {
-    // Keep default gpt-4o if model fetch fails
+  } catch (err) {
+    // Keep the default model so the page still works. Transient discovery
+    // failures stay silent, but a billing/auth problem will break every
+    // translation, so surface it up front instead of failing later.
+    const code = (err as { data?: { code?: string } })?.data?.code
+    const status = (err as { statusCode?: number })?.statusCode
+    if (code === 'OPENAI_OUT_OF_CREDIT' || code === 'OPENAI_AUTH_ERROR' || status === 402) {
+      errorMessage.value = getApiErrorMessage(err, 'The AI service is unavailable.')
+      showErrorDialog.value = true
+    } else {
+      console.warn('[model] Discovery failed; using default', openaiModel.value, err)
+    }
   } finally {
     modelLoading.value = false
   }

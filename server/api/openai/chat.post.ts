@@ -4,7 +4,8 @@ import { $fetch } from 'ofetch'
 import { normalizePhrase, computePhraseHash, computeHash, CURRENT_CACHE_VERSION, CACHE_TTL_SECONDS, isValidTranslationStructure } from '~/server/utils/cache'
 import { validateAuth } from '~/server/utils/auth'
 import { getTranslationFallbackModel } from '~/server/utils/openai-models'
-import { getDefaultTranslationModel } from '~/server/utils/system-settings'
+import { resolveTranslationModel, type ResolvedTranslationModel } from '~/server/utils/translation-model'
+import { getDefaultTranslationModel, saveDefaultTranslationModel } from '~/server/utils/system-settings'
 import { getCachedEffort, markEffortUnsupported, isUnsupportedEffortError, estimateMaxOutputTokens } from '~/server/utils/openai-reasoning'
 import { createOpenAIError, parseOpenAIError } from '~/server/utils/openai-errors'
 
@@ -85,7 +86,33 @@ export default defineEventHandler(async (event) => {
 
   // @ts-ignore
   const db = event.context.cloudflare?.env?.DB
-  const primaryModel = await getDefaultTranslationModel(db)
+  const configuredModel = await getDefaultTranslationModel(db)
+
+  // The live model list requires a network call to OpenAI. If it fails we still
+  // have the configured model, and the cache lookup below may avoid OpenAI entirely.
+  let resolvedModel: ResolvedTranslationModel
+  try {
+    resolvedModel = await resolveTranslationModel(openaiApiKey, db, configuredModel)
+  } catch (e) {
+    console.warn('[openai/chat] Model list unavailable; using configured model', {
+      configuredModel,
+      error: parseOpenAIError(e).message,
+    })
+    resolvedModel = { model: configuredModel, source: 'preferred' }
+  }
+  const primaryModel = resolvedModel.model
+
+  if (resolvedModel.source === 'auto' && configuredModel !== primaryModel) {
+    console.warn('[openai/chat] Configured model is unavailable; auto-selecting current model', {
+      configuredModel,
+      autoSelectedModel: primaryModel,
+    })
+    try {
+      await saveDefaultTranslationModel(db, primaryModel)
+    } catch (e) {
+      console.error('[openai/chat] Failed to persist auto-selected model:', e)
+    }
+  }
 
   if (db) {
     try {
@@ -233,7 +260,27 @@ export default defineEventHandler(async (event) => {
         }
         return response
       } catch (fallbackErr) {
-        // Fallback failed; rethrow original error
+        const parsedFallbackError = parseOpenAIError(fallbackErr)
+        console.error('[openai/chat] Fallback model failed:', {
+          model: primaryModel,
+          status: parsedFallbackError.status,
+          message: parsedFallbackError.message,
+          code: parsedFallbackError.code,
+          type: parsedFallbackError.type,
+        })
+        const mappedFallbackError = createOpenAIError(fallbackErr, 'Translation') as {
+          statusCode?: number
+          statusMessage?: string
+          message?: string
+          data?: unknown
+        }
+        console.error('[openai/chat] Returning mapped fallback error to client:', {
+          statusCode: mappedFallbackError.statusCode,
+          statusMessage: mappedFallbackError.statusMessage,
+          message: mappedFallbackError.message,
+          data: mappedFallbackError.data,
+        })
+        throw mappedFallbackError
       }
     }
     // Debug: log full error for diagnosis.
@@ -248,6 +295,18 @@ export default defineEventHandler(async (event) => {
       },
     })
 
-    throw createOpenAIError(err, 'Translation')
+    const mappedError = createOpenAIError(err, 'Translation') as {
+      statusCode?: number
+      statusMessage?: string
+      message?: string
+      data?: unknown
+    }
+    console.error('[openai/chat] Returning mapped error to client:', {
+      statusCode: mappedError.statusCode,
+      statusMessage: mappedError.statusMessage,
+      message: mappedError.message,
+      data: mappedError.data,
+    })
+    throw mappedError
   }
 })

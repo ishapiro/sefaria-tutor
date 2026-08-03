@@ -3,7 +3,8 @@ import { useRuntimeConfig } from 'nitropack/runtime/internal/config'
 import { $fetch } from 'ofetch'
 import { normalizeRootForSearch, toDisplayRoot } from '~/server/utils/rootNormalize'
 import { getCachedEffort, markEffortUnsupported, isUnsupportedEffortError } from '~/server/utils/openai-reasoning'
-import { getDefaultTranslationModel } from '~/server/utils/system-settings'
+import { resolveTranslationModel } from '~/server/utils/translation-model'
+import { getDefaultTranslationModel, saveDefaultTranslationModel } from '~/server/utils/system-settings'
 
 const ROOT_MEANING_INSTRUCTIONS = `You are a Hebrew language expert. Given a Hebrew root (shoresh), reply with ONLY a brief English meaning: one short phrase (e.g. "holy, sanctify" or "say, speak"). No explanation, no punctuation at the end, no quotes.`
 
@@ -65,7 +66,16 @@ export default defineEventHandler(async (event): Promise<{ meaning: string } | {
     return { meaning: '' }
   }
 
-  const meaningModel = await getDefaultTranslationModel(db)
+  const configuredModel = await getDefaultTranslationModel(db)
+  const resolvedModel = await resolveTranslationModel(openaiApiKey, db, configuredModel)
+  const meaningModel = resolvedModel.model
+  if (resolvedModel.source === 'auto' && configuredModel !== meaningModel) {
+    try {
+      await saveDefaultTranslationModel(db, meaningModel)
+    } catch (e) {
+      console.error('[root-explorer/meaning] Failed to persist auto-selected model:', e)
+    }
+  }
   const meaningInput = `Hebrew root: ${toDisplayRoot(normalized)} (${normalized})`
 
   interface OpenAIOutputItem { content?: Array<{ type?: string; text?: string }> }

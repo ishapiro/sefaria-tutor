@@ -1,44 +1,8 @@
 import { createError, defineEventHandler, getHeader } from 'h3'
 import { useRuntimeConfig } from 'nitropack/runtime/internal/config'
-import { $fetch } from 'ofetch'
-import { getDefaultTranslationModel } from '~/server/utils/system-settings'
-import { TRANSLATION_PRIMARY_MODEL } from '~/server/utils/openai-models'
+import { resolveTranslationModel } from '~/server/utils/translation-model'
+import { getDefaultTranslationModel, saveDefaultTranslationModel } from '~/server/utils/system-settings'
 import { createOpenAIError } from '~/server/utils/openai-errors'
-
-/** Model IDs that are general-purpose chat/completion models (excludes embeddings, TTS, etc.) */
-const GENERAL_PURPOSE_PREFIXES = ['gpt-3.5', 'gpt-4', 'gpt-5', 'o1', 'o3']
-
-/** Variant suffixes that indicate a specialized model (not the generic base) */
-const VARIANT_SUFFIXES = ['instant', 'codex', 'pro', 'mini', 'nano', 'turbo', 'vision', 'chat-latest', 'thinking']
-
-function isGeneralPurposeModel (id: string): boolean {
-  return GENERAL_PURPOSE_PREFIXES.some(prefix => id.startsWith(prefix)) &&
-    !id.includes('embedding') &&
-    !id.startsWith('tts-') &&
-    !id.startsWith('whisper')
-}
-
-/** Extract base model id (e.g. gpt-5.2 from gpt-5.2-instant or gpt-5.2-codex) */
-function getBaseModelId (id: string): string {
-  for (const suffix of VARIANT_SUFFIXES) {
-    const pattern = new RegExp(`-${suffix}(-[a-z0-9.-]*)?$`, 'i')
-    if (pattern.test(id)) {
-      return id.replace(pattern, '')
-    }
-  }
-  return id
-}
-
-/** Preference: chat-latest > instant > mini > turbo > base; codex excluded. Higher = better. */
-function modelPreferenceScore (id: string, baseId: string): number {
-  if (id.includes('-chat-latest')) return 5 // prefer for translation (no thinking, immediate response)
-  if (id.includes('-instant')) return 4
-  if (id.includes('-mini')) return 3
-  if (id.includes('-turbo')) return 2
-  if (id === baseId) return 1
-  if (id.includes('-codex')) return -1 // never use codex
-  return 0 // other variants (pro, etc.) - skip
-}
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig(event)
@@ -72,59 +36,16 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const list = await $fetch<{
-      data: Array<{ id: string; object: string; created: number; owned_by?: string }>
-    }>('https://api.openai.com/v1/models', {
-      headers: {
-        Authorization: `Bearer ${openaiApiKey}`,
-      },
-    })
-
-    const generalPurpose = (list.data ?? [])
-      .filter(m => isGeneralPurposeModel(m.id))
-
-    // Prefer our configured primary model if available
     // @ts-ignore
     const db = event.context.cloudflare?.env?.DB
-    const primaryModel = await getDefaultTranslationModel(db)
-    const primaryAvailable = generalPurpose.some(m => m.id === primaryModel)
-    if (primaryAvailable) {
-      return { model: primaryModel }
+    const configuredModel = await getDefaultTranslationModel(db)
+    const resolved = await resolveTranslationModel(openaiApiKey, db, configuredModel)
+
+    if (resolved.source === 'auto' && configuredModel !== resolved.model) {
+      await saveDefaultTranslationModel(db, resolved.model)
     }
 
-    // Group by base model id (e.g. gpt-5.2); pick newest family by created
-    const byBase = new Map<string, typeof generalPurpose>()
-    for (const m of generalPurpose) {
-      const base = getBaseModelId(m.id)
-      if (!byBase.has(base)) byBase.set(base, [])
-      byBase.get(base)!.push(m)
-    }
-
-    // Newest family = max created among all models in that family
-    const sortedBases = [...byBase.entries()].sort(([, a], [, b]) => {
-      const maxA = Math.max(...a.map(m => m.created ?? 0))
-      const maxB = Math.max(...b.map(m => m.created ?? 0))
-      return maxB - maxA
-    })
-
-    // Within each family: prefer instant, then mini, then turbo, then base; skip codex
-    for (const [baseId, family] of sortedBases) {
-      if (!baseId || family.length === 0) continue
-
-      const eligible = family
-        .filter(m => modelPreferenceScore(m.id, baseId) >= 1)
-        .sort((a, b) => {
-          const scoreA = modelPreferenceScore(a.id, baseId)
-          const scoreB = modelPreferenceScore(b.id, baseId)
-          if (scoreA !== scoreB) return scoreB - scoreA
-          return (b.created ?? 0) - (a.created ?? 0)
-        })
-
-      const best = eligible[0]
-
-      if (best) return { model: best.id }
-    }
-    return { model: TRANSLATION_PRIMARY_MODEL }
+    return { model: resolved.model }
   } catch (err: unknown) {
     throw createOpenAIError(err, 'OpenAI model discovery')
   }

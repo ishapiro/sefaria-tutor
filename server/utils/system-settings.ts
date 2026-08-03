@@ -1,6 +1,8 @@
 import { TRANSLATION_PRIMARY_MODEL, TTS_PRIMARY_MODEL } from '~/server/utils/openai-models'
 
 const KEY_DEFAULT_MODEL = 'translation_default_model'
+const KEY_RECOMMENDED_MODEL = 'translation_recommended_model'
+const KEY_RECOMMENDED_SIGNATURE = 'translation_recommended_signature'
 const KEY_TTS_MODEL = 'tts_default_model'
 const KEY_MS_PER_WORD = 'translation_ms_per_word'
 const KEY_GRAMMAR_MS = 'grammar_ms_total'
@@ -12,7 +14,10 @@ export const DEFAULT_GRAMMAR_MS = 15000
 /** DB type from Cloudflare D1 binding */
 type D1Database = {
   prepare: (query: string) => {
-    bind: (...args: unknown[]) => { first: () => Promise<{ value?: string } | null> }
+    bind: (...args: unknown[]) => {
+      first: () => Promise<{ value?: string } | null>
+      run: () => Promise<unknown>
+    }
   }
 }
 
@@ -32,6 +37,53 @@ export async function getDefaultTranslationModel (db: D1Database | null | undefi
     // Table may not exist yet (migration not run)
   }
   return TRANSLATION_PRIMARY_MODEL
+}
+
+/** Stores the translation default model. */
+export async function saveDefaultTranslationModel (db: D1Database | null | undefined, model: string): Promise<void> {
+  if (!db) return
+  const now = Math.floor(Date.now() / 1000)
+  await db.prepare(
+    'INSERT INTO system_settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at',
+  ).bind(KEY_DEFAULT_MODEL, model, now).run()
+}
+
+/**
+ * Returns the model OpenAI recommended for Biblical Hebrew translation, along
+ * with the signature of the candidate list it was chosen from. The caller
+ * re-asks only when that signature no longer matches the available models.
+ */
+export async function getRecommendedTranslationModel (
+  db: D1Database | null | undefined,
+): Promise<{ model: string; signature: string } | null> {
+  if (!db) return null
+  try {
+    const read = async (key: string) => {
+      const row = await db.prepare('SELECT value FROM system_settings WHERE key = ?').bind(key).first()
+      return (row as { value?: string } | null)?.value?.trim() ?? ''
+    }
+    const model = await read(KEY_RECOMMENDED_MODEL)
+    const signature = await read(KEY_RECOMMENDED_SIGNATURE)
+    if (model && signature) return { model, signature }
+  } catch (_) {
+    // Table may not exist yet (migration not run)
+  }
+  return null
+}
+
+/** Stores the recommended model and the candidate signature it was chosen from. */
+export async function saveRecommendedTranslationModel (
+  db: D1Database | null | undefined,
+  model: string,
+  signature: string,
+): Promise<void> {
+  if (!db) return
+  const now = Math.floor(Date.now() / 1000)
+  const write = (key: string, value: string) => db.prepare(
+    'INSERT INTO system_settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at',
+  ).bind(key, value, now).run()
+  await write(KEY_RECOMMENDED_MODEL, model)
+  await write(KEY_RECOMMENDED_SIGNATURE, signature)
 }
 
 /**

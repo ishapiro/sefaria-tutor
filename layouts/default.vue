@@ -8,6 +8,8 @@ const displayName = computed(() => {
   return u?.name || u?.email || ''
 })
 
+const openaiModel = useOpenAiModel()
+
 const supportModalOpen = ref(false)
 const showWhenToUseShoreshModal = ref(false)
 
@@ -116,6 +118,7 @@ function handleLogout () {
     <footer class="hidden md:block border-t border-gray-200 bg-gray-50/80 text-gray-600 text-xs text-center">
       <div class="max-w-5xl mx-auto px-4 py-3 space-y-1">
         <div>© 2025–2026 Irv Shapiro / Cogitations, LLC</div>
+        <div v-if="openaiModel">AI model: {{ openaiModel }}</div>
         <div>
           Licensed under <strong>Business Source License 1.1 (BSL 1.1)</strong>;
           each version converts to CPAL&nbsp;1.0 three years after the last update by the original author.
