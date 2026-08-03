@@ -604,6 +604,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useSupportPageContext } from '~/composables/useSupportPageContext'
 import { SUPPORT_VIEW_NAMES } from '~/constants/supportViewNames'
+import { getApiErrorMessage } from '~/utils/api-errors'
 
 const { setSupportView, clearSupportView } = useSupportPageContext()
 const { isAdmin } = useAuth()
@@ -677,7 +678,7 @@ async function fetchModernHebrewExamples(row: { word?: string; wordTranslation?:
   const config = useRuntimeConfig()
   const token = config.public.apiAuthToken as string
   if (!token) {
-    modernHebrewError.value = 'API auth not configured.'
+    modernHebrewError.value = 'The app is missing API authentication settings. Please contact support.'
     showModernHebrewModal.value = true
     return
   }
@@ -696,8 +697,7 @@ async function fetchModernHebrewExamples(row: { word?: string; wordTranslation?:
     modernHebrewExamples.value = res?.examples ?? null
     modernHebrewExplanation.value = res?.explanation ?? null
   } catch (e: unknown) {
-    const err = e as { data?: { message?: string }; message?: string }
-    modernHebrewError.value = err?.data?.message ?? (err as Error)?.message ?? 'Request failed'
+    modernHebrewError.value = getApiErrorMessage(e, 'Could not load modern Hebrew examples.')
   } finally {
     modernHebrewLoading.value = false
   }
@@ -992,7 +992,7 @@ async function doTranslateApiCall(plainText: string, fullSentence: boolean) {
     translationMetadata.value = { model, durationMs, fromCache }
     if (import.meta.client) window.getSelection()?.removeAllRanges()
   } catch (err: unknown) {
-    translationError.value = err instanceof Error ? err.message : 'Translation failed'
+    translationError.value = getApiErrorMessage(err, 'Translation failed. Please try again.')
   } finally {
     translationLoading.value = false
   }
@@ -1019,7 +1019,7 @@ async function fetchSentenceGrammar() {
   const config = useRuntimeConfig()
   const token = config.public.apiAuthToken as string
   if (!token) {
-    grammarError.value = 'API auth not configured.'
+    grammarError.value = 'The app is missing API authentication settings. Please contact support.'
     showGrammarModal.value = true
     return
   }
@@ -1038,8 +1038,7 @@ async function fetchSentenceGrammar() {
     })
     grammarExplanation.value = res?.explanation ?? null
   } catch (e: unknown) {
-    const err = e as { data?: { message?: string }; message?: string }
-    grammarError.value = err?.data?.message ?? (err as Error)?.message ?? 'Request failed'
+    grammarError.value = getApiErrorMessage(e, 'Could not load the grammar explanation.')
   } finally {
     grammarLoading.value = false
   }
@@ -1083,6 +1082,7 @@ async function playWordTts(word: string | undefined) {
     if (!res.ok) {
       const errText = await res.text()
       console.error('[TTS]', res.status, errText)
+      alert(getApiErrorMessage({ statusCode: res.status, data: { message: errText } }, 'Pronunciation failed. Please try again.'))
       return
     }
     const blob = await res.blob()
@@ -1100,6 +1100,7 @@ async function playWordTts(word: string | undefined) {
     await audio.play()
   } catch (err) {
     console.error('[TTS]', err)
+    alert(getApiErrorMessage(err, 'Pronunciation failed. Please try again.'))
   } finally {
     ttsLoading.value = false
   }

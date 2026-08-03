@@ -477,6 +477,7 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRuntimeConfig } from 'nuxt/app'
 import type { CategoryNode } from '~/components/WordExplorer/BookBrowser.vue'
 import { hasMultipleSentences, countWords, getPlainTextFromHtml, splitIntoPhrases, countWordInPhrase, phraseContainsWord, normalizeEnglishSpacingForHtml } from '~/utils/text'
+import { getApiErrorMessage } from '~/utils/api-errors'
 import { parseStartChapterFromRef, buildTanakhDisplayNumbers, parseRangeFromRef, extractTextArray, extractTextAndSections } from '~/utils/sefaria'
 import { buildNoteContextForSection } from '~/utils/notes'
 import { useClipboard } from '~/composables/useClipboard'
@@ -2539,7 +2540,7 @@ async function doTranslateApiCall (plainText: string, fullSentence: boolean, sef
     })
     if (import.meta.client) window.getSelection()?.removeAllRanges()
   } catch (err: unknown) {
-    translationError.value = err instanceof Error ? err.message : 'Translation failed'
+    translationError.value = getApiErrorMessage(err, 'Translation failed. Please try again.')
   } finally {
     translationLoading.value = false
     translationInProgressWordCount.value = 0
@@ -2644,7 +2645,25 @@ async function playWordTts (word: string | undefined) {
     })
     if (!res.ok) {
       const errText = await res.text()
+      let parsed: { message?: string; code?: string } | null = null
+      try {
+        parsed = JSON.parse(errText)
+      } catch {
+        parsed = null
+      }
+      const message = getApiErrorMessage(
+        {
+          statusCode: res.status,
+          data: {
+            message: parsed?.message ?? errText,
+            code: parsed?.code,
+          },
+        },
+        'Pronunciation failed. Please try again.',
+      )
       console.error('[TTS]', res.status, errText)
+      errorMessage.value = message
+      showErrorDialog.value = true
       return
     }
     const blob = await res.blob()
@@ -2662,6 +2681,8 @@ async function playWordTts (word: string | undefined) {
     await audio.play()
   } catch (err) {
     console.error('[TTS]', err)
+    errorMessage.value = getApiErrorMessage(err, 'Pronunciation failed. Please try again.')
+    showErrorDialog.value = true
   } finally {
     ttsLoading.value = false
   }

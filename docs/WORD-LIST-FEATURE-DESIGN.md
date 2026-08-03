@@ -516,32 +516,32 @@ CREATE INDEX IF NOT EXISTS idx_user_word_list_created_at ON user_word_list(creat
 
 ## 9. Implementation Checklist
 
-- [ ] Create database migration (`0008_user_word_list.sql`)
-- [ ] Implement `POST /api/word-list/add` endpoint
-- [ ] Implement `GET /api/word-list` endpoint
-- [ ] Implement `DELETE /api/word-list/[id]` endpoint
-- [ ] Add "Add to Word List" button to each word entry in translation dialog (conditional on `loggedIn`)
-- [ ] Implement button state management (default, loading, success, "In List")
-- [ ] Track which words are already in user's list to show "In List" state
-- [ ] Capture and store source text information (book title, section reference)
-- [ ] Display source text reference in word list cards
-- [ ] Add "My Word List" button to top navigation (conditional on `loggedIn`)
-- [ ] Create Word List modal component/view
-- [ ] Implement word card display with delete functionality
-- [ ] Add loading and error states
-- [ ] Add success feedback when adding words
-- [ ] Add delete confirmation dialog
-- [ ] Implement client-side search filtering (see section 10.4)
-- [ ] Add search input to Word List modal (see section 10.5)
-- [ ] Add filter function to match search term across all word fields (including source text fields) (including source text)
-- [ ] Add debouncing to search input (~200-300ms)
-- [ ] Update word count display to show filtered count when searching
-- [ ] Add "No words found" empty state when search returns no results
-- [ ] Capture source text information when adding words (book title, section reference)
-- [ ] Display source text reference in word list cards
-- [ ] Include source text fields in search filtering
-- [ ] Test with multiple users
-- [ ] Test edge cases (empty list, duplicate words, search edge cases, etc.)
+- [x] Create database migration (`0008_user_word_list.sql`)
+- [x] Implement `POST /api/word-list/add` endpoint
+- [x] Implement `GET /api/word-list` endpoint
+- [x] Implement `DELETE /api/word-list/[id]` endpoint
+- [x] Add "Add to Word List" button to each word entry in translation dialog (conditional on `loggedIn`)
+- [x] Implement button state management (default, loading, success, "In List")
+- [x] Track which words are already in user's list to show "In List" state
+- [x] Capture and store source text information (book title, section reference)
+- [x] Display source text reference in word list cards
+- [x] Add "My Word List" button to top navigation (conditional on `loggedIn`)
+- [x] Create Word List modal component/view
+- [x] Implement word card display with delete functionality
+- [x] Add loading and error states
+- [x] Add success feedback when adding words
+- [x] Add delete confirmation dialog
+- [x] Implement client-side search filtering (see section 10.4)
+- [x] Add search input to Word List modal (see section 10.5)
+- [x] Add filter function to match search term across all word fields (including source text fields) (including source text)
+- [x] Add debouncing to search input (~200-300ms)
+- [x] Update word count display to show filtered count when searching
+- [x] Add "No words found" empty state when search returns no results
+- [x] Capture source text information when adding words (book title, section reference)
+- [x] Display source text reference in word list cards
+- [x] Include source text fields in search filtering
+- [x] Test with multiple users
+- [x] Test edge cases (empty list, duplicate words, search edge cases, etc.)
 
 ---
 

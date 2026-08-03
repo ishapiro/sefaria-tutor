@@ -332,22 +332,22 @@ Review of the codebase suggests the following. **Recommendation:** Include **fla
 
 ## 9. Implementation Checklist (Reference Only — No Code Yet)
 
-- [ ] **Schema:** Migration adding `archived_at INTEGER NULL` to `user_word_list`; backfill existing rows as NULL.
-- [ ] **Schema:** New table **word_list_progress** (user_id, word_list_id, times_shown, times_correct, attempts_until_first_correct, updated_at); uniqueness on (user_id, word_list_id).
-- [ ] **Schema:** New table **user_settings** (user_id, key, value); uniqueness on (user_id, key).
-- [ ] **APIs:** GET word-list excludes archived by default; optional `?archived=1`. Include progress (times_shown, times_correct, attempts_until_first_correct) per word, or separate GET progress endpoint.
-- [ ] **APIs:** GET /api/user/settings and PATCH /api/user/settings for user preferences.
-- [ ] **APIs:** Update progress on each “word shown” and each “Know it” (increment times_shown / times_correct, set attempts_until_first_correct on first correct).
-- [ ] **APIs:** PATCH (or repurposed DELETE) word-list for archive/restore.
-- [ ] **My Word List UI:** Replace Delete with Archive; confirmation copy; optional “Archived” view and Restore.
-- [ ] **Study entry:** “Study” button **only in My Word List modal** (no header Study in v1); disabled when 0 active words. **Default 20 words** per session.
-- [ ] **Study session UI:** Card view (**Hebrew → English only** in v1), show translation/feedback, “Know it” / “Need practice,” End session. **Session summary** at end. **No archive button** on card.
-- [ ] **Study session UI:** Expose user setting **“Repeat correct words (times)”** (flashcard_correct_repetitions) — e.g. in a Study options/settings area or in app Settings; default 2.
-- [ ] **Session logic:** Build deck from **first 20 active words** (or fewer); apply correct-word repetitions; in-session “need practice” queue; persist times_shown and times_correct (and attempts_until_first_correct). No archive from flashcard UI.
-- [ ] **Empty/edge states:** No words, all archived, end session.
-- [ ] **TTS on card:** Reuse existing TTS: “Play” button on card calls `POST /api/openai/tts` with the Hebrew word; same pattern as translation table (TranslationDialog.vue `play-word-tts` → index.vue `playWordTts`). See §4.5.
+- [x] **Schema:** Migration adding `archived_at INTEGER NULL` to `user_word_list`; backfill existing rows as NULL.
+- [x] **Schema:** New table **word_list_progress** (user_id, word_list_id, times_shown, times_correct, attempts_until_first_correct, updated_at); uniqueness on (user_id, word_list_id).
+- [x] **Schema:** New table **user_settings** (user_id, key, value); uniqueness on (user_id, key).
+- [x] **APIs:** GET word-list excludes archived by default; optional `?archived=1`. Include progress (times_shown, times_correct, attempts_until_first_correct) per word, or separate GET progress endpoint.
+- [x] **APIs:** GET /api/user/settings and PATCH /api/user/settings for user preferences.
+- [x] **APIs:** Update progress on each “word shown” and each “Know it” (increment times_shown / times_correct, set attempts_until_first_correct on first correct).
+- [x] **APIs:** PATCH (or repurposed DELETE) word-list for archive/restore.
+- [x] **My Word List UI:** Replace Delete with Archive; confirmation copy; optional “Archived” view and Restore.
+- [x] **Study entry:** “Study” button **only in My Word List modal** (no header Study in v1); disabled when 0 active words. **Default 20 words** per session.
+- [x] **Study session UI:** Card view (**Hebrew → English only** in v1), show translation/feedback, “Know it” / “Need practice,” End session. **Session summary** at end. **No archive button** on card.
+- [x] **Study session UI:** Expose user setting **“Repeat correct words (times)”** (flashcard_correct_repetitions) — e.g. in a Study options/settings area or in app Settings; default 2.
+- [x] **Session logic:** Build deck from **first 20 active words** (or fewer); apply correct-word repetitions; in-session “need practice” queue; persist times_shown and times_correct (and attempts_until_first_correct). No archive from flashcard UI.
+- [x] **Empty/edge states:** No words, all archived, end session.
+- [x] **TTS on card:** Reuse existing TTS: “Play” button on card calls `POST /api/openai/tts` with the Hebrew word; same pattern as translation table (TranslationDialog.vue `play-word-tts` → index.vue `playWordTts`). See §4.5.
 - [ ] **Optional:** English → Hebrew direction; “Archived” filter and Restore; flashcard_session_cap_default, word_list_page_size, notes_list_page_size in user_settings.
-- [ ] **Admin – Study experiences:** “Study / Flashcards” section in Admin. **Aggregate** over all progress (words shown at least once; include archived). **Show notice** that figures include archived words. **All-time only** in v1. GET admin/study/stats, GET admin/study/users/:userId. User selector; per-user table. Admin-only auth.
+- [x] **Admin – Study experiences:** “Study / Flashcards” section in Admin. **Aggregate** over all progress (words shown at least once; include archived). **Show notice** that figures include archived words. **All-time only** in v1. GET admin/study/stats, GET admin/study/users/:userId. User selector; per-user table. Admin-only auth.
 
 ---
 

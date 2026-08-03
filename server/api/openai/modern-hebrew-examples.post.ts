@@ -4,6 +4,7 @@ import { $fetch } from 'ofetch'
 import { validateAuth } from '~/server/utils/auth'
 import { getDefaultTranslationModel } from '~/server/utils/system-settings'
 import { getCachedEffort, markEffortUnsupported, isUnsupportedEffortError, type ReasoningEffort } from '~/server/utils/openai-reasoning'
+import { createOpenAIError, parseOpenAIError } from '~/server/utils/openai-errors'
 
 const MODERN_HEBREW_EXAMPLES_INSTRUCTIONS = `You are a modern Hebrew teacher. You will be given a single Hebrew word and its English translation (from Biblical or liturgical context).
 
@@ -141,13 +142,14 @@ export default defineEventHandler(async (event) => {
   } catch (err: unknown) {
     const status = (err as { statusCode?: number })?.statusCode
     if (typeof status === 'number' && status >= 400) throw err
-    const data = (err as { data?: { error?: { message?: string } } })?.data
-    const message = data?.error?.message ?? (err instanceof Error ? err.message : 'Modern Hebrew examples request failed')
-    console.error('[openai/modern-hebrew-examples] OpenAI request failed', { status, message })
-    throw createError({
-      statusCode: status && status >= 400 && status < 500 ? status : 502,
-      statusMessage: status === 400 ? 'Bad Request' : 'Bad Gateway',
-      message: `Modern Hebrew examples failed: ${message}`,
+    const parsedError = parseOpenAIError(err)
+    console.error('[openai/modern-hebrew-examples] OpenAI request failed', {
+      status: parsedError.status,
+      message: parsedError.message,
+      code: parsedError.code,
+      type: parsedError.type,
+      model,
     })
+    throw createOpenAIError(err, 'Modern Hebrew examples')
   }
 })

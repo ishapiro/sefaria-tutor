@@ -315,6 +315,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { substantiveWord } from '~/utils/text'
+import { getApiErrorMessage } from '~/utils/api-errors'
 import { useSupportPageContext } from '~/composables/useSupportPageContext'
 import { SUPPORT_VIEW_NAMES } from '~/constants/supportViewNames'
 import { useRuntimeConfig } from 'nuxt/app'
@@ -397,7 +398,7 @@ async function fetchModernHebrewExamples (row: TranslationWordRow) {
   if (!word) return
   const token = config.public?.apiAuthToken as string | undefined
   if (!token) {
-    modernHebrewError.value = 'API auth not configured.'
+    modernHebrewError.value = 'The app is missing API authentication settings. Please contact support.'
     showModernHebrewModal.value = true
     return
   }
@@ -416,8 +417,7 @@ async function fetchModernHebrewExamples (row: TranslationWordRow) {
     modernHebrewExamples.value = res?.examples ?? null
     modernHebrewExplanation.value = res?.explanation ?? null
   } catch (e: unknown) {
-    const msg = (e as { data?: { message?: string }; message?: string })?.data?.message ?? (e as Error)?.message ?? 'Request failed'
-    modernHebrewError.value = String(msg)
+    modernHebrewError.value = getApiErrorMessage(e, 'Could not load modern Hebrew examples.')
   } finally {
     modernHebrewLoading.value = false
   }
@@ -427,7 +427,7 @@ async function fetchSentenceGrammar () {
   if (!props.translationData?.originalPhrase) return
   const token = config.public?.apiAuthToken as string | undefined
   if (!token) {
-    grammarError.value = 'API auth not configured.'
+    grammarError.value = 'The app is missing API authentication settings. Please contact support.'
     showGrammarModal.value = true
     return
   }
@@ -446,8 +446,7 @@ async function fetchSentenceGrammar () {
     })
     grammarExplanation.value = res?.explanation ?? null
   } catch (e: unknown) {
-    const msg = (e as { data?: { message?: string }; message?: string })?.data?.message ?? (e as Error)?.message ?? 'Request failed'
-    grammarError.value = String(msg)
+    grammarError.value = getApiErrorMessage(e, 'Could not load the grammar explanation.')
   } finally {
     grammarLoading.value = false
   }

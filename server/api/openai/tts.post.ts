@@ -12,6 +12,7 @@ import {
   getR2Key,
 } from '~/server/utils/pronunciation-cache'
 import { getDefaultTtsModel } from '~/server/utils/system-settings'
+import { createOpenAIError, parseOpenAIError } from '~/server/utils/openai-errors'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig(event)
@@ -147,13 +148,14 @@ export default defineEventHandler(async (event) => {
       },
     })
   } catch (err: unknown) {
-    const status = (err as { statusCode?: number })?.statusCode ?? 500
-    const data = (err as { data?: { error?: { message?: string } } })?.data
-    const message = data?.error?.message ?? (err instanceof Error ? err.message : 'OpenAI TTS request failed')
-    throw createError({
-      statusCode: status >= 400 && status < 500 ? status : 502,
-      statusMessage: status === 400 ? 'Bad Request' : 'Bad Gateway',
-      message,
+    const parsedError = parseOpenAIError(err)
+    console.error('[openai/tts] OpenAI request failed', {
+      status: parsedError.status,
+      message: parsedError.message,
+      code: parsedError.code,
+      type: parsedError.type,
+      model: ttsModel,
     })
+    throw createOpenAIError(err, 'Pronunciation')
   }
 })

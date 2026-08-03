@@ -6,6 +6,7 @@ import { validateAuth } from '~/server/utils/auth'
 import { getTranslationFallbackModel } from '~/server/utils/openai-models'
 import { getDefaultTranslationModel } from '~/server/utils/system-settings'
 import { getCachedEffort, markEffortUnsupported, isUnsupportedEffortError, estimateMaxOutputTokens } from '~/server/utils/openai-reasoning'
+import { createOpenAIError, parseOpenAIError } from '~/server/utils/openai-errors'
 
 /**
  * ATTENTION: If you modify the JSON structure (fields) in the SYSTEM_PROMPT below,
@@ -174,11 +175,7 @@ export default defineEventHandler(async (event) => {
   }
 
   function isModelError (err: unknown): boolean {
-    const status = (err as { statusCode?: number })?.statusCode
-    const message = ((err as { data?: { error?: { message?: string } } })?.data?.error?.message ?? (err instanceof Error ? err.message : '')).toLowerCase()
-    if (status === 404) return true
-    if (message.includes('model') && (message.includes('not found') || message.includes('does not exist') || message.includes('invalid'))) return true
-    return false
+    return parseOpenAIError(err).isModelError
   }
 
   try {
@@ -203,10 +200,13 @@ export default defineEventHandler(async (event) => {
     }
     return response
   } catch (err: unknown) {
+    const parsedError = parseOpenAIError(err)
     console.error('[openai/chat] Primary model failed:', {
       model: primaryModel,
-      status: (err as { statusCode?: number })?.statusCode,
-      message: ((err as { data?: { error?: { message?: string } } })?.data?.error?.message ?? (err instanceof Error ? err.message : '')),
+      status: parsedError.status,
+      message: parsedError.message,
+      code: parsedError.code,
+      type: parsedError.type,
     })
     if (isModelError(err)) {
       try {
@@ -236,24 +236,18 @@ export default defineEventHandler(async (event) => {
         // Fallback failed; rethrow original error
       }
     }
-    const status = (err as { statusCode?: number })?.statusCode ?? 500
-    const data = (err as { data?: { error?: { message?: string; code?: string; type?: string } } })?.data
-    const errorDetail = data?.error
-    const message = errorDetail?.message ?? (err instanceof Error ? err.message : 'OpenAI request failed')
-
-    // Debug: log full error for diagnosis
+    // Debug: log full error for diagnosis.
     console.error('[openai/chat] OpenAI request failed:', {
-      status,
+      status: parsedError.status,
       model: primaryModel,
       promptLength: body.prompt?.length ?? 0,
-      openaiError: errorDetail ? { message: errorDetail.message, code: errorDetail.code, type: errorDetail.type } : null,
-      fullErrorData: data,
+      openaiError: {
+        message: parsedError.message,
+        code: parsedError.code,
+        type: parsedError.type,
+      },
     })
 
-    throw createError({
-      statusCode: status >= 400 && status < 500 ? status : 502,
-      statusMessage: status === 400 ? 'Bad Request' : 'Bad Gateway',
-      message: `Translation failed: ${message}`,
-    })
+    throw createOpenAIError(err, 'Translation')
   }
 })

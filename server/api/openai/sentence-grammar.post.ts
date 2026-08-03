@@ -5,6 +5,7 @@ import { validateAuth } from '~/server/utils/auth'
 import { getDefaultTranslationModel } from '~/server/utils/system-settings'
 import { normalizePhrase, computePhraseHash, computeHash, CACHE_TTL_SECONDS } from '~/server/utils/cache'
 import { getCachedEffort, markEffortUnsupported, isUnsupportedEffortError, type ReasoningEffort } from '~/server/utils/openai-reasoning'
+import { createOpenAIError, parseOpenAIError } from '~/server/utils/openai-errors'
 
 const SENTENCE_GRAMMAR_INSTRUCTIONS = `You are a Hebrew and Aramaic grammar expert. You will be given a phrase or sentence in Hebrew or Aramaic (and optionally its English translation).
 
@@ -207,13 +208,14 @@ export default defineEventHandler(async (event) => {
     if (typeof status === 'number' && status >= 400) {
       throw err
     }
-    const data = (err as { data?: { error?: { message?: string } } })?.data
-    const message = data?.error?.message ?? (err instanceof Error ? err.message : 'Sentence grammar request failed')
-    console.error('[openai/sentence-grammar] OpenAI request failed', { status, message })
-    throw createError({
-      statusCode: status && status >= 400 && status < 500 ? status : 502,
-      statusMessage: status === 400 ? 'Bad Request' : 'Bad Gateway',
-      message: `Grammar explanation failed: ${message}`,
+    const parsedError = parseOpenAIError(err)
+    console.error('[openai/sentence-grammar] OpenAI request failed', {
+      status: parsedError.status,
+      message: parsedError.message,
+      code: parsedError.code,
+      type: parsedError.type,
+      model,
     })
+    throw createOpenAIError(err, 'Grammar explanation')
   }
 })
