@@ -29,6 +29,8 @@ function includesOutOfCreditText (text: string): boolean {
   const lower = text.toLowerCase()
   return (
     lower.includes('out of credits') ||
+    lower.includes('no credits remaining') ||
+    lower.includes('credit balance exhausted') ||
     lower.includes('insufficient quota') ||
     lower.includes('insufficient_quota') ||
     (lower.includes('billing') && lower.includes('limit'))
@@ -41,9 +43,16 @@ export function getApiErrorMessage (err: unknown, fallback = 'Request failed. Pl
   const inferredStatus = typeof rawMessage === 'string' ? inferStatusFromMessage(rawMessage) : null
   const status = e?.statusCode ?? e?.status ?? inferredStatus ?? undefined
   const payload = e?.data
+  const upstreamMessage = payload?.openai?.message
   const code = payload?.code
 
   if (code === 'OPENAI_OUT_OF_CREDIT' || status === 402 || includesOutOfCreditText(rawMessage)) {
+    if (typeof upstreamMessage === 'string' && upstreamMessage.trim().length > 0) {
+      return upstreamMessage.trim()
+    }
+    if (typeof rawMessage === 'string' && rawMessage.trim().length > 0) {
+      return rawMessage.trim()
+    }
     return 'The AI service is out of credits right now. Please try again later or contact support.'
   }
 

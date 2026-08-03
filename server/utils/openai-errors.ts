@@ -30,10 +30,13 @@ export function parseOpenAIError (err: unknown): OpenAIErrorInfo {
 
   const isOutOfCredit =
     code === 'insufficient_quota' ||
+    code === 'credit_balance_exhausted' ||
     code === 'billing_hard_limit_reached' ||
     type === 'insufficient_quota' ||
     lower.includes('insufficient_quota') ||
     lower.includes('insufficient quota') ||
+    lower.includes('no credits remaining') ||
+    lower.includes('credit balance exhausted') ||
     lower.includes('out of credits') ||
     (lower.includes('billing') && lower.includes('limit'))
 
@@ -66,8 +69,9 @@ export function parseOpenAIError (err: unknown): OpenAIErrorInfo {
 
 function friendlyOpenAIMessage (info: OpenAIErrorInfo): { message: string; code: string; statusCode: number; statusMessage: string } {
   if (info.isOutOfCredit) {
+    const upstreamMessage = info.message?.trim()
     return {
-      message: 'OpenAI account is out of credits. Please add billing credits or increase the project spending limit.',
+      message: upstreamMessage || 'OpenAI account is out of credits. Please add billing credits or increase the project spending limit.',
       code: 'OPENAI_OUT_OF_CREDIT',
       statusCode: 402,
       statusMessage: 'Payment Required',
