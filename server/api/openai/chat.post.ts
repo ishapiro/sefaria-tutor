@@ -6,7 +6,7 @@ import { validateAuth } from '~/server/utils/auth'
 import { getTranslationFallbackModel } from '~/server/utils/openai-models'
 import { resolveTranslationModel, type ResolvedTranslationModel } from '~/server/utils/translation-model'
 import { getDefaultTranslationModel, saveDefaultTranslationModel } from '~/server/utils/system-settings'
-import { getCachedEffort, markEffortUnsupported, isUnsupportedEffortError, estimateMaxOutputTokens } from '~/server/utils/openai-reasoning'
+import { getCachedEffort, markEffortUnsupported, isUnsupportedEffortError, estimateMaxOutputTokens, type ReasoningEffort } from '~/server/utils/openai-reasoning'
 import { createOpenAIError, parseOpenAIError } from '~/server/utils/openai-errors'
 
 /**
@@ -172,7 +172,7 @@ export default defineEventHandler(async (event) => {
       usage?: { input_tokens: number; output_tokens: number; total_tokens: number }
     }
 
-    const makeBody = (e: 'low' | 'medium') => ({
+    const makeBody = (e: ReasoningEffort) => ({
       model,
       instructions: SYSTEM_PROMPT,
       input: body.prompt,

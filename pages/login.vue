@@ -36,7 +36,7 @@ const emailTaken = ref(false)
 
 onMounted(async () => {
   try {
-    authCapabilities.value = await $fetch('/api/auth/capabilities')
+    authCapabilities.value = await $fetch<typeof authCapabilities.value>('/api/auth/capabilities')
   } catch {
     // If this fails, default to showing everything (worst case: user clicks and sees a server error)
     capabilitiesError.value = 'Could not determine available login methods.'

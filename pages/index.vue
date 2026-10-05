@@ -3020,7 +3020,7 @@ async function openShares(listId: number) {
 
 async function addShare(listId: number, email: string) {
   try {
-    const share = await $fetch<{ id: number; email: string; hasAccount: boolean; createdAt: number }>(
+    const share = await $fetch<{ id: number; email: string; hasAccount: boolean; createdAt: number; permission: 'read' | 'write' }>(
       `/api/word-lists/${listId}/shares`, { method: 'POST', body: { email } }
     )
     activeListShares.value.push(share)

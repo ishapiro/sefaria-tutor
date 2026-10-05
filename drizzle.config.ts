@@ -1,5 +1,7 @@
 import { defineConfig } from 'drizzle-kit'
 
+declare const process: { env: Record<string, string | undefined> }
+
 export default defineConfig({
   // Path to the Drizzle schema that describes the current D1 database structure.
   // You can create this as `drizzle/schema.ts` and keep it in sync with the live schema.

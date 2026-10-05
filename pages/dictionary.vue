@@ -740,7 +740,7 @@ async function fetchStats() {
   const config = useRuntimeConfig()
   const token = config.public.apiAuthToken as string
   try {
-    stats.value = await $fetch('/api/cache/stats', {
+    stats.value = await $fetch<typeof stats.value>('/api/cache/stats', {
       headers: { Authorization: `Bearer ${token}` }
     })
   } catch (err) {
@@ -755,7 +755,7 @@ async function fetchEntries() {
   const config = useRuntimeConfig()
   const token = config.public.apiAuthToken as string
   try {
-    const data = await $fetch('/api/cache/entries', {
+    const data = await $fetch<{ entries: any[]; total: number }>('/api/cache/entries', {
       params: {
         limit,
         offset: offset.value,

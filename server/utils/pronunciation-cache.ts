@@ -1,5 +1,20 @@
 import { normalizePhrase, computeHash } from './cache'
 
+/** Minimal Cloudflare D1/R2 binding shapes used here (avoids a global @cloudflare/workers-types dependency). */
+type D1PreparedStatement = {
+  bind: (...args: unknown[]) => D1PreparedStatement
+  first: () => Promise<unknown>
+  all: () => Promise<unknown>
+  run: () => Promise<unknown>
+}
+type D1Database = {
+  prepare: (query: string) => D1PreparedStatement
+}
+type R2Bucket = {
+  put: (key: string, value: ArrayBuffer | ArrayBufferView | ReadableStream | string, options?: { httpMetadata?: { contentType?: string; cacheControl?: string } }) => Promise<unknown>
+  delete: (key: string) => Promise<void>
+}
+
 // Default max cache size: 500 MB (524,288,000 bytes)
 export const DEFAULT_MAX_CACHE_SIZE_BYTES = 500 * 1024 * 1024 // 500 MB
 

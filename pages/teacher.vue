@@ -143,7 +143,7 @@
         <div v-else-if="sharedLists.length === 0" class="text-gray-500 text-sm py-4">
           No lists are shared with this class yet. Share a word list from your Word List modal.
         </div>
-        <div v-else-if="progressMatrix.length === 0" class="text-gray-500 text-sm py-4">No progress data yet.</div>
+        <div v-else-if="progressWords.length === 0" class="text-gray-500 text-sm py-4">No progress data yet.</div>
         <div v-else class="overflow-x-auto">
           <table class="w-full text-xs">
             <thead>

@@ -13,7 +13,7 @@ export default defineEventHandler(async (event) => {
     .bind(userData.id).run()
 
   const { user: sessionUser } = await getUserSession(event)
-  await setUserSession(event, { user: { ...(sessionUser as object), teamId: null } })
+  await setUserSession(event, { user: { ...sessionUser!, teamId: null } })
 
   return { success: true }
 })

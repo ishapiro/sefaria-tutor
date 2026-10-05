@@ -24,7 +24,7 @@ export default defineEventHandler(async (event) => {
 
   // Refresh session so teamId is immediately available on the client
   const { user: sessionUser } = await getUserSession(event)
-  await setUserSession(event, { user: { ...(sessionUser as object), teamId: team.id } })
+  await setUserSession(event, { user: { ...sessionUser!, teamId: team.id } })
 
   return { success: true, teamId: team.id, teamName: team.name }
 })

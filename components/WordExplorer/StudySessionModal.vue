@@ -153,6 +153,7 @@ export interface StudyWord {
       wordTranslation?: string
       wordRoot?: string
       wordRootTranslation?: string
+      modernHebrewExample?: { sentence?: string; translation?: string }
       [key: string]: unknown
     }
     [key: string]: unknown

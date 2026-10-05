@@ -158,7 +158,7 @@
 
             <!-- User Edit Modal -->
             <div
-              v-if="selectedUser"
+              v-if="selectedUser && editingUser"
               class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50"
               @click.self="cancelEdit"
             >
@@ -1095,12 +1095,14 @@ const loadUserDetails = async () => {
   }
 
   try {
-    selectedUser.value = await $fetch(`/api/admin/users/${selectedUserId.value}`)
+    const userUrl: string = `/api/admin/users/${selectedUserId.value}`
+    const details = await $fetch<NonNullable<typeof selectedUser.value>>(userUrl)
+    selectedUser.value = details
     editingUser.value = {
-      name: selectedUser.value.name,
-      email: selectedUser.value.email,
-      role: selectedUser.value.role,
-      is_verified: Boolean(selectedUser.value.is_verified)
+      name: details.name,
+      email: details.email,
+      role: details.role,
+      is_verified: Boolean(details.is_verified)
     }
     saveMessage.value = ''
   } catch (err: any) {
@@ -1616,7 +1618,8 @@ const loadPronunciationStats = async () => {
   pronunciationStatsLoading.value = true
   pronunciationStatsError.value = ''
   try {
-    pronunciationStats.value = await $fetch('/api/admin/pronunciation-cache/stats')
+    const statsUrl: string = '/api/admin/pronunciation-cache/stats'
+    pronunciationStats.value = await $fetch<typeof pronunciationStats.value>(statsUrl)
   } catch (err: any) {
     pronunciationStatsError.value = err.data?.message || 'Failed to load statistics'
   } finally {

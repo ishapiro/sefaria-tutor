@@ -112,7 +112,7 @@ export default defineEventHandler(async (event) => {
   textForTts = textForTts.replace(/אדוני/g, 'Adonai')
 
   try {
-    const audio = await $fetch<ArrayBuffer>('https://api.openai.com/v1/audio/speech', {
+    const audio = await $fetch<ArrayBuffer, 'arrayBuffer'>('https://api.openai.com/v1/audio/speech', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -689,6 +689,7 @@ export interface WordListEntry {
       word?: string
       wordTranslation?: string
       rootExamples?: Array<{ word: string; translation: string }>
+      modernHebrewExample?: { sentence?: string; translation?: string }
       [key: string]: unknown
     }
   }

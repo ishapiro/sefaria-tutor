@@ -30,7 +30,7 @@ export default defineEventHandler(async (event): Promise<unknown> => {
     const startTime = Date.now()
     const sefariaUserAgent = 'SefariaTutor/0.1.0 (Cogitations; educational Torah study app; https://cogitations.com)'
     // Forward JSON body for non-GET requests (e.g. search-wrapper POST).
-    let forwardBody: unknown
+    let forwardBody: Record<string, unknown> | undefined
     if (event.method && event.method !== 'GET' && event.method !== 'HEAD') {
       try {
         forwardBody = await readBody(event)

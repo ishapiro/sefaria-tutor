@@ -16,9 +16,8 @@ export default defineNuxtConfig({
     '@nuxthub/core',
     'nuxt-auth-utils'
   ],
-  hub: {
-    database: true,
-  },
+  // NuxtHub 0.10 dropped `hub.database`; D1 is accessed via event.context.cloudflare.env.DB.
+  hub: {},
   nitro: {
     preset: 'cloudflare_module',
     cloudflare: {
@@ -33,6 +32,7 @@ export default defineNuxtConfig({
     // Session cookie lasts 30 days so users stay logged in across browser sessions (nuxt-auth-utils)
     session: {
       maxAge: 60 * 60 * 24 * 30, // 30 days, in seconds
+      password: '', // Set via NUXT_SESSION_PASSWORD (same default nuxt-auth-utils applies)
     },
     public: {
       appName: 'Shoresh',
