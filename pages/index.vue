@@ -102,6 +102,7 @@
       :show-origin-verse="!!(returnToSefariaRef && originVerseIsTanakh)"
       :origin-verse-he="originVerseContent?.he ?? null"
       :origin-verse-en="originVerseContent?.en ?? null"
+      :copied-key="copiedStatus"
       @close-book="handleCloseBook"
       @open-word-list="onOpenWordList"
       @open-notes-list="onOpenNotesList"
@@ -116,6 +117,16 @@
       @open-commentaries="onOpenCommentaries"
       @return-to-origin="onReturnToOrigin"
       @update:first="first = $event"
+      @copy-paragraph="onCopyParagraph"
+      @open-chapter-translation="showChapterTranslation = true"
+    />
+
+    <!-- Whole-chapter plain translation (paragraph by paragraph) -->
+    <WordExplorerChapterTranslationModal
+      :open="showChapterTranslation"
+      :title="chapterTranslationTitle"
+      :paragraphs="chapterTranslationParagraphs"
+      @close="showChapterTranslation = false"
     />
 
     <!-- Content view debug dialog -->
@@ -1063,7 +1074,11 @@ const currentPageText = computed(() => {
 
 /** Sefaria ref for a verse/section by its index on the current page (for links/commentaries API). */
 function getVerseSefariaRef (sectionIndex: number): string | null {
-  const globalIndex = first.value + sectionIndex
+  return getVerseSefariaRefByGlobalIndex(first.value + sectionIndex)
+}
+
+/** Sefaria ref for a verse/section by its index in the whole loaded chapter/section. */
+function getVerseSefariaRefByGlobalIndex (globalIndex: number): string | null {
   const section = allVerseData.value[globalIndex]
   if (!section || !selectedBook.value) return null
   const bookTitle = selectedBookTitle.value
@@ -1086,6 +1101,42 @@ function sefariaRefToApiTref (ref: string): string {
   const book = t.slice(0, lastSpace).trim()
   const segment = t.slice(lastSpace + 1).replace(/:/g, '.')
   return `${book.replace(/\s+/g, '_')}.${segment}`
+}
+
+/** Human-readable ref for copy/share: "Genesis 1:3" for Tanakh, otherwise "<section ref> · <segment number>". */
+function getParagraphCopyRef (globalIndex: number): string {
+  const section = allVerseData.value[globalIndex]
+  const ref = getVerseSefariaRefByGlobalIndex(globalIndex)
+  const num = String(section?.displayNumber ?? '')
+  if (!ref) return num
+  if (selectedBook.value?.categories?.includes('Tanakh')) return ref
+  return num ? `${ref} · ${num}` : ref
+}
+
+const showChapterTranslation = ref(false)
+
+const chapterTranslationTitle = computed(() =>
+  `${selectedBookTitle.value}${currentChapter.value ? ` (${currentChapter.value})` : ''}`
+)
+
+const chapterTranslationParagraphs = computed(() =>
+  allVerseData.value.map((v, i) => ({
+    label: String(v.displayNumber ?? i + 1),
+    ref: getParagraphCopyRef(i),
+    he: getPlainTextFromHtml(v.he ?? ''),
+  }))
+)
+
+function onCopyParagraph (sectionIndex: number) {
+  const globalIndex = first.value + sectionIndex
+  const section = allVerseData.value[globalIndex]
+  if (!section) return
+  const lines = [
+    getParagraphCopyRef(globalIndex),
+    getPlainTextFromHtml(section.he ?? ''),
+    getPlainTextFromHtml(section.en ?? ''),
+  ].filter(Boolean)
+  copyToClipboardWithFeedback(lines.join('\n'), 'para-' + sectionIndex)
 }
 
 const showSectionList = computed(() => (complexSections.value?.length ?? 0) > 0 && allVerseData.value.length === 0)

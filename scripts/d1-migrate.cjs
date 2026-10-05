@@ -143,6 +143,15 @@ function main() {
   assertColumn('sentence_grammar_cache', 'version', wranglerFlags);
   assertColumn('sentence_grammar_cache', 'prompt_hash', wranglerFlags);
 
+  // Paragraph translation cache
+  assertTable('paragraph_translation_cache', wranglerFlags);
+  assertColumn('paragraph_translation_cache', 'paragraph_hash', wranglerFlags);
+  assertColumn('paragraph_translation_cache', 'paragraph', wranglerFlags);
+  assertColumn('paragraph_translation_cache', 'translation', wranglerFlags);
+  assertColumn('paragraph_translation_cache', 'created_at', wranglerFlags);
+  assertColumn('paragraph_translation_cache', 'version', wranglerFlags);
+  assertColumn('paragraph_translation_cache', 'prompt_hash', wranglerFlags);
+
   console.log('D1 schema verification succeeded.\n');
 }
 

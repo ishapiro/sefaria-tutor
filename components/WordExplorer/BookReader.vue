@@ -25,6 +25,17 @@
               <span>{{ showEnglishColumn ? 'Hide EN' : 'Show EN' }}</span>
             </button>
             <button
+              v-if="canTranslateChapter"
+              type="button"
+              class="px-2 py-1 text-xs font-medium border border-gray-300 rounded-md transition-all duration-150 inline-flex items-center gap-1 min-h-[32px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
+              title="Translate the whole chapter into plain English, paragraph by paragraph. Results are cached; you can copy or share them. (Inspired by Jeff)"
+              aria-label="Translate the whole chapter"
+              @click="$emit('open-chapter-translation')"
+            >
+              <span class="text-sm leading-none" aria-hidden="true">🌐</span>
+              <span>Translate</span>
+            </button>
+            <button
               v-if="showReturnButton"
               type="button"
               class="px-2 py-1 text-xs font-medium border border-blue-500 rounded-md transition-all duration-150 inline-flex items-center gap-1 min-h-[32px] bg-blue-50 text-blue-700 hover:bg-blue-100 hover:border-blue-600 max-w-[120px]"
@@ -90,6 +101,16 @@
           >
             <span class="text-base leading-none" aria-hidden="true">🔤</span>
             <span>{{ showEnglishColumn ? 'Hide English' : 'Show English' }}</span>
+          </button>
+          <button
+            v-if="canTranslateChapter"
+            type="button"
+            class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center gap-2 min-h-[36px] bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
+            title="Translate the whole chapter into plain English, paragraph by paragraph. Results are cached; you can copy or share them. (Inspired by Jeff)"
+            @click="$emit('open-chapter-translation')"
+          >
+            <span class="text-base leading-none" aria-hidden="true">🌐</span>
+            <span>Translate</span>
           </button>
           <button
             type="button"
@@ -279,6 +300,21 @@
               >
                 <span class="verse-action-icon text-base leading-none" aria-hidden="true">📝</span>
               </button>
+              <button
+                type="button"
+                class="verse-action-btn h-9 w-9 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors inline-flex touch-manipulation items-center justify-center flex-shrink-0"
+                :title="copiedKey === 'para-' + index ? 'Copied' : 'Copy paragraph'"
+                aria-label="Copy this paragraph to clipboard"
+                @click.stop="$emit('copy-paragraph', index)"
+                @touchstart.passive.stop
+              >
+                <svg v-if="copiedKey === 'para-' + index" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              </button>
             </div>
             <!-- Desktop: Actions column: paragraph number (bold) + links and notes, aligned with top of row -->
             <div
@@ -307,6 +343,21 @@
                   @touchstart.passive.stop
                 >
                   <span class="verse-action-icon text-base leading-none" aria-hidden="true">📝</span>
+                </button>
+                <button
+                  type="button"
+                  class="verse-action-btn h-9 w-9 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors inline-flex touch-manipulation items-center justify-center flex-shrink-0"
+                  :title="copiedKey === 'para-' + index ? 'Copied' : 'Copy paragraph'"
+                  aria-label="Copy this paragraph to clipboard"
+                  @click.stop="$emit('copy-paragraph', index)"
+                  @touchstart.passive.stop
+                >
+                  <svg v-if="copiedKey === 'para-' + index" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
                 </button>
               </div>
             </div>
@@ -583,7 +634,14 @@ const props = defineProps<{
   showOriginVerse: boolean
   originVerseHe: string | null
   originVerseEn: string | null
+  /** Key of the most recently copied item (e.g. "para-2"), for copy feedback. */
+  copiedKey?: string | null
 }>()
+
+/** Show "Translate" only when reading text (not the section list / not-available view). */
+const canTranslateChapter = computed(() =>
+  !props.loading && !props.showSectionList && !props.showBookNotAvailable && props.totalRecords > 0
+)
 
 const isOnLastPage = computed(() =>
   props.first + props.rowsPerPage >= props.totalRecords
@@ -661,6 +719,8 @@ const emit = defineEmits<{
   'phrase-click': [phrase: string, fromHebrew: boolean]
   'open-note': [rowIndex: number]
   'open-commentaries': [sectionIndex: number]
+  'copy-paragraph': [sectionIndex: number]
+  'open-chapter-translation': []
   'return-to-origin': []
   'update:first': [value: number]
 }>()

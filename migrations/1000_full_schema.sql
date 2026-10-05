@@ -247,3 +247,16 @@ CREATE TABLE IF NOT EXISTS sentence_grammar_cache (
     prompt_hash TEXT NOT NULL
 );
 
+
+-------------------------------------------------------------------------------
+-- Paragraph translation cache (Translate chapter)
+-------------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS paragraph_translation_cache (
+    paragraph_hash TEXT PRIMARY KEY,
+    paragraph TEXT NOT NULL,
+    translation TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    version INTEGER NOT NULL,
+    prompt_hash TEXT NOT NULL
+);

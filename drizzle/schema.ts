@@ -195,3 +195,14 @@ export const sentenceGrammarCache = sqliteTable('sentence_grammar_cache', {
   promptHash: text('prompt_hash').notNull(),
 })
 
+// Paragraph translation cache (Translate chapter)
+
+export const paragraphTranslationCache = sqliteTable('paragraph_translation_cache', {
+  paragraphHash: text('paragraph_hash').primaryKey(),
+  paragraph: text('paragraph').notNull(),
+  translation: text('translation').notNull(),
+  createdAt: integer('created_at').notNull(),
+  version: integer('version').notNull(),
+  promptHash: text('prompt_hash').notNull(),
+})
+
