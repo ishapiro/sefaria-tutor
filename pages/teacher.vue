@@ -125,6 +125,53 @@
         </div>
       </section>
 
+      <!-- Class notes published to the active class -->
+      <section v-if="activeClassId" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <h2 class="text-lg font-semibold text-gray-800">Class Notes</h2>
+            <p class="text-xs text-gray-500 mt-0.5">Notes you post here show up for students under 🏫 Class Notes.</p>
+          </div>
+          <button
+            type="button"
+            class="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+            @click="openPublishModal"
+          >
+            + Post a Note
+          </button>
+        </div>
+
+        <div v-if="classNotesLoading" class="text-gray-500 text-sm py-4">Loading class notes…</div>
+        <div v-else-if="classNotes.length === 0" class="text-gray-500 text-sm py-4">
+          No notes posted to this class yet. Write a note on any verse with the 📝 icon, then click <strong>+ Post a Note</strong>.
+        </div>
+        <ul v-else class="space-y-3">
+          <li
+            v-for="note in classNotes"
+            :key="note.publicationId"
+            class="border border-indigo-200 rounded-lg p-3 bg-indigo-50"
+          >
+            <div class="flex justify-between items-start gap-3 mb-1 text-xs text-indigo-600">
+              <span class="font-medium">{{ note.refDisplay }}</span>
+              <span class="shrink-0">Posted {{ formatDate(note.publishedAt) }}</span>
+            </div>
+            <div class="text-base text-right font-semibold text-gray-900" style="direction: rtl">{{ note.hePhrase }}</div>
+            <div class="text-sm text-gray-700 mb-2">{{ note.enPhrase }}</div>
+            <div class="flex justify-between items-end gap-3 border-t border-indigo-100 pt-2">
+              <p class="text-sm text-gray-800 italic whitespace-pre-wrap">{{ note.noteText }}</p>
+              <button
+                type="button"
+                class="shrink-0 text-xs text-red-500 hover:text-red-700 hover:underline disabled:opacity-50"
+                :disabled="unpublishingId === note.publicationId"
+                @click="unpublishNote(note.publicationId)"
+              >
+                {{ unpublishingId === note.publicationId ? 'Removing…' : 'Remove from class' }}
+              </button>
+            </div>
+          </li>
+        </ul>
+      </section>
+
       <!-- Progress matrix for a shared list -->
       <section v-if="activeClassId" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
         <div class="flex flex-wrap items-center gap-3 mb-4">
@@ -209,6 +256,67 @@
       </div>
     </div>
 
+    <!-- Post a note to the class -->
+    <div
+      v-if="showPublishModal"
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+      @click.self="showPublishModal = false"
+    >
+      <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden">
+        <div class="flex items-start justify-between gap-3 p-4 border-b border-gray-200">
+          <div>
+            <h3 class="text-base font-semibold text-gray-900">Post a Note to {{ activeClass?.name }}</h3>
+            <p class="text-xs text-gray-500 mt-0.5">Pick from your own notes. Students see the note and the verse it belongs to.</p>
+          </div>
+          <button
+            type="button"
+            class="p-1.5 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+            aria-label="Close"
+            @click="showPublishModal = false"
+          >
+            <span class="text-lg leading-none">×</span>
+          </button>
+        </div>
+        <div class="p-4 border-b border-gray-100">
+          <input
+            v-model="myNotesSearch"
+            type="text"
+            placeholder="Search your notes…"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+          />
+        </div>
+        <div class="p-4 overflow-y-auto flex-1">
+          <div v-if="myNotesLoading" class="text-gray-500 text-sm py-4">Loading your notes…</div>
+          <div v-else-if="myNotes.length === 0" class="text-gray-500 text-sm py-4">
+            You don't have any notes yet. Open a book, click the 📝 icon next to a verse, write your note, then come back here.
+          </div>
+          <div v-else-if="filteredMyNotes.length === 0" class="text-gray-500 text-sm py-4">No notes match your search.</div>
+          <ul v-else class="space-y-2">
+            <li
+              v-for="note in filteredMyNotes"
+              :key="note.id"
+              class="flex items-start justify-between gap-3 border border-gray-200 rounded-lg p-3"
+            >
+              <div class="min-w-0">
+                <p class="text-xs font-medium text-indigo-600">{{ note.refDisplay }}</p>
+                <p class="text-sm text-gray-800 whitespace-pre-wrap line-clamp-3">{{ note.noteText }}</p>
+              </div>
+              <span v-if="publishedNoteIds.has(note.id)" class="shrink-0 text-xs text-green-700 font-medium py-1.5">✓ Posted</span>
+              <button
+                v-else
+                type="button"
+                class="shrink-0 px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                :disabled="publishingId === note.id"
+                @click="publishNote(note.id)"
+              >
+                {{ publishingId === note.id ? 'Posting…' : 'Post' }}
+              </button>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
     <!-- Delete class confirmation -->
     <div
       v-if="classToDelete"
@@ -264,11 +372,20 @@
           </p>
         </div>
         <div>
+          <h4 class="font-semibold text-gray-900 mb-1">Class Notes</h4>
+          <p>
+            First write a note on any verse using the 📝 icon in the reader. Then come back here, pick a class, and click <strong>+ Post a Note</strong> to choose which of your notes to share. Students in that class see posted notes when they click <strong>🏫 Class Notes</strong>, and can jump straight to the verse. If you edit the note later, students see the new text. <strong>Remove from class</strong> hides it from students but keeps it in your own My Notes; deleting the note from My Notes removes it from every class.
+          </p>
+        </div>
+        <div>
           <h4 class="font-semibold text-gray-900 mb-1">Word List Progress</h4>
           <p>
             Once a list is shared with a class, the progress matrix shows each word as a row and each student as a column. <strong>✅</strong> means the student answered correctly at least once; <strong>⭕</strong> means they've attempted it but not gotten it right yet; <strong>—</strong> means they haven't studied it at all. Hover over any cell to see exact correct/shown counts. Use the dropdown to filter by a specific shared list.
           </p>
         </div>
+        <p class="border-t border-gray-200 pt-3">
+          For the full user guide, go back to the app and click the <strong>Help</strong> button on the home page.
+        </p>
       </div>
     </div>
   </div>
@@ -297,6 +414,29 @@ const progressRows = ref<Array<{
   studentId: string; studentName: string | null; studentEmail: string
   timesShown: number; timesCorrect: number; attemptsUntilFirstCorrect: number | null
 }>>([])
+
+type ClassNote = {
+  publicationId: number; publishedAt: number; id: number
+  hePhrase: string; enPhrase: string; refDisplay: string; noteText: string
+}
+const classNotes = ref<ClassNote[]>([])
+const classNotesLoading = ref(false)
+const unpublishingId = ref<number | null>(null)
+
+const showPublishModal = ref(false)
+const myNotes = ref<Array<{ id: number; refDisplay: string; noteText: string; hePhrase: string; enPhrase: string }>>([])
+const myNotesLoading = ref(false)
+const myNotesSearch = ref('')
+const publishingId = ref<number | null>(null)
+
+const publishedNoteIds = computed(() => new Set(classNotes.value.map(n => n.id)))
+const filteredMyNotes = computed(() => {
+  const q = myNotesSearch.value.trim().toLowerCase()
+  if (!q) return myNotes.value
+  return myNotes.value.filter(n =>
+    [n.refDisplay, n.noteText, n.hePhrase, n.enPhrase].some(s => (s || '').toLowerCase().includes(q))
+  )
+})
 
 const activeClass = computed(() => classes.value.find(c => c.id === activeClassId.value) ?? null)
 
@@ -336,7 +476,65 @@ async function fetchClasses() {
 async function selectClass(id: string) {
   activeClassId.value = id
   selectedListId.value = null
-  await Promise.all([fetchStudents(id), fetchSharedLists(id), fetchProgress(id, null)])
+  await Promise.all([fetchStudents(id), fetchSharedLists(id), fetchProgress(id, null), fetchClassNotes(id)])
+}
+
+async function fetchClassNotes(classId: string) {
+  classNotesLoading.value = true
+  try {
+    const res = await $fetch<{ notes: ClassNote[] }>(`/api/teacher/classes/${classId}/notes`)
+    if (activeClassId.value === classId) classNotes.value = res.notes || []
+  } catch {
+    classNotes.value = []
+  } finally {
+    classNotesLoading.value = false
+  }
+}
+
+async function openPublishModal() {
+  showPublishModal.value = true
+  myNotesSearch.value = ''
+  myNotesLoading.value = true
+  try {
+    const res = await $fetch<{ notes: typeof myNotes.value }>('/api/notes', { params: { limit: 200 } })
+    myNotes.value = res.notes || []
+  } catch {
+    myNotes.value = []
+  } finally {
+    myNotesLoading.value = false
+  }
+}
+
+async function publishNote(noteId: number) {
+  const classId = activeClassId.value
+  if (!classId) return
+  publishingId.value = noteId
+  try {
+    await $fetch('/api/teacher/class/notes', { method: 'POST', body: { noteId, classId } })
+    await fetchClassNotes(classId)
+  } catch (err: any) {
+    alert(err?.data?.message || 'Failed to post note')
+  } finally {
+    publishingId.value = null
+  }
+}
+
+async function unpublishNote(publicationId: number) {
+  const classId = activeClassId.value
+  if (!classId) return
+  unpublishingId.value = publicationId
+  try {
+    await $fetch(`/api/teacher/class/notes/${publicationId}`, { method: 'DELETE', query: { classId } })
+    classNotes.value = classNotes.value.filter(n => n.publicationId !== publicationId)
+  } catch (err: any) {
+    alert(err?.data?.message || 'Failed to remove note from class')
+  } finally {
+    unpublishingId.value = null
+  }
+}
+
+function formatDate(seconds: number) {
+  return new Date(seconds * 1000).toLocaleDateString()
 }
 
 async function fetchStudents(classId: string) {
@@ -404,7 +602,7 @@ async function deleteClass() {
     if (activeClassId.value === id) {
       activeClassId.value = classes.value[0]?.id ?? null
       if (activeClassId.value) await selectClass(activeClassId.value)
-      else { students.value = []; progressRows.value = [] }
+      else { students.value = []; progressRows.value = []; classNotes.value = [] }
     }
   } catch (err: any) {
     alert(err?.data?.message || 'Failed to delete class')

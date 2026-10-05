@@ -4,6 +4,17 @@ All notable changes to Sefaria Word Explorer (Shoresh) are documented in this fi
 
 ---
 
+## October 2026
+
+### Classes — Teacher Class Notes
+
+- **Post notes to a class** — The Teacher Dashboard has a new **Class Notes** section. Click **+ Post a Note** to pick from your own notes and share them with the selected class; **Remove from class** takes a note back without deleting it. New endpoint `GET /api/teacher/classes/[classId]/notes`.
+- **Student view** — Students now see a **🏫 Class Notes** button on the reading page as well as the home page. Each class note links to its verse and shows when it was posted.
+- **Fix: DELETE requests hung** — `readBody()` on a DELETE request hangs in the Workers runtime, so "Unshare from class", "Delete word list", and removing a class note never completed. These endpoints now take their parameters (`classId`, `confirm=true`) from the query string.
+- **Help** — In-app Help, the Teacher Dashboard Usage box, and the Educator Overview describe the class notes workflow. The home page Usage box now points to the full Help guide, and the Usage button lines up with the page title. The Teacher Dashboard screenshot has been retaken to show Class Notes.
+
+---
+
 ## [Unreleased] – February 2026
 
 ### Admin Features

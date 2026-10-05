@@ -1,4 +1,4 @@
-import { defineEventHandler, createError, getRouterParam, readBody } from 'h3'
+import { defineEventHandler, createError, getRouterParam, getQuery } from 'h3'
 import { requireUserRole } from '~/server/utils/auth'
 
 export default defineEventHandler(async (event) => {
@@ -21,9 +21,9 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'Invalid list ID' })
   }
 
-  const body = await readBody(event).catch(() => ({}))
-  if (body?.confirm !== true) {
-    throw createError({ statusCode: 400, message: 'Deletion requires confirm: true in the request body' })
+  // Query string, not body: readBody() on DELETE hangs in the Workers runtime
+  if (getQuery(event).confirm !== 'true') {
+    throw createError({ statusCode: 400, message: 'Deletion requires confirm=true in the query string' })
   }
 
   try {

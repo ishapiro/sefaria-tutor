@@ -8,23 +8,23 @@
       :estimated-word-count="translationLoading ? translationInProgressWordCount : 0"
       :seconds-per-word="translationSecondsPerWord"
     />
-    <div class="mb-3 sm:mb-4 flex flex-wrap items-center gap-2">
-      <div>
+    <div class="mb-3 sm:mb-4">
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
         <h1 class="text-lg sm:text-xl font-bold mb-0">
           Text and Vocabulary Study
           <span class="pl-2 text-sm sm:text-base font-normal text-gray-600 hidden sm:inline">(Using OpenAI Model: {{ openaiModel }})</span>
         </h1>
-        <p v-if="!selectedBook" class="text-sm text-gray-600 mt-0.5">Choose text to study</p>
-        <p v-else class="text-sm text-gray-600 mt-0.5">Reading · Vocabulary · Study</p>
+        <button
+          v-if="!selectedBook"
+          type="button"
+          class="px-2 py-0.5 text-xs font-medium leading-5 border border-green-500 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-green-50 hover:border-green-600"
+          @click="showUsageModal = true"
+        >
+          Usage
+        </button>
       </div>
-      <button
-        v-if="!selectedBook"
-        type="button"
-        class="px-2 py-1 text-xs font-medium border border-green-500 rounded-lg transition-all duration-150 inline-flex items-center bg-white text-gray-700 hover:bg-green-50 hover:border-green-600"
-        @click="showUsageModal = true"
-      >
-        Usage
-      </button>
+      <p v-if="!selectedBook" class="text-sm text-gray-600 mt-0.5">Choose text to study</p>
+      <p v-else class="text-sm text-gray-600 mt-0.5">Reading · Vocabulary · Study</p>
     </div>
 
     <!-- Loading index -->
@@ -263,13 +263,20 @@
             :key="note.id"
             class="border border-indigo-200 rounded-lg p-4 bg-indigo-50"
           >
-            <div class="flex justify-between items-start mb-2 text-xs text-indigo-600">
-              <span>{{ note.refDisplay }}</span>
-              <span>{{ note.teacherName || note.teacherEmail }}</span>
+            <div class="flex justify-between items-start gap-3 mb-2 text-xs text-indigo-600">
+              <button
+                type="button"
+                class="font-medium text-left hover:underline"
+                title="Go to this verse"
+                @click="showClassNotesModal = false; navigateToNoteReference(note)"
+              >
+                {{ note.refDisplay }} →
+              </button>
+              <span class="shrink-0 text-right">{{ note.teacherName || note.teacherEmail }} · {{ new Date(note.publishedAt * 1000).toLocaleDateString() }}</span>
             </div>
             <div class="text-lg text-right font-semibold text-gray-900 mb-1" style="direction: rtl">{{ note.hePhrase }}</div>
             <div class="text-sm text-gray-700 mb-2">{{ note.enPhrase }}</div>
-            <div class="text-sm text-gray-800 italic border-t border-indigo-100 pt-2">{{ note.noteText }}</div>
+            <div class="text-sm text-gray-800 italic border-t border-indigo-100 pt-2 whitespace-pre-wrap">{{ note.noteText }}</div>
           </div>
         </div>
       </div>
@@ -400,6 +407,9 @@
           </p>
           <p>
             <strong>How to use it:</strong> Open a book from the list, then pick a section (e.g. a Torah portion or Talmud tractate). In the reader, tap any Hebrew phrase to open the translation popup. You can add words to “My Word List” for later study, add notes to numbered entries when signed in, and use the Study button to practice with flashcards.
+          </p>
+          <p class="border-t border-gray-200 pt-3">
+            <strong>Want the full guide?</strong> Close this box and click the <strong>Help</strong> button (next to the search bar) for step-by-step help on every feature, including word lists, flashcards, notes, and classes.
           </p>
         </div>
       </div>
@@ -709,7 +719,7 @@ const teacherClasses = ref<Array<{ id: string; name: string; inviteCode: string;
 
 // Class Notes (student view)
 const showClassNotesModal = ref(false)
-const classNotes = ref<Array<{ id: number; hePhrase: string; enPhrase: string; refDisplay: string; noteText: string; teacherName: string | null; teacherEmail: string; publishedAt: number }>>([])
+const classNotes = ref<Array<{ id: number; hePhrase: string; enPhrase: string; refDisplay: string; sefariaRef: string; bookTitle?: string; bookPath?: string; noteText: string; teacherName: string | null; teacherEmail: string; publishedAt: number }>>([])
 const classNotesLoading = ref(false)
 const wordToHighlight = ref<string | null>(null) // Hebrew word to highlight after navigation
 
@@ -2997,7 +3007,7 @@ async function renameWordList(id: number, name: string) {
 
 async function deleteWordList(id: number) {
   try {
-    await $fetch(`/api/word-lists/${id}`, { method: 'DELETE', body: { confirm: true } })
+    await $fetch(`/api/word-lists/${id}`, { method: 'DELETE', query: { confirm: 'true' } })
     namedLists.value = namedLists.value.filter(l => l.id !== id)
     await onActiveListChange(null)
   } catch (err: any) {
@@ -3049,7 +3059,7 @@ async function shareWithClass(listId: number, classId: string) {
 
 async function unshareFromClass(listId: number, classId: string) {
   try {
-    await $fetch(`/api/word-lists/${listId}/share-class`, { method: 'DELETE', body: { classId } })
+    await $fetch(`/api/word-lists/${listId}/share-class`, { method: 'DELETE', query: { classId } })
     await fetchNamedLists()
   } catch (err: any) {
     alert(err?.data?.message || 'Failed to unshare from class')

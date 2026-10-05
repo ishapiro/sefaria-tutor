@@ -79,6 +79,15 @@
             <span class="text-sm leading-none">📝</span>
             <span>Notes</span>
           </button>
+          <button
+            v-if="loggedIn && userTeamId && !isTeacher"
+            type="button"
+            class="flex-1 px-2 py-1 text-xs font-medium border border-indigo-300 rounded-md transition-all duration-150 inline-flex items-center justify-center gap-1 min-h-[32px] bg-white text-indigo-700 hover:bg-indigo-50"
+            @click="$emit('open-class-notes')"
+          >
+            <span class="text-sm leading-none">🏫</span>
+            <span>Class</span>
+          </button>
         </div>
       </div>
       <!-- Desktop: Horizontal layout -->
@@ -133,6 +142,15 @@
           >
             <span class="text-base leading-none">📝</span>
             <span>My Notes</span>
+          </button>
+          <button
+            v-if="loggedIn && userTeamId && !isTeacher"
+            type="button"
+            class="px-4 py-2 text-sm font-medium border border-indigo-300 rounded-lg transition-all duration-150 whitespace-nowrap inline-flex items-center gap-2 min-h-[36px] bg-white text-indigo-700 hover:bg-indigo-50"
+            @click="$emit('open-class-notes')"
+          >
+            <span class="text-base leading-none">🏫</span>
+            <span>Class Notes</span>
           </button>
           <button
             v-if="showReturnButton"
@@ -621,6 +639,8 @@ const props = defineProps<{
   wordToHighlight: string | null
   loggedIn: boolean
   isAdmin: boolean
+  isTeacher?: boolean
+  userTeamId?: string | null
   showWordListModal: boolean
   showNotesListModal: boolean
   splitIntoPhrases: (segment: string) => string[]
@@ -711,6 +731,7 @@ const emit = defineEmits<{
   'close-book': []
   'open-word-list': []
   'open-notes-list': []
+  'open-class-notes': []
   'select-section': [ref: string, title: string, isPrevSection?: boolean]
   'go-back-section': []
   'open-section-list-debug': []

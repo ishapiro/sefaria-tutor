@@ -220,7 +220,7 @@
             <li>Change or delete a note any time.</li>
             <li>Check the boxes next to several notes to print them or copy them all at once.</li>
             <li>Click a note's verse name to go back to that verse.</li>
-            <li>Only you can see your notes. They show up on every device you sign in on.</li>
+            <li>Only you can see your notes, unless you are a teacher and post one to your class. They show up on every device you sign in on.</li>
           </ul>
         </section>
 
@@ -231,7 +231,7 @@
           </p>
           <ul class="space-y-1.5 text-slate-600 text-sm list-disc list-inside mb-3">
             <li>Word lists your teacher shares show up in My Word List on their own. They are marked as class lists, and you can study them but not change them.</li>
-            <li>Click <strong>🏫 Class Notes</strong> to read notes your teacher has posted for the class.</li>
+            <li>Click <strong>🏫 Class Notes</strong> (on the home page or the reading page) to read notes your teacher has posted for the class. Click the verse name on a note to jump right to that verse.</li>
             <li>You can leave a class from the Settings page.</li>
           </ul>
           <p class="text-slate-600 text-sm leading-relaxed mb-2">
@@ -239,7 +239,7 @@
           </p>
           <figure class="my-3">
             <a href="/help/teacher.webp" target="_blank" rel="noopener" title="Open a bigger picture">
-              <img src="/help/teacher.webp" alt="The Teacher Dashboard showing a class called Hebrew 101 with its invite code, a list of four students with their study numbers, and a Word List Progress chart." width="1020" height="1170" loading="lazy" class="w-full h-auto rounded-lg border border-slate-200 shadow-sm" />
+              <img src="/help/teacher.webp" alt="The Teacher Dashboard showing a class called Hebrew 101 with its invite code, a list of four students with their study numbers, two notes posted to the class with a Post a Note button, and a Word List Progress chart." width="1020" height="1482" loading="lazy" class="w-full h-auto rounded-lg border border-slate-200 shadow-sm" />
             </a>
             <figcaption class="text-xs text-slate-500 mt-1.5">The Teacher Dashboard, using a sample class.</figcaption>
           </figure>
@@ -247,6 +247,7 @@
             <li>Click <strong>+ New Class</strong> to make a class. Each class gets its own invite code to give to students.</li>
             <li>See who is in each class and how much each student has studied. You can remove a student if needed.</li>
             <li>To give your class a word list, open My Word List, pick a list, and click <strong>📚 Share with Class</strong>.</li>
+            <li>To give your class a note, first write it on a verse with the 📝 icon. Then, on the Teacher Dashboard, pick the class and click <strong>+ Post a Note</strong> to choose which of your notes to share. If you change the note later, students see the new version. Click <strong>Remove from class</strong> to take it back; the note stays in your own My Notes.</li>
             <li>The <strong>Word List Progress</strong> chart shows how each student is doing on each word: ✅ got it right, ⭕ tried but not right yet, — not studied yet.</li>
           </ul>
         </section>

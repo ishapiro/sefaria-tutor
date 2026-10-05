@@ -27,7 +27,12 @@ The following features are currently live and ready for use in the classroom or 
 *   **Google & Email Authentication:** Secure accounts for students to manage their study sessions.
 *   **Role-Based Access (Student / Teacher / Admin):**
     *   Admin users can manage accounts (promote to teacher, disable or restore accounts).
-    *   Future features will key off these roles to expose teacher-only views and reporting.
+    *   Teacher accounts unlock the Teacher Dashboard (below).
+*   **Classes & Teacher Dashboard:**
+    *   Teachers create classes; each class gets an invite code students enter on their Settings page.
+    *   **Shared Word Lists:** Share any of your word lists with a class. Students see it automatically as a read-only class list they can study with flashcards.
+    *   **Class Notes:** Write a note on any verse, then post it to a class from the Teacher Dashboard (**+ Post a Note**). Students read it under **🏫 Class Notes** and can jump straight to the verse. Edits to the note show up for students; **Remove from class** takes it back.
+    *   **Roster & Progress:** See each student's study totals and a word-by-word progress chart for shared lists.
 
 ---
 

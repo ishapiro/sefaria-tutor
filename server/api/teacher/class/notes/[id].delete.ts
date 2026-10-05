@@ -1,4 +1,4 @@
-import { defineEventHandler, createError, getRouterParam, readBody } from 'h3'
+import { defineEventHandler, createError, getRouterParam, getQuery } from 'h3'
 import { requireUserRole } from '~/server/utils/auth'
 
 export default defineEventHandler(async (event) => {
@@ -13,8 +13,9 @@ export default defineEventHandler(async (event) => {
   const id = parseInt(getRouterParam(event, 'id') || '', 10)
   if (isNaN(id)) throw createError({ statusCode: 400, message: 'Invalid ID' })
 
-  const body = await readBody(event).catch(() => ({}))
-  const classId = typeof body?.classId === 'string' ? body.classId.trim() : ''
+  // Query string, not body: readBody() on DELETE hangs in the Workers runtime
+  const { classId: rawClassId } = getQuery(event)
+  const classId = typeof rawClassId === 'string' ? rawClassId.trim() : ''
   if (!classId) throw createError({ statusCode: 400, message: 'classId is required' })
 
   // Verify teacher leads the class

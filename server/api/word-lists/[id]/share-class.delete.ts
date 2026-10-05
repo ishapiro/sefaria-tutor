@@ -1,4 +1,4 @@
-import { defineEventHandler, createError, getRouterParam, readBody } from 'h3'
+import { defineEventHandler, createError, getRouterParam, getQuery } from 'h3'
 import { requireUserRole } from '~/server/utils/auth'
 
 export default defineEventHandler(async (event) => {
@@ -12,8 +12,9 @@ export default defineEventHandler(async (event) => {
   const listId = parseInt(getRouterParam(event, 'id') || '', 10)
   if (isNaN(listId)) throw createError({ statusCode: 400, message: 'Invalid list ID' })
 
-  const body = await readBody(event).catch(() => ({}))
-  const classId = typeof body?.classId === 'string' ? body.classId.trim() : ''
+  // Query string, not body: readBody() on DELETE hangs in the Workers runtime
+  const { classId: rawClassId } = getQuery(event)
+  const classId = typeof rawClassId === 'string' ? rawClassId.trim() : ''
   if (!classId) throw createError({ statusCode: 400, message: 'classId is required' })
 
   const list = await db.prepare('SELECT id FROM word_lists WHERE id = ? AND user_id = ?')
